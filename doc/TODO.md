@@ -96,12 +96,29 @@ from observations; unchecked items remain open.
 
 ## Remaining integration and test gaps
 
+- [x] Remove the visual-order API mismatch between OpenType and frozen khipu
+  glyphs. `otshape.VisualOrder[G any]` now accepts client-defined record slices
+  directly. `pipeline.BuildGlyphProof` applies it in place to each detached
+  `CopyText` glyph fragment with its retained shaping direction, then walks the
+  result forwards. Frozen data and physical knot order remain unchanged; no
+  record conversion or client-owned RTL reversal is needed. Replacement-local
+  anchors and glyph positions move unchanged with their records.
+  `pipeline/visual_order_test.go` covers pointed Hebrew, repeated anchors,
+  selected/unbroken discretionaries, LTR, both breakers, and repeated rendering
+  without frozen-data mutation. Upstream tests cover client-defined records,
+  copying/in-place ownership, and the existing direction/order contract.
 - [ ] Strengthen independent physical-layout oracles. Mixed-direction tests check
   script presence, colors, and geometry copied from the same frozen result, not
   expected physical word order. The single-run oracle derives its starting pen
   from actual output. Add absolute origins, expected knot order, and combinations
   of controls, styles, fallback, directions, and both breakers. Newline-collapse
-  tests now cover real-font and synthetic paths; broader physical oracles remain.
+  tests now cover real-font and synthetic paths. VisualOrder compatibility tests
+  now accumulate expected positions from frozen line skips and knot widths,
+  rather than deriving the first pen from a rendered glyph. However, they share
+  the renderer's ordering helper and frozen geometry, so they do not independently
+  establish correct bidi run arrangement, line origins, or line breaking. The
+  independent HarfBuzz single-run captures remain valuable; broader physical
+  oracles remain open.
 - [ ] Implement reproducible case export/import: original HTML/CSS or text,
   selection, extracted styles/map, font identities/hashes, mappings, units,
   direction, breaker configuration, diagnostics, and sibling repository revisions.
@@ -173,8 +190,23 @@ Issues 1–3 are fixed in uax, the itemizer, and paragraph input processing,
 respectively. Issue 4 is guarded by explicit rejection; full preservation is
 deferred. Issues 5 and 6 are fixed in w3c-dom and htmlinput, respectively.
 Save each reproduction as a focused owning-package
-regression plus a tytui integration case where appropriate. Expand layout oracles
-alongside these fixes, then add replayable case bundles and finish cords cleanup.
+regression plus a tytui integration case where appropriate. The recorded cords
+cleanup and dependency wiring are complete. The generic VisualOrder integration
+resolves the glyph-type mismatch, but does not resolve paragraph bidi or layout
+validation gaps.
+
+**Recommended next gap: independent mixed-direction physical-layout fixtures.**
+Start with a small, manually reviewed LTR/RTL paragraph pair containing Latin,
+pointed Hebrew, punctuation, and digits. Specify expected physical word/knot
+order and absolute line origins independently of the frozen result and
+VisualOrder. Then add explicit directional isolates, a style/font fallback
+boundary, and narrow/wide soft-hyphen cases under both breakers. Reuse independent
+HarfBuzz glyph expectations for individual runs; do not generate expected run
+order or geometry from the implementation under test. Check original source
+provenance and replacement-local anchors alongside rendering. Put any exposed
+defect in its owning package with a focused regression. This closes the most
+important remaining correctness blind spot before adding replayable case bundles
+or broader script support.
 
 Steps 1–3 provide the strongest foundation: headless operation, asynchronous TUI
 lifecycle, fresh owners, freezing, history, and export. Step 4's constrained DOM
@@ -300,3 +332,14 @@ fixtures over a broad shaping repair campaign.
   controls. Historical validation entries remain labeled as prior observations.
 - Checked documentation diffs and relative Markdown links. This refresh changes
   documentation only; runtime tests were not rerun.
+
+## Generic VisualOrder integration validation
+
+- At implementation, opentype and tytui both passed `go test ./... -count=1`,
+  `go build ./...`, and `go vet ./...`. Tytui also passed the full
+  `go test -race ./... -count=1` suite.
+- Focused VisualOrder and renderer compatibility tests passed, as did the
+  independent HarfBuzz proof tests. Compatibility is not a substitute for the
+  independent mixed-direction layout fixtures recommended above.
+- This TODO review updates documentation only; those validation results are
+  from the integration implementation, not a new test run.

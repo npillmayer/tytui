@@ -5,9 +5,9 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/npillmayer/khipu/dimen"
+	"github.com/npillmayer/opentype/otshape"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/sfnt"
-	"golang.org/x/text/unicode/bidi"
 	"io"
 	"math"
 	"regexp"
@@ -53,8 +53,8 @@ func proofColor(result *Result, pos uint64) (string, error) {
 }
 
 // BuildGlyphProof never reshapes, rebreaks, reloads a font file, or reorders knots.
-// Knots are already physical LTR. Within an RTL knot, frozen logical glyphs are
-// visited in reverse visual order, preserving their supplied advances/offsets.
+// Knots are already physical LTR. VisualOrder converts each detached logical
+// glyph fragment to drawing order, preserving its supplied advances/offsets.
 func BuildGlyphProof(result *Result) (*GlyphProof, error) {
 	if result == nil || result.Frozen == nil || result.Input.Fonts == nil {
 		return nil, fmt.Errorf("glyph proof requires a frozen OpenType result")
@@ -109,12 +109,12 @@ func BuildGlyphProof(result *Result) (*GlyphProof, error) {
 				}
 				scale := t.Context.Scale.ToDU(1) / float64(dimen.BP)
 				penX, penY := x, baseline
-				for v := range t.Glyphs {
-					idx := v
-					if t.Context.Params.Direction == bidi.RightToLeft {
-						idx = len(t.Glyphs) - 1 - v
-					}
-					g := t.Glyphs[idx]
+				// CopyText owns these slices; in-place ordering leaves frozen data intact.
+				visual, err := otshape.VisualOrder(t.Glyphs, t.Context.Params.Direction, true)
+				if err != nil {
+					return nil, fmt.Errorf("glyph proof line %d knot %d: %w", li, k, err)
+				}
+				for _, g := range visual {
 					gx, gy := penX+float64(g.XOffset)*scale, penY-float64(g.YOffset)*scale
 					segments, err := face.Outline(g.GlyphID)
 					if err != nil {

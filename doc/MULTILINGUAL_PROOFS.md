@@ -69,10 +69,12 @@ and never reloads the file path. There are no embedded font binaries, external
 resources, SVG text elements, scripts, or browser font substitutions.
 
 Frozen knots are already physical left-to-right. Their final widths, including
-adjusted glue, advance the knot pen. Within each RTL knot, logical glyph records
-are visited in reverse visual order, matching the OpenType proof convention and
-independent Hebrew captures (including marks sharing a cluster). LTR records stay
-in logical order. Glyph advances and offsets are converted once using the retained
+adjusted glue, advance the knot pen. The generic `otshape.VisualOrder` converts
+each knot's logical glyph fragment directly from khipu's glyph type. It reorders
+the detached `CopyText` slice in place, leaving frozen data unchanged. RTL records
+are reversed, including marks sharing a cluster; LTR records stay in logical
+order. Independent Hebrew captures verify the resulting glyph order and positions.
+Glyph advances and offsets are converted once using the retained
 font scale. SVG's downward Y axis negates font Y advances/offsets; sfnt outlines
 already use downward Y coordinates. Knot order is never reversed again.
 
