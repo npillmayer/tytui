@@ -10,6 +10,7 @@ import (
 	"github.com/npillmayer/opentype/ot"
 	"github.com/npillmayer/opentype/otshape"
 	"github.com/npillmayer/opentype/otshape/otcore"
+	"github.com/npillmayer/opentype/otshape/othebrew"
 )
 
 // Stream provides bounded output and synchronous production. It starts no
@@ -105,7 +106,7 @@ func (s *Stream) Shape(ctx context.Context, p contracts.ShapeParams, src contrac
 	opts := otshape.BufferOptions{FlushBoundary: otshape.FlushBoundary(o.Flush), HighWatermark: o.HighWatermark, LowWatermark: o.LowWatermark, MaxBuffer: o.MaxBuffer}
 	face.mu.Lock()
 	defer face.mu.Unlock()
-	err = otshape.NewShaper(otcore.New()).Shape(params, reader, glyphSink{ctx, s.out, base}, opts)
+	err = otshape.NewShaper(othebrew.New(), otcore.New()).Shape(params, reader, glyphSink{ctx, s.out, base}, opts)
 	if err == nil {
 		err = ctx.Err()
 	}

@@ -176,3 +176,32 @@ func TestFeatureRangesAndMissingOutput(t *testing.T) {
 		}
 	}
 }
+
+func TestGraphemeFallbackPolicy(t *testing.T) {
+	settings := Settings{DefaultPath: progressFont, Size: 12 * dimen.BP, Fallbacks: []string{"../../opentype/testdata/fonts/GentiumPlus-R.ttf"}}
+	r, err := LoadSettings(context.Background(), settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, bindings, err := r.Itemize(context.Background(), "a\u0301a", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bindings) != 2 || bindings[0].Start != 0 || bindings[0].End != 3 || bindings[0].Path != settings.Fallbacks[0] || bindings[1].Path != progressFont {
+		t.Fatalf("grapheme split or wrong priority %+v", bindings)
+	}
+	settings.Fallbacks[0] = "missing.ttf"
+	if _, _, err = r.Itemize(context.Background(), "a\u0301a", nil); err != nil {
+		t.Fatal("resolver aliases settings", err)
+	}
+	strict, err := LoadSettings(context.Background(), Settings{DefaultPath: progressFont, Size: 12 * dimen.BP})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = strict.Itemize(context.Background(), "a\u0301", nil); err == nil {
+		t.Fatal("implicit fallback")
+	}
+	if _, _, err = r.Itemize(context.Background(), "العربية", nil); err == nil {
+		t.Fatal("unsupported script silently shaped")
+	}
+}

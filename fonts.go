@@ -88,6 +88,13 @@ func (f *fontEditor) settings() (*fontbackend.Settings, error) {
 				return nil, fmt.Errorf("row %d: weight must be * or 1–1000", i+1)
 			}
 		}
+		if parts[0] == "fallback" {
+			if parts[1] != "" || parts[2] != "" {
+				return nil, fmt.Errorf("row %d: fallback requires * weight and slant", i+1)
+			}
+			s.Fallbacks = append(s.Fallbacks, parts[3])
+			continue
+		}
 		s.Rules = append(s.Rules, fontbackend.Rule{Family: parts[0], Weight: weight, Slant: parts[2], Path: parts[3]})
 	}
 	return s, nil
@@ -167,7 +174,7 @@ func (m model) fontsView() tea.View {
 	if m.fontSettings != nil {
 		mode = "OpenType"
 	}
-	content := strings.Join([]string{"Fonts · current backend: " + mode, label(0, "Default font file"), f.path.View(), label(1, "Plain-text size (bp); CSS sizes override"), f.size.View(), label(2, "Mappings: family | weight | slant | path (* = any)"), f.rules.View(), ansi.Truncate(f.status, m.width, "…"), "Tab focus · Ctrl+S apply · F6 synthetic · F5/Esc close"}, "\n")
+	content := strings.Join([]string{"Fonts · current backend: " + mode, label(0, "Default font file"), f.path.View(), label(1, "Plain-text size (bp); CSS sizes override"), f.size.View(), label(2, "Mappings: family | weight | slant | path; fallback | * | * | path"), f.rules.View(), ansi.Truncate(f.status, m.width, "…"), "Tab focus · Ctrl+S apply · F6 synthetic · F5/Esc close"}, "\n")
 	lines := strings.Split(content, "\n")
 	for i, line := range lines {
 		lines[i] = ansi.Truncate(line, m.width, "…")

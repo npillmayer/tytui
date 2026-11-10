@@ -125,7 +125,7 @@ func (b *htmlBrowser) inspectSelected() {
 	for _, w := range b.doc.Warnings {
 		fmt.Fprintf(&out, "\nNote: %s", w)
 	}
-	out.WriteString("\nF5 configures fonts and style mappings; synthetic shaping uses size/language. Color remains metadata.")
+	out.WriteString("\nF5 configures fonts and style mappings; synthetic shaping uses size/language. OpenType proofs use supported CSS colors.")
 	b.inspect.SetContent(out.String())
 	b.inspect.GotoTop()
 }

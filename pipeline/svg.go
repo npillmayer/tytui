@@ -8,9 +8,17 @@ import (
 )
 
 // WriteSVG exports the exact frozen layout without encoding or breaking again.
-// It draws structural widths and fit diagnostics, not glyph outlines. Source
-// text and font data are not embedded. Writer errors are returned to the caller.
+// OpenType results draw positioned outlines and line geometry; synthetic results
+// draw structural boxes. Text and font binaries are not embedded.
 func WriteSVG(w io.Writer, result *Result) error {
+	if result != nil && result.Input.Fonts != nil {
+		return WriteGlyphSVG(w, result)
+	}
+	return WriteStructuralSVG(w, result)
+}
+
+// WriteStructuralSVG retains the advance-box diagnostic view for either backend.
+func WriteStructuralSVG(w io.Writer, result *Result) error {
 	if result == nil || result.Frozen == nil {
 		return fmt.Errorf("SVG export requires a completed layout")
 	}

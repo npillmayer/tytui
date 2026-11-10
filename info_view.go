@@ -12,7 +12,7 @@ import (
 // so invisible whitespace and terminal control characters remain inspectable.
 func renderResult(result *pipeline.Result) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s · %d lines · width %.2f bp\nSource text shown in logical order; ranges are UTF-8 bytes.\n\n", result.Input.Breaker, result.Frozen.LineCount(), result.Input.Width.Points())
+	fmt.Fprintf(&b, "%s · %d lines · width %.2f bp\nProcessed text shown in logical order; ranges are UTF-8 bytes.\n\n", result.Input.Breaker, result.Frozen.LineCount(), result.Input.Width.Points())
 	for i := 0; i < result.Frozen.LineCount(); i++ {
 		line, _ := result.Frozen.Line(i)
 		fit := "within capacity"
@@ -22,12 +22,12 @@ func renderResult(result *pipeline.Result) string {
 		case khipu.FitOverfull:
 			fit = "overfull"
 		}
-		source := result.Input.Text[line.Source.Start:line.Source.End]
+		source := result.ParagraphText[line.Source.Start:line.Source.End]
 		fmt.Fprintf(&b, "Line %d · bytes [%d,%d) · %s\n%q\n", i+1, line.Source.Start, line.Source.End, fit, source)
 		fmt.Fprintf(&b, "  actual %.2f / target %.2f bp · residual %+.2f bp\n  ratio %.3g · badness %d\n\n", line.Width.Points(), line.TargetWidth.Points(), line.Residual.Points(), line.Ratio, line.Badness)
 	}
 	if len(result.Fonts) > 0 {
-		b.WriteString("OpenType faces (otcore)\n")
+		b.WriteString("OpenType faces (core/Hebrew)\n")
 		for _, f := range result.Fonts {
 			fmt.Fprintf(&b, "%q · %s %s\nSHA-256 %s\n", f.Path, f.Family, f.Subfamily, f.SHA256)
 			for _, w := range f.Warnings {
@@ -35,9 +35,15 @@ func renderResult(result *pipeline.Result) string {
 			}
 		}
 		for _, binding := range result.FontBindings {
-			fmt.Fprintf(&b, "bytes [%d,%d) → %q · %.2f bp\n", binding.Start, binding.End, binding.Path, binding.EmSize.Points())
+			fmt.Fprintf(&b, "bytes [%d,%d) → %q · %.2f bp · %s\n", binding.Start, binding.End, binding.Path, binding.EmSize.Points(), binding.Script)
 		}
-		b.WriteString("Color remains metadata; SVG shows structural geometry.\n\n")
+		b.WriteString("SVG renders frozen glyph outlines with baselines, colors, and line geometry.\n\n")
+	}
+	if result.Input.Source == nil && result.Input.Text != result.ParagraphText {
+		fmt.Fprintf(&b, "Original input: %q\nProcessed paragraph: %q\nPlain-text byte map (processed → original)\n", result.Input.Text, result.ParagraphText)
+		for _, span := range result.TextSpans {
+			fmt.Fprintf(&b, "[%d,%d) → [%d,%d) %s\n", span.Start, span.End, span.SourceStart, span.SourceEnd, span.Kind)
+		}
 	}
 	b.WriteString("Pipeline stages\n")
 	for _, d := range result.Diagnostics {

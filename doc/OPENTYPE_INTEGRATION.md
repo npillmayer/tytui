@@ -1,5 +1,9 @@
 # OpenType fonts and shaping (step 6)
 
+Step 7 supersedes the script, fallback, discretionary, and SVG limits described
+below: see [Multilingual proofs](MULTILINGUAL_PROOFS.md). The loading and ownership
+contracts continue to apply.
+
 ## Workbench
 
 Press F5 to open the font panel. Enter a local font file and a plain-text size in

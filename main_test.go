@@ -56,6 +56,27 @@ func TestWorkbenchRunsPipeline(t *testing.T) {
 	}
 }
 
+func TestWorkbenchKeepsOriginalWhitespace(t *testing.T) {
+	m := initialModel()
+	raw := "  é\n\nabc  "
+	m.textarea.SetValue(raw)
+	m.widthInput.SetValue("300")
+	m, cmd := updateModel(m, runKey())
+	m, _ = updateModel(m, cmd())
+	if m.result == nil {
+		t.Fatal(m.status)
+	}
+	if m.textarea.Value() != raw || m.result.Input.Text != raw || m.result.ParagraphText != "é abc" {
+		t.Fatal("layout changed editor input or failed to normalize paragraph")
+	}
+	content := renderResult(m.result)
+	for _, want := range []string{"bytes [0,6)", "\n\"é abc\"\n", "Original input:", "Plain-text byte map", "[2,3) → [4,6) collapsed"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("missing %q in result: %s", want, content)
+		}
+	}
+}
+
 func TestEditCancelsAndRejectsStaleResult(t *testing.T) {
 	m := initialModel()
 	started := make(chan context.Context, 1)

@@ -1,11 +1,11 @@
 # tytui
 
 An interactive paragraph workbench built with [Bubble Tea](https://charm.land/).
-The current pipeline uses a deterministic synthetic 10 pt font, LTR paragraph
-direction, and selectable firstfit or Knuth–Plass line breaking. It displays source text and layout
-diagnostics; it does not render positioned glyphs yet.
+The pipeline supports synthetic and OpenType fonts, Latin/Hebrew mixed-direction
+paragraphs, and firstfit or Knuth–Plass line breaking. The TUI displays text and
+layout diagnostics; SVG exports render positioned glyph outlines for OpenType.
 
-Run with Go 1.25.6 or newer and sibling `cords`, `khipu`, and `uax` checkouts:
+Run with Go 1.25.6 or newer and sibling `cords`, `khipu`, `uax`, `w3c-dom`, and `opentype` checkouts:
 
 ```sh
 go run .
@@ -23,8 +23,10 @@ go run .
 - **Tab / Shift+Tab** moves between text, width, and results.
 - Width is in **bp** (big points, 1/72 inch), independently of terminal width.
   Decimal values are accepted. Press Enter in the width field to run.
-- Enter in the text editor inserts a newline; unsupported breaks are reported
-  as pipeline errors. Empty paragraphs are valid.
+- Enter in the text editor inserts a newline. Layout collapses whitespace,
+  including blank lines, to spaces and trims paragraph edges. The editor retains
+  the original input. Each run lays out one explicit paragraph; empty paragraphs
+  are valid.
 - With results focused, use arrows or Page Up / Page Down to scroll.
 - **F1** toggles help; **Ctrl+C** quits. A terminal of at least 40 × 14 is needed.
 
@@ -45,8 +47,9 @@ with a finite-stretch right skip. Breaking and freezing always share the same
 resolved geometry. Algorithm comparisons therefore also reflect these profiles.
 
 SVG export uses that exact frozen result, without rerunning layout. It shows
-advance-width boxes, glue, skips, fill, source ranges, and fit diagnostics, not
-glyph outlines or font heights. No source text or font data is embedded. Existing
+positioned glyph outlines, colors, and line geometry for OpenType results, or
+structural boxes and fit diagnostics for synthetic results. No font binaries are
+embedded. Existing
 files are never overwritten; failed exports remove their incomplete output.
 History is held in memory for the session; export any proofs you want to keep.
 
@@ -64,11 +67,11 @@ Press Enter on an eligible tree node to use its text as paragraph input, then
 Ctrl+R to lay it out. File loading is asynchronous; an unsuccessful load keeps
 the previous DOM, and changing the filename discards an outstanding load result.
 
-Selections resolve inherited CSS styles into explicit UTF-8 byte spans. Whitespace
-supports normal, pre-line, and pre-wrap, with transformed DOM provenance retained.
+Selections resolve inherited CSS styles into explicit UTF-8 byte spans. Only
+white-space:normal is supported, with transformed DOM provenance retained.
+Newline-preserving modes (pre, pre-line, pre-wrap, break-spaces) are rejected.
 Bidi paragraphs honor base direction and supported inline isolates. Synthetic
-layout uses size, language, and spacing; font family/weight/slant can select real faces through F5 mappings. Color remains
-metadata. Nested blocks, br/hr, images, and hidden
+layout uses size, language, and spacing; font family/weight/slant can select real faces through F5 mappings. Supported colors are rendered in OpenType proofs. Nested blocks, br/hr, images, and hidden
 content remain unsupported. Text the editor cannot preserve is also rejected.
 See [CSS extraction](doc/CSS_EXTRACTION.md) for the supported subset and limits.
 
@@ -88,8 +91,11 @@ the extracted text detaches it. Reloading a document does not alter older result
 
 The [headless pipeline example](pipeline/example_test.go) and
 [implementation plan](doc/IMPLEMENTATION_PLAN.md) describe the API and next steps.
-W3c-dom is also required as a sibling checkout for HTML loading. OpenType has a
-local replacement prepared for future integration.
+`Result.ParagraphText` is the processed paragraph; frozen ranges, glyph clusters,
+and font bindings address this text. For plain input, `Result.Input.Text` retains
+the original and `Result.TextSpans` maps processed bytes back to it. HTML results
+retain the DOM map in `Result.Input.Source.Spans`. See
+[whitespace and provenance](doc/CSS_EXTRACTION.md#whitespace-and-provenance).
 
 ```sh
 go test ./... -count=1
@@ -106,3 +112,11 @@ results retain font identities, glyphs, and mapped byte spans. Try the sibling
 `../opentype/testdata/fonts/GentiumPlus-R.ttf` with plain text such as `office`.
 See [OpenType integration](doc/OPENTYPE_INTEGRATION.md) for mapping syntax,
 headless use, diagnostics, fixture provenance, and current shaping limits.
+
+## Multilingual glyph proofs
+
+Step 7 adds Latin/Hebrew script itemization, whole-grapheme font fallback, and
+soft-hyphen replacements. Add `fallback | * | * | /path/to/Hebrew.ttf` in F5.
+OpenType SVG exports now render frozen outlines, colors, baselines, and line
+geometry. Try `testdata/html/multilingual.html`; see
+[policies and proof verification](doc/MULTILINGUAL_PROOFS.md).

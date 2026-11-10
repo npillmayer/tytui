@@ -4,6 +4,7 @@ package fontbackend
 import (
 	"crypto/sha256"
 	"fmt"
+	"golang.org/x/image/font/sfnt"
 	"io"
 	"os"
 	"sync"
@@ -24,6 +25,7 @@ type Face struct {
 	info      Info
 	metrics   contracts.FontMetrics
 	unitScale float64
+	outline   *sfnt.Font
 }
 type Info struct {
 	Path, Family, Subfamily, SHA256 string

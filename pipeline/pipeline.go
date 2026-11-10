@@ -18,6 +18,7 @@ import (
 	"github.com/npillmayer/uax/bidi"
 	"tytui/fontbackend"
 	"tytui/htmlinput"
+	"tytui/paragraphtext"
 )
 
 // Breaker selects the algorithm and its matching default geometry profile.
@@ -28,9 +29,10 @@ const (
 	KnuthPlass Breaker = "knuth-plass"
 )
 
-// Input describes one plain-text paragraph. Text is preserved without whitespace
-// folding or normalization. Width must be a positive finite layout dimension,
-// not terminal cells. Direction defaults to left-to-right.
+// Input describes one explicit paragraph. Plain input whitespace is collapsed
+// before shaping; results retain the original Input and a byte map. Width must
+// be a positive finite layout dimension, not terminal cells. Direction defaults
+// to left-to-right.
 type Input struct {
 	Fonts     *fontbackend.Settings // Nil selects synthetic; nonnil always uses OpenType.
 	Text      string
@@ -63,6 +65,8 @@ type Diagnostic struct {
 // UTF-8 byte endpoints. Frozen contains line fit diagnostics and retained glyphs.
 // No mutable encoder or elastic paragraph is exposed.
 type Result struct {
+	ParagraphText  string               // Processed text addressed by frozen ranges and glyph clusters.
+	TextSpans      []paragraphtext.Span // Plain input: processed bytes to Input.Text bytes; HTML uses Source.Spans.
 	Fonts          []fontbackend.Info
 	FontBindings   []fontbackend.Binding
 	Input          Input
@@ -126,7 +130,12 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 		input.Direction = input.Source.Direction
 	}
 
-	text := styled.TextFromString(input.Text)
+	paragraphText := input.Text
+	var textSpans []paragraphtext.Span
+	if input.Source == nil {
+		paragraphText, textSpans = paragraphtext.Normalize(input.Text)
+	}
+	text := styled.TextFromString(paragraphText)
 	var markup bidi.OutOfLineBidiMarkup
 	var err error
 	paragraphDiagnostic := "Prepared an unstyled bidi paragraph"
@@ -141,14 +150,6 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 		}
 		paragraphDiagnostic = fmt.Sprintf("Prepared %d CSS style spans; base direction %s", len(input.Source.Styles), input.Direction)
 	}
-	paragraph, err := styled.ParagraphFromText(&text, 0, text.Raw().Len(), input.Direction, markup)
-	if err != nil {
-		return fail(StageParagraph, err)
-	}
-	var bidiRuns []bidi.Segment
-	for segment := range paragraph.BidiLevels().LogicalSegments() {
-		bidiRuns = append(bidiRuns, segment)
-	}
 	config := syntheticConfig()
 	backend := "synthetic"
 	var fonts []fontbackend.Info
@@ -159,7 +160,7 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 		if err != nil {
 			return fail(StageFonts, err)
 		}
-		bindings, err = resolver.CheckText(ctx, input.Text, input.Source)
+		text, bindings, err = resolver.Itemize(ctx, paragraphText, input.Source)
 		if err != nil {
 			return fail(StageFonts, err)
 		}
@@ -168,8 +169,17 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 			NewShaper: func() (contracts.StreamingShaper, error) { return fontbackend.NewStream(64) },
 			Resolver:  resolver, Defaults: resolver.Defaults(),
 		}}
-		backend = "OpenType (otcore)"
+		backend = "OpenType (core/Hebrew)"
 	}
+	paragraph, err := styled.ParagraphFromText(&text, 0, text.Raw().Len(), input.Direction, markup)
+	if err != nil {
+		return fail(StageParagraph, err)
+	}
+	var bidiRuns []bidi.Segment
+	for segment := range paragraph.BidiLevels().LogicalSegments() {
+		bidiRuns = append(bidiRuns, segment)
+	}
+	config.Hyphenator = explicitHyphens{}
 	owner := khipu.NewKhipukamayuq(config)
 	encoded, err := owner.EncodeParagraph(ctx, paragraph)
 	if err != nil {
@@ -184,10 +194,14 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 	switch input.Breaker {
 	case FirstFit:
 		layout = firstfit.DefaultLayout(shape)
-		breaks, err = firstfit.BreakParagraph(encoded, layout, nil)
+		params := firstfit.NewDefaultParameters()
+		params.DiscretionaryProvider = owner
+		breaks, err = firstfit.BreakParagraph(encoded, layout, params)
 	case KnuthPlass:
 		layout = knuthplass.DefaultLayout(shape)
-		breaks, err = knuthplass.BreakParagraph(encoded, layout, nil)
+		params := knuthplass.NewDefaultParameters()
+		params.DiscretionaryProvider = owner
+		breaks, err = knuthplass.BreakParagraph(encoded, layout, params)
 	}
 	if err != nil {
 		return fail(StageBreak, err)
@@ -204,7 +218,7 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 		return fail(StageFreeze, err)
 	}
 	return &Result{
-		Fonts: fonts, FontBindings: bindings, Input: input, Text: text, BreakPositions: positions, Frozen: frozen, BidiRuns: bidiRuns,
+		ParagraphText: paragraphText, TextSpans: textSpans, Fonts: fonts, FontBindings: bindings, Input: input, Text: text, BreakPositions: positions, Frozen: frozen, BidiRuns: bidiRuns,
 		Diagnostics: []Diagnostic{
 			{StageInput, fmt.Sprintf("Accepted %d UTF-8 bytes", len(input.Text))},
 			{StageParagraph, paragraphDiagnostic},

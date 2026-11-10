@@ -7,6 +7,7 @@ import (
 
 	"github.com/npillmayer/uax/bidi"
 	"golang.org/x/net/html"
+	"tytui/paragraphtext"
 )
 
 type textUnit struct {
@@ -16,10 +17,9 @@ type textUnit struct {
 	style      Style
 }
 
-// Extract resolves styles before processing whitespace. normal collapses ASCII
-// spaces, tabs, form feeds and segment breaks; pre-line preserves LF; pre-wrap
-// preserves spaces/LF. NBSP and other Unicode spaces are never ASCII-collapsed.
-// Mapping records account for removed and many-to-one whitespace across nodes.
+// Extract resolves inherited styles and collapses whitespace across text nodes.
+// Paragraph boundaries are explicit; newline-preserving CSS modes are rejected.
+// Mapping records retain removed and many-to-one whitespace provenance.
 func (d *Document) Extract(id int) (*Extraction, error) {
 	if id < 0 || id >= len(d.Nodes) {
 		return nil, fmt.Errorf("unknown DOM node %d", id)
@@ -49,6 +49,9 @@ func (d *Document) Extract(id int) (*Extraction, error) {
 		n := d.Nodes[current]
 		s := styles[current]
 		if n.Type == html.ElementNode {
+			if s.WhiteSpace != "normal" {
+				return fmt.Errorf("%s: white-space %q is unsupported; use normal (newlines collapse as whitespace)", n.Path, s.WhiteSpace)
+			}
 			if n.Name == "br" || n.Name == "hr" {
 				return fmt.Errorf("%s: <%s> introduces an unsupported mandatory break", n.Path, n.Name)
 			}
@@ -71,13 +74,10 @@ func (d *Document) Extract(id int) (*Extraction, error) {
 			}
 		}
 		if n.Type == html.TextNode {
-			if s.WhiteSpace != "normal" && s.WhiteSpace != "pre-line" && s.WhiteSpace != "pre-wrap" {
-				return fmt.Errorf("%s: white-space %q requires an unsupported wrapping policy (use normal, pre-line or pre-wrap)", n.Path, s.WhiteSpace)
+			if s.WhiteSpace != "normal" {
+				return fmt.Errorf("%s: white-space %q is unsupported; use normal (newlines collapse as whitespace)", n.Path, s.WhiteSpace)
 			}
 			for start, r := range n.Text {
-				if s.WhiteSpace == "pre-wrap" && (r == '\t' || r == '\f') {
-					return fmt.Errorf("%s: preserved tabs/form feeds require unsupported tab-stop layout", n.Path)
-				}
 				units = append(units, textUnit{r, current, uint64(start), uint64(start + utf8.RuneLen(r)), s})
 			}
 		}
@@ -129,7 +129,6 @@ func (d *Document) Extract(id int) (*Extraction, error) {
 		return start, end
 	}
 	var pending []textUnit
-	lastRune := '\n'
 	flush := func(trim bool) {
 		if len(pending) == 0 {
 			return
@@ -139,7 +138,6 @@ func (d *Document) Extract(id int) (*Extraction, error) {
 		if !trim {
 			start, end = emit(pending[0], ' ')
 			kind = "collapsed"
-			lastRune = ' '
 		}
 		if len(pending) == 1 && pending[0].r == ' ' && !trim {
 			kind = ""
@@ -150,16 +148,14 @@ func (d *Document) Extract(id int) (*Extraction, error) {
 		pending = nil
 	}
 	for _, u := range units {
-		newline := u.r == '\n' || u.r == '\r'
-		collapse := u.style.WhiteSpace != "pre-wrap" && (u.r == ' ' || u.r == '\t' || u.r == '\f' || (newline && u.style.WhiteSpace == "normal"))
+		collapse := paragraphtext.IsCollapsible(u.r)
 		if collapse {
 			pending = append(pending, u)
 			continue
 		}
-		flush(out.Len() == 0 || lastRune == '\n' || newline)
+		flush(out.Len() == 0)
 		start, end := emit(u, u.r)
 		appendMap(u, start, end, "")
-		lastRune = u.r
 	}
 	flush(true)
 	e.Text = out.String()
@@ -190,6 +186,10 @@ func (e *Extraction) Validate(text string) error {
 	}
 	if e.Text != text || !utf8.ValidString(text) {
 		return fmt.Errorf("DOM source text no longer matches paragraph")
+	}
+	normalized, _ := paragraphtext.Normalize(text)
+	if normalized != text {
+		return fmt.Errorf("DOM paragraph whitespace is not normalized")
 	}
 	var end uint64
 	var previous *Span
@@ -223,6 +223,9 @@ func (e *Extraction) Validate(text string) error {
 	}
 	end = 0
 	for _, s := range e.Styles {
+		if s.Style.WhiteSpace != "normal" {
+			return fmt.Errorf("unsupported white-space %q", s.Style.WhiteSpace)
+		}
 		if s.Start != end || s.End <= s.Start || !byteBoundary(text, s.End) || s.Style.EmSize <= 0 {
 			return fmt.Errorf("invalid style span")
 		}

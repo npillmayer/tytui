@@ -88,11 +88,8 @@ func TestCSSWhitespaceAndMapping(t *testing.T) {
 	if extractP(t, `<p>a&nbsp;  b</p>`).Text != "a\u00a0 b" {
 		t.Fatal("NBSP was collapsed")
 	}
-	if extractP(t, "<p style=\"white-space:pre-line\"> a  b\n  c </p>").Text != "a b\nc" {
-		t.Fatal("pre-line policy")
-	}
-	if extractP(t, "<p style=\"white-space:pre-wrap\">  a  b\n c </p>").Text != "  a  b\n c " {
-		t.Fatal("pre-wrap policy")
+	if extractP(t, "<p>a&#13;  b\n\nc</p>").Text != "a b c" {
+		t.Fatal("newlines did not collapse")
 	}
 	if extractP(t, "<p>   </p>").Text != "" {
 		t.Fatal("whitespace-only input")
@@ -124,11 +121,35 @@ func TestBidiMetadata(t *testing.T) {
 	}
 }
 func TestUnsupportedCSSValues(t *testing.T) {
-	for _, style := range []string{"white-space:nowrap", "white-space:pre", "font-size:calc(10px + 1em)", "font-style:oblique 10deg", "unicode-bidi:bidi-override"} {
+	for _, style := range []string{"white-space:nowrap", "white-space:pre", "white-space:pre-line", "white-space:pre-wrap", "white-space:break-spaces", "font-size:calc(10px + 1em)", "font-style:oblique 10deg", "unicode-bidi:bidi-override"} {
 		d := parseTest(t, `<p style="`+style+`">text</p>`)
 		if _, err := d.Extract(nodeNamed(d, "p")); err == nil {
 			t.Fatalf("accepted %s", style)
 		}
+	}
+}
+
+func TestRejectPreservingWhitespaceBeforeExtraction(t *testing.T) {
+	for _, source := range []string{
+		`<div style="white-space:pre-line"><p>inherited</p></div>`,
+		`<p style="white-space:pre-wrap"></p>`,
+		`<p>a<span style="white-space:pre-line"></span>b</p>`,
+	} {
+		d := parseTest(t, source)
+		if _, err := d.Extract(nodeNamed(d, "p")); err == nil || !strings.Contains(err.Error(), "white-space") {
+			t.Fatalf("expected explicit whitespace rejection for %s, got %v", source, err)
+		}
+	}
+	// Callers supplying a stored extraction cannot bypass the current policy.
+	e := extractP(t, `<p>a b</p>`)
+	e.Styles[0].Style.WhiteSpace = "pre-line"
+	if e.Validate(e.Text) == nil {
+		t.Fatal("accepted preserving style in supplied extraction")
+	}
+	e = extractP(t, `<p>a b</p>`)
+	e.Text = "a\nb"
+	if e.Validate(e.Text) == nil {
+		t.Fatal("accepted unnormalized supplied extraction")
 	}
 }
 

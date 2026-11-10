@@ -23,13 +23,13 @@ require (
 	github.com/npillmayer/khipu v0.0.0
 	github.com/npillmayer/opentype v0.0.0
 	github.com/npillmayer/uax v0.3.0-alpha1
+	golang.org/x/image v0.34.0
 	golang.org/x/net v0.49.0
 )
 
 require (
 	github.com/gorilla/css v1.0.0 // indirect
 	github.com/npillmayer/tree v0.0.0-20260127205735-9aa4bb66c981 // indirect
-	golang.org/x/image v0.34.0 // indirect
 )
 
 require (
@@ -48,7 +48,7 @@ require (
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/npillmayer/schuko v0.2.0-alpha.3.0.20211209143531-2d524c4964ff // indirect
 	github.com/npillmayer/w3c-dom v0.0.0
-	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/rivo/uniseg v0.4.7
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect

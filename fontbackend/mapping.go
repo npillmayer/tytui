@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"tytui/htmlinput"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/npillmayer/cords/styled"
 	"github.com/npillmayer/khipu/contracts"
@@ -20,6 +18,7 @@ type Settings struct {
 	DefaultPath string
 	Size        dimen.DU
 	Rules       []Rule
+	Fallbacks   []string
 }
 type Rule struct {
 	Family      string
@@ -32,6 +31,7 @@ func (s *Settings) Clone() *Settings {
 		return nil
 	}
 	c := *s
+	c.Fallbacks = append([]string(nil), s.Fallbacks...)
 	c.Rules = append([]Rule(nil), s.Rules...)
 	return &c
 }
@@ -41,6 +41,7 @@ type Binding struct {
 	Start, End   uint64
 	Path, SHA256 string
 	EmSize       dimen.DU
+	Script       string
 }
 type Resolver struct {
 	settings Settings
@@ -66,6 +67,7 @@ func LoadSettings(ctx context.Context, s Settings) (*Resolver, error) {
 		}
 		paths = append(paths, rule.Path)
 	}
+	paths = append(paths, s.Fallbacks...)
 	for _, path := range paths {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -102,6 +104,19 @@ func familyMatches(list, want string) bool {
 	return false
 }
 func (r *Resolver) ResolveStyle(value styled.Style, defaults contracts.ResolvedRunStyle) (contracts.ResolvedRunStyle, error) {
+	if item, ok := value.(runStyle); ok {
+		var css styled.Style
+		if !item.Plain {
+			css = item.CSS
+		}
+		result, err := r.ResolveStyle(css, defaults)
+		if err != nil {
+			return result, err
+		}
+		result.Font = r.faces[item.Path]
+		result.Script = language.MustParseScript(item.Script)
+		return result, nil
+	}
 	result := defaults
 	result.Features = append([]contracts.ShapeFeature(nil), defaults.Features...)
 	if value == nil {
@@ -133,42 +148,8 @@ func (r *Resolver) ResolveStyle(value styled.Style, defaults contracts.ResolvedR
 	return result, nil
 }
 
-// CheckText applies a strict cmap coverage policy. It reports input bytes and
-// codepoints rather than letting missing glyphs silently become .notdef. Controls
-// and format/variation selectors may be consumed by shaping without glyphs.
+// CheckText validates itemization and coverage without retaining the styled text.
 func (r *Resolver) CheckText(ctx context.Context, text string, source *htmlinput.Extraction) ([]Binding, error) {
-	spans := []htmlinput.StyleSpan{{Start: 0, End: uint64(len(text))}}
-	if source != nil {
-		spans = source.Styles
-	}
-	var bindings []Binding
-	for _, span := range spans {
-		var style styled.Style
-		if source != nil {
-			style = span.Style
-		}
-		resolved, err := r.ResolveStyle(style, r.Defaults())
-		if err != nil {
-			return nil, err
-		}
-		face := resolved.Font.(*Face)
-		info := face.Info()
-		bindings = append(bindings, Binding{span.Start, span.End, info.Path, info.SHA256, resolved.EmSize})
-		for offset, c := range text[span.Start:span.End] {
-			if err := ctx.Err(); err != nil {
-				return nil, err
-			}
-			if unicode.IsControl(c) || unicode.Is(unicode.Cf, c) || (c >= 0xFE00 && c <= 0xFE0F) || (c >= 0xE0100 && c <= 0xE01EF) {
-				continue
-			}
-			g, err := face.GlyphIndex(c)
-			if err != nil {
-				return nil, fmt.Errorf("font %q cmap at byte %d (%U): %w", info.Path, span.Start+uint64(offset), c, err)
-			}
-			if g == 0 {
-				return nil, fmt.Errorf("missing glyph %U %q at UTF-8 bytes [%d,%d) in font %q (SHA-256 %s)", c, c, span.Start+uint64(offset), span.Start+uint64(offset+utf8.RuneLen(c)), info.Path, info.SHA256)
-			}
-		}
-	}
-	return bindings, nil
+	_, bindings, err := r.Itemize(ctx, text, source)
+	return bindings, err
 }

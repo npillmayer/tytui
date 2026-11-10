@@ -102,3 +102,18 @@ func TestFontSwitchDiscardsActiveLayout(t *testing.T) {
 		t.Fatal("backend did not change revision")
 	}
 }
+
+func TestFallbackEditor(t *testing.T) {
+	f := newFontEditor()
+	f.path.SetValue(uiFont)
+	f.rules.SetValue("fallback | * | * | /hebrew.ttf")
+	s, err := f.settings()
+	if err != nil || len(s.Fallbacks) != 1 || len(s.Rules) != 0 {
+		t.Fatalf("fallback settings %+v %v", s, err)
+	}
+	clone := s.Clone()
+	s.Fallbacks[0] = "changed"
+	if clone.Fallbacks[0] != "/hebrew.ttf" {
+		t.Fatal("fallback settings alias")
+	}
+}

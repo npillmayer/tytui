@@ -69,7 +69,7 @@ func TestStyledFrozenParagraph(t *testing.T) {
 	}
 }
 func TestWhitespaceThroughFreeze(t *testing.T) {
-	for _, source := range []string{`<p> a  <b>b</b> c </p>`, "<p style=\"white-space:pre-line\">a  b\nc</p>", "<p style=\"white-space:pre-wrap\">a  b\nc</p>", `<p>   </p>`} {
+	for _, source := range []string{`<p> a  <b>b</b> c </p>`, "<p>a  b\nc</p>", "<p>a&#13; b\n\n c</p>", `<p>   </p>`} {
 		e := styledInput(t, source)
 		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Width: 200 * dimen.BP})
 		if err != nil {
@@ -78,8 +78,8 @@ func TestWhitespaceThroughFreeze(t *testing.T) {
 		if r.Frozen.SourceLen() != uint64(len(e.Text)) {
 			t.Fatal("source length changed")
 		}
-		if strings.Contains(e.Text, "\n") && r.Frozen.LineCount() != 2 {
-			t.Fatal("mandatory newline lost")
+		if strings.Contains(e.Text, "\n") || r.Frozen.LineCount() != 1 {
+			t.Fatal("newline policy violated")
 		}
 	}
 }

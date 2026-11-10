@@ -71,9 +71,11 @@ silently treated as correct CSS: missing font defaults caused a panic in the old
 property-forking path (the local-group fix also removes that dependency),
 inherited-property traversal dereferences a nil parent at the root, and
 the convenience style-element extractor assumes nonempty nodes. Broader cascade,
-specificity, shorthand, and inline-style parsing correctness remains upstream
-work beyond the supported subset; step 5 fixes duplicate-property truncation and
-inline priority (see CSS_EXTRACTION.md). The cords builder investigations remain separate.
+shorthand, and inline-style parsing correctness remains upstream work beyond the
+supported subset. Step 5 fixes duplicate-property truncation and inline priority;
+issue 5 in TODO.md replaces the specificity heuristic with parsed tuples and
+separate source-order comparison (see CSS_EXTRACTION.md). The cords builder
+investigations remain separate.
 
 ## Verification
 

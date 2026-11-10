@@ -133,6 +133,13 @@ supported subset, diagnostics, lifecycle, and independent reference tests.
 Completion criterion: structural diagnostics and positioned glyph proofs agree
 for a small, independently verified fixture set.
 
+Implemented: Latin/Hebrew grapheme-safe itemization, ordered explicit fallback,
+Hebrew engine selection, author-supplied soft-hyphen replacements, and SVG outlines
+from frozen glyphs. Proofs retain colors, baselines, offsets, and final line
+geometry. Independent HarfBuzz captures cover ligatures, combining marks, and
+pointed Hebrew; both paragraph directions and breakers are tested. See
+[Multilingual proofs](MULTILINGUAL_PROOFS.md) for policies and remaining limits.
+
 ## Integration gaps and upstream priorities
 
 Keep upstream work narrowly tied to the slices that need it. The source concerns
@@ -168,5 +175,5 @@ alongside focused reproductions of the cords builder defects. This establishes
 the application structure without making progress depend on CSS or real-font
 shaping correctness.
 
-Steps 1–6 are implemented. The later adapters and final glyph rendering remain
-implementation work. The separate cords builder investigations remain outstanding.
+Steps 1–7 are implemented within the documented subsets. Broader script, fallback,
+and CSS layout coverage remain future work. The separate cords builder investigations remain outstanding.
