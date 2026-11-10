@@ -82,7 +82,17 @@ from observations; unchecked items remain open.
 6. **P2 — dir=auto includes explicitly directed descendants.**
    `<p dir="auto"><span dir="rtl">אב</span>abc</p>` incorrectly resolves RTL.
    The outer direction scan must exclude the nested directional subtree.
-   Owner: htmlinput/styles.go firstStrong traversal. Status: open.
+   Owner: htmlinput/styles.go firstStrong traversal. Status: fixed. The scan
+   excludes descendant subtrees with dir=ltr/rtl/auto (case insensitive) and
+   bdi elements, while retaining the scan root and ordinary descendants. With
+   no eligible strong character, the existing parent-direction fallback remains.
+   `htmlinput/auto_direction_test.go` covers both directions, nested boundaries,
+   auto children, implicit bdi, and fallback. `pipeline/auto_direction_test.go`
+   compares bidi runs and physical frozen knots with explicitly directed input
+   under both breakers, retaining isolate byte boundaries and DOM mappings.
+   Both regression groups failed before the fix and pass afterward.
+   Validation: `go test -race ./... -count=1`, `go build ./...`, and
+   `go vet ./...` pass in tytui.
 
 ## Remaining integration and test gaps
 
@@ -117,7 +127,7 @@ from observations; unchecked items remain open.
 
 Issues 1–3 are fixed in uax, the itemizer, and paragraph input processing,
 respectively. Issue 4 is guarded by explicit rejection; full preservation is
-deferred. Issue 5 is fixed in w3c-dom. Next address HTML auto direction (6).
+deferred. Issues 5 and 6 are fixed in w3c-dom and htmlinput, respectively.
 Save each reproduction as a focused owning-package
 regression plus a tytui integration case where appropriate. Expand layout oracles
 alongside these fixes, then add replayable case bundles and finish cords cleanup.

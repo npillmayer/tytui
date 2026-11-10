@@ -64,7 +64,9 @@ tab stops, or blank-line layout. Encoding failures remain visible.
 ## Bidi and cascade boundaries
 
 Base direction comes from inherited direction or HTML dir. dir=auto uses a first
-strong character scan. Inline dir and bdi/unicode-bidi:isolate create zero-byte
+strong character scan that excludes descendant dir=ltr/rtl/auto and bdi
+subtrees. Ordinary descendants remain eligible; if none supplies a strong
+character, the inherited direction is retained. Inline dir and bdi/unicode-bidi:isolate create zero-byte
 LRI/RLI/PDI markup; source byte coordinates do not shift. Nested isolates with
 distinct boundaries work; coincident nested opens/closes exceed the UAX callback
 capacity and return errors. Overrides and embeddings are unsupported.

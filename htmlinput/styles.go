@@ -260,6 +260,23 @@ func resolveSize(v string, parent, root dimen.DU) (dimen.DU, error) {
 func (d *Document) firstStrong(id int, fallback bidi.Direction) bidi.Direction {
 	var scan func(int) (bidi.Direction, bool)
 	scan = func(i int) (bidi.Direction, bool) {
+		// Descendants with independent HTML directionality do not supply the
+		// enclosing auto element's first strong character. The scan root itself
+		// must remain eligible, including when it has dir=auto or is a bdi.
+		if i != id {
+			n := d.Nodes[i]
+			if n.Name == "bdi" {
+				return fallback, false
+			}
+			for _, a := range n.Attributes {
+				if a.Key == "dir" {
+					switch strings.ToLower(a.Val) {
+					case "ltr", "rtl", "auto":
+						return fallback, false
+					}
+				}
+			}
+		}
 		for _, r := range d.Nodes[i].Text {
 			p, _ := ubidi.LookupRune(r)
 			switch p.Class() {
