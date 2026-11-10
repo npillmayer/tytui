@@ -23,8 +23,10 @@ glyphs and line geometry for independent inspection without writing SVG.
 
 ## Itemization and fallback policies
 
-Text is itemized before bidi paragraph construction, retaining its original UTF-8
-bytes and the DOM source map. Extended grapheme clusters are never split by a
+After whitespace normalization, text is itemized before bidi paragraph
+construction, retaining processed UTF-8 coordinates and the source maps.
+`Result.ParagraphText` is the frozen source; plain input maps back through
+`Result.TextSpans`, while HTML uses `Result.Input.Source.Spans`. Extended grapheme clusters are never split by a
 font or script boundary. CSS style boundaries inside a grapheme are rejected.
 Within each original CSS span, Latin and Hebrew characters identify script;
 Common/Inherited graphemes adopt the preceding strong script, or the following
@@ -56,7 +58,7 @@ Explicit U+00AD soft hyphens supply a `-` pre-break replacement through khipu's
 hyphenation service. Both breakers use the owning discretionary provider. There
 is no dictionary hyphenation. Replacement text is shaped in its retained run
 context; a missing replacement glyph fails explicitly. Frozen source provenance
-continues to refer to original text, while replacement cluster anchors are local
+continues to refer to the processed paragraph, while replacement cluster anchors are local
 to replacement text. Proofs use the retained replacement glyphs directly.
 
 ## Positioned SVG renderer

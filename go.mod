@@ -12,6 +12,10 @@ replace github.com/npillmayer/opentype => ../opentype
 
 replace github.com/npillmayer/w3c-dom => ../w3c-dom
 
+replace github.com/npillmayer/tree => ../tree
+
+replace github.com/npillmayer/schuko => ../schuko
+
 require (
 	charm.land/bubbles/v2 v2.0.0
 	charm.land/bubbletea/v2 v2.0.1

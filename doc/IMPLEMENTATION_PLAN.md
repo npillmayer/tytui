@@ -1,9 +1,9 @@
 # TUI and paragraph pipeline implementation plan
 
-Build the integration laboratory described in [AGENTS.md](../AGENTS.md) through
-working vertical slices. Start with synthetic paragraph layout, then add DOM/CSS
-extraction and real fonts. Each slice should work through the TUI and through a
-headless test, so interactive findings can become library regression cases.
+Steps 1–7 are implemented within the supported subsets described below. This
+document retains the incremental milestones and records their current outcomes.
+See [TODO.md](TODO.md) for follow-up fixes, validation history, and remaining gaps.
+The TUI and headless pipeline share the same layout implementation.
 
 ## 1. Establish the pipeline and dependency setup
 
@@ -19,12 +19,14 @@ Implemented in [`pipeline`](../pipeline/pipeline.go). `pipeline.Run` accepts
 plain text, a positive finite width in `khipu/dimen.DU`, and a base direction
 (LTR by default). It returns extracted `styled.Text`, source byte endpoints,
 stage diagnostics, and frozen layout. Failures return a `StageError` and no
-partial result. Each call owns fresh synthetic services. See the
+partial result. Each call owns fresh encoder and selected-backend services. See the
 [executable example](../pipeline/example_test.go).
 
 The module requires Go 1.25.6 and uses relative `go.mod` replacements for sibling
-cords, khipu, and uax checkouts. OpenType and w3c-dom replacements are also present
-for later integration, but those modules are not yet required or imported.
+cords, khipu, uax, opentype, w3c-dom, tree, and schuko checkouts. OpenType and
+w3c-dom are active dependencies. Cords, tree, w3c-dom, and tytui each select
+`../schuko`; w3c-dom and tytui also select `../tree`. Main-module replacements
+do not propagate from dependencies. See [README.md](../README.md).
 Run `go test ./pipeline -count=1` for the headless integration checks.
 
 ## 2. Build a minimal paragraph workbench
@@ -54,12 +56,14 @@ diagnostics, and pipeline stages. See [README.md](../README.md) for controls.
   selected discretionary variants on the elastic input.
 
 Completion criterion: TUI diagnostics and exported SVG describe the same layout.
-Actual glyph rendering remains a later decision.
+Step 7 extends this structural view with frozen glyph outlines.
 
 Implemented: `pipeline.Input.Breaker` selects `FirstFit` (the default) or
 `KnuthPlass`, each with its own resolved default geometry used for both breaking
 and freezing. Every run has a fresh owner and publishes only after freezing.
-`pipeline.WriteSVG` exports a completed result through `debug.WriteFrozenSVG`.
+`pipeline.WriteSVG` now dispatches to glyph outlines for OpenType results and
+structural boxes for synthetic results. `WriteStructuralSVG` explicitly uses
+`debug.WriteFrozenSVG` for either backend; `WriteGlyphSVG` requires OpenType.
 The TUI uses F2 to switch breakers, F3 to browse retained completed results, and
 Ctrl+S to export the displayed snapshot to a unique `paragraph-*.svg` file.
 Export captures that result even if another layout completes before writing.
@@ -91,7 +95,8 @@ stylesheet subset, and the required local w3c-dom declaration-preservation fix.
 - Define a small supported subset: font family, size, weight/style, language,
   direction, and whitespace handling. Retain color as display metadata.
 - Build `styled.Text` with explicit byte spans and construct the bidi paragraph.
-- Resolve the text-builder issues below before relying on its convenience APIs.
+- Cords TextBuilder length/style preservation is now fixed upstream; extraction
+  retains explicit byte spans for DOM provenance.
 
 Completion criterion: fixtures verify nested styles, inherited properties,
 whitespace, and multibyte source mappings.
@@ -99,7 +104,9 @@ whitespace, and multibyte source mappings.
 Implemented in `htmlinput/styles.go`, `htmlinput/extraction.go`, and the pipeline
 style resolver. Extraction retains computed style spans, transformed byte maps,
 and bidi isolates; the synthetic pipeline applies size/language/spacing and
-exposes logical bidi runs. Both breakers are covered by frozen-output tests.
+exposes logical bidi runs. Whitespace collapses before shaping; paragraph
+boundaries are explicit, and newline-preserving CSS modes are rejected. Both
+breakers are covered by frozen-output tests.
 See [CSS extraction](CSS_EXTRACTION.md) for supported values, focused sibling
 cords/CSSOM fixes, and remaining upstream limitations.
 
@@ -148,16 +155,16 @@ test-confirmed defects.
 
 | Priority | Issue or gap | Action |
 | --- | --- | --- |
-| First | Styled builder appears to lose styles and length bookkeeping | Reproduce `AppendString` and `Text()` behavior in cords tests; fix upstream before adopting the builder. Explicit assigned `Text.Style` calls can support early work. |
+| Fixed upstream | Styled builder length/style loss and empty-span styling | Cords regressions cover both append APIs, snapshots, byte lengths, and empty-span no-ops; tytui verifies styles through freezing. |
 | First | DOM helper nil accesses and untrimmed `Children()` results | Add focused reproductions for empty style elements, incomplete trees, and mixed element/text children; fix confirmed defects before exposing unrestricted DOM exploration. |
-| Early | CSS precedence and error reporting | Test embedded, supplied, and inline styles against the intended subset. Prefer the error-returning CSSOM path for integration. |
+| Fixed within subset | CSS precedence and error reporting | Declaration preservation, inline priority, and parsed specificity tuples are fixed upstream. The adapter uses the error-returning CSSOM path; broader cascade features remain unsupported. |
 | Implemented in step 6 | OpenType-to-khipu adapter | `fontbackend` supplies local loading, mapping, metrics, scaling, and streaming with regression coverage. |
-| Before real-font rollout | Streaming lifecycle and coordinate conversion | Test backpressure, cancellation, terminal errors, scalar anchors, and font-unit scaling. These errors can corrupt plausible-looking output. |
+| Implemented and tested | Streaming lifecycle and coordinate conversion | Adapter tests cover backpressure, cancellation, terminal errors, scalar anchors, and font-unit scaling. |
 | As encountered | OpenType parser and shaping limitations | Select compatible baseline fonts and report unsupported ones. Turn observed failures into focused upstream cases; avoid a broad shaping repair campaign. |
 
 ## Reproducibility and validation
 
-Save reproducible cases containing HTML/CSS or plain-text input, the selected
+Still planned: replayable case export/import containing HTML/CSS or plain-text input, the selected
 node, extracted text and styles, font identity, style mapping, width and units,
 breaker configuration, and diagnostics. Preserve font provenance and licenses
 for checked-in fixtures.
@@ -168,12 +175,13 @@ expectations, following the existing OpenType fixture workflow. Add focused
 tests in the owning package for upstream fixes and integration tests here for
 the boundaries between packages.
 
-## First milestone
+## Completed foundation and next work
 
-Deliver plain text → synthetic khipu → frozen lines → TUI diagnostics and SVG,
-alongside focused reproductions of the cords builder defects. This establishes
-the application structure without making progress depend on CSS or real-font
-shaping correctness.
+The original plain text → synthetic khipu → frozen lines → TUI diagnostics and
+structural SVG milestone is complete. DOM/CSS extraction, real fonts, multilingual
+itemization, fallback, and glyph SVG proofs extend that foundation.
 
 Steps 1–7 are implemented within the documented subsets. Broader script, fallback,
-and CSS layout coverage remain future work. The separate cords builder investigations remain outstanding.
+and CSS layout coverage remain future work. Builder defects and the reviewed
+integration correctness issues are fixed or explicitly guarded; replayable cases
+and stronger independent layout oracles remain priorities in TODO.md.

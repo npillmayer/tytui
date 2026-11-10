@@ -15,9 +15,11 @@ and hidden content fail before replacing the
 paragraph input. The UI also refuses a selection if the text editor would alter
 its bytes. CSS whitespace, resolved styles, and bidi isolates are retained by extraction.
 
-The default inline subset is a, abbr, b, cite, code, del, dfn, em, i, ins, kbd,
+The default inline subset is a, abbr, b, bdi, cite, code, del, dfn, em, i, ins, kbd,
 mark, q, s, samp, small, span, strong, sub, sup, time, u, and var. Additional roots
-are p, div, li, dt, dd, h1–h6, blockquote, figcaption, and pre. Explicit non-inline
+are p, div, li, dt, dd, h1–h6, blockquote, figcaption, and pre. A pre element is
+eligible only when its effective white-space is explicitly normal; preserving
+whitespace modes remain rejected. Explicit non-inline
 display on descendants is rejected, including inline-block. Hidden ancestors
 are checked even when selecting a descendant directly. Default tag policy is
 explicit because the library's UA fallback calls several standard inline tags
@@ -50,7 +52,7 @@ Property inspection walks public local property maps and parents with nil checks
 it does not call the unsafe inherited-property convenience traversal. Font
 properties are treated as inherited in this inspection subset. These values are
 diagnostics of the draft library and application defaults, not a claim of browser
-CSS conformance. Attributes remain visible alongside them. Real font selection and color rendering remain future work. Resolved styles,
+CSS conformance. Attributes remain visible alongside them. F5 provides real font selection and style mappings; glyph SVG proofs render supported colors. Resolved styles,
 whitespace processing, and byte spans are described in CSS_EXTRACTION.md.
 
 ## Upstream integration findings
@@ -74,8 +76,7 @@ the convenience style-element extractor assumes nonempty nodes. Broader cascade,
 shorthand, and inline-style parsing correctness remains upstream work beyond the
 supported subset. Step 5 fixes duplicate-property truncation and inline priority;
 issue 5 in TODO.md replaces the specificity heuristic with parsed tuples and
-separate source-order comparison (see CSS_EXTRACTION.md). The cords builder
-investigations remain separate.
+separate source-order comparison (see CSS_EXTRACTION.md). The cords TextBuilder length/style defects are now fixed upstream (see TODO.md).
 
 ## Verification
 

@@ -5,8 +5,9 @@ Later steps add real fonts and colored glyph proofs; see
 
 `Document.Extract` resolves inherited style values and processes whitespace before
 constructing explicit half-open UTF-8 byte spans. `Extraction.StyledText` applies
-these spans using assigned `Text.Style` results. It avoids the cords builder,
-whose convenience API issues are still outstanding. Styles are immutable values;
+these spans using assigned `Text.Style` results. The cords builder now preserves
+length and styles (see TODO.md); extraction retains its explicit-span approach.
+Styles are immutable values;
 result snapshots clone source, style, and isolate slices.
 
 Supported properties are family, size, weight, slant, color, language (HTML lang),
@@ -19,8 +20,9 @@ unsupported values on the selected subtree or its ancestors return errors.
 
 The synthetic resolver uses size, language (with inferred script), and spacing.
 With the synthetic backend, family, weight, slant, and color remain metadata.
-Step 6 adds explicit OpenType font mappings; see OPENTYPE_INTEGRATION.md. Color
-remains metadata and SVG remains a structural proof. Script inference from language is not full script itemization.
+OpenType font mappings are implemented; see OPENTYPE_INTEGRATION.md. The real-font
+path itemizes Latin/Hebrew text and applies ordered explicit fallback. Glyph SVG
+proofs render supported colors; synthetic output remains structural.
 The explorer and result pane expose resolved spans and logical bidi runs.
 
 ## Whitespace and provenance
@@ -85,8 +87,9 @@ separately because relative values differ from computed values.
 The sibling cords fix in styled/run_ops.go guards merges at text boundaries;
 style_boundaries_test.go covers consecutive multibyte spans, whole-text styling,
 and persistence. This fixes a panic reproduced by the paragraph fixture.
-The full cords styled suite still has an existing TestStyleNoOpOnEmptySpan failure
-(empty spans return ErrIllegalArguments); this adapter emits no empty style spans.
+Cords now accepts valid empty style ranges as no-ops, preserving existing runs
+without allocating new ones; empty_span_test.go covers the contract. This adapter
+continues to emit only nonempty style spans.
 
 In w3c-dom, CSSOM now skips a duplicate winning property without stopping all
 remaining properties, and inline declarations take priority over stylesheet

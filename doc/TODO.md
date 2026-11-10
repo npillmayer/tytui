@@ -107,21 +107,65 @@ from observations; unchecked items remain open.
   direction, breaker configuration, diagnostics, and sibling repository revisions.
   Session history and SVG alone cannot replay failures. This remains an unmet
   requirement of the implementation plan's reproducibility section.
-- [ ] Resolve cords builder defects upstream. Review probe: AppendString("é",
-  style) leaves Len() at zero and the built text has no accessible assigned style.
-  AppendString bypasses style/length bookkeeping; Text ignores the returned styled
-  value/error. Current explicit span construction avoids this path, so it is less
-  urgent than active pipeline failures, but the planned builder investigations
-  are unfinished.
-- [ ] Resolve the existing cords TestStyleNoOpOnEmptySpan failure. The full styled
-  suite still fails because an empty range returns ErrIllegalArguments. Settle
-  and test the public empty-span contract; do not hide it in tytui.
-- [ ] Investigate the tree dependency's `CalcRank` race exposed by w3c-dom's
-  `TestW3CTextContent1` (`dom_test.go:84`). Reads/writes at `tree.go:534,537`
-  race during BottomUp traversal. Reproduced with the pre-issue-5 CSSOM code;
-  this is separate from selector specificity. The CSSOM race tests pass.
-- [ ] Keep documentation current: old step descriptions still say OpenType and
-  w3c-dom are unused or WriteSVG is structural-only, despite later additions.
+- [x] Resolve cords TextBuilder defects in `../cords/styled/builder.go`.
+  AppendString and Append now record byte lengths and style spans consistently;
+  empty appends create no spans and rejected UTF-8 leaves the builder unchanged.
+  Text retains the styled value returned by Style, checks errors, and caches its
+  finalized snapshot. The existing Text() signature is unchanged; an internal
+  span-application failure panics with context instead of silently losing styles.
+  `styled/builder_regression_test.go` covers both append APIs, multibyte text,
+  long strings spanning chunks, nil styles, zero-value builders, empty/rejected
+  appends, repeated Text calls, persistent snapshots, and append-after-finalize.
+  `pipeline/builder_test.go` verifies builder styles reach frozen font sizes using
+  tytui's synthetic resolver. Production DOM extraction still uses explicit spans.
+- [x] Fix cords TestStyleNoOpOnEmptySpan in `styled/styles.go` and
+  `styled/run_ops.go`. Text.Style and Runs.Style treat [p,p) as a no-op when
+  p <= the text's UTF-8 byte length, including [0,0) on empty text, nil styles,
+  and positions inside multibyte encodings. No styles are inspected or allocated.
+  Reversed/out-of-range spans and nonempty spans clamped to empty still return
+  ErrIllegalArguments; nonempty end-clamping remains supported. Text.Style also
+  returns its original value on error. `styled/empty_span_test.go` covers initial
+  styling, existing runs, boundaries, byte offsets, invalid ranges, and clipping.
+  Tytui's builder-to-freeze regression checks that empty style selections preserve
+  font sizes. No tytui workaround was introduced.
+- [x] Replace cords TestConsoleFixedWidth's unconditional failure with exact
+  output assertions in `styled/formatter/fmt_test.go`. The test captures output
+  in a buffer, uses explicit control codes and ReorderNone, checks paragraph and
+  formatting errors, and creates a fresh paragraph for each width. Width 40 must
+  wrap between the Hebrew words; width 80 must retain the whole paragraph on one
+  line. Expectations include whitespace, punctuation, and final newline markers.
+  The test no longer depends on terminal environment variables or writes stdout.
+- [x] Fix the schuko global-selector race in `tracing/tracing.go`. Select now
+  acquires selectorMutex before every read of the global selector, including the
+  nil check; SetTraceSelector already writes under the same lock. Nil selection
+  still returns the no-op tracer, and selector callbacks retain their existing
+  locking behavior. `tracing/selector_race_test.go` covers concurrent readers,
+  replacements between distinct selectors, and nil teardown. It reproduces the
+  original read/write race and passes with the fix. This addresses the race
+  observed when cords bidi scanning overlapped trace2go.Teardown, separately
+  from the earlier testing-adapter instance fixes.
+- [x] Fix the tree dependency's `CalcRank` race exposed by w3c-dom's
+  `TestW3CTextContent1`. Multiple child notifications could execute the same
+  ready parent concurrently. `../tree/tree.go` now claims each ready node once
+  per BottomUp traversal, preserving child-completion synchronization. No change
+  to the public Rank field or application-level locking is needed.
+  `bottomup_rank_test.go` reproduces duplicate parent notifications and checks
+  exact-once actions and subtree ranks through repeated public traversals.
+  Both w3c-dom and tytui replace the tree dependency with `../tree`.
+- [x] Resolve tree's tracing/test races. In sibling schuko, the testing
+  tracer now synchronizes levels and prefix consumption, snapshots state before
+  formatting/logging, and protects the deprecated redirect target. `P` returns
+  an independent contextual tracer with a level snapshot, so concurrent callers
+  cannot steal prefixes. In tree, traversal test callbacks protect shared counters
+  and result slices; worker concurrency remains enabled. New schuko regressions
+  cover concurrent logging/level changes, context independence, and legacy
+  redirection. The full race suites now pass (validation below).
+- [x] Refresh implementation/dependency/export documentation. The plan and
+  DOM/CSS/OpenType guides now describe implemented steps 1–7, explicit fallback,
+  whitespace/source coordinates, and current rendering limits. AGENTS.md lists
+  all seven sibling dependencies. WriteSVG dispatches to glyph outlines for
+  OpenType and structural boxes for synthetic results; the explicit export APIs
+  and completed upstream fixes are documented consistently.
 
 ## Ownership and next priorities
 
@@ -167,6 +211,92 @@ fixtures over a broad shaping repair campaign.
   pass, including the OpenType proof integration under both breakers.
 - w3c-dom: `go test ./... -count=1`, `go build ./...`, and `go vet ./...` pass.
   CSSOM and its adapter also pass under the race detector in the full run.
-- w3c-dom's full `go test -race ./... -count=1` fails on the existing
+- At the issue 5 review, w3c-dom's full `go test -race ./... -count=1` failed on the existing
   `tree.CalcRank` race described above. Running `TestW3CTextContent1` with
   the original CSSOM restored through a Go overlay reproduces that race.
+
+## Tree rank race validation
+
+- The deterministic queued-notification regression fails before the fix with
+  two parent actions and a race on Rank, and passes afterward.
+- tree: both new regressions pass with `-race -count=10`; full non-race tests
+  and `go vet ./...` pass. The former full-suite race limitation is now fixed (see below).
+- w3c-dom and tytui: full `go test -race ./... -count=1` suites pass using the
+  sibling tree replacement. Tytui build and vet also pass.
+
+## Tracing/test race validation
+
+- schuko's new `tracing/gotestingadapter/concurrency_test.go` regressions fail
+  against the original adapter with races/context leakage and pass with the fix.
+- `go test -race ./... -count=1` passes in schuko, tree, w3c-dom, and tytui.
+  Tree's TopDown/BottomUp callback tests now synchronize their own bookkeeping.
+- `go vet ./...` and `go build ./...` pass in all four modules.
+- Cords, tree, w3c-dom, and tytui now replace schuko with `../schuko`, so tests and normal
+  runs use the owning-package fix rather than cached releases.
+- Global tracer configuration/teardown remains serialized between tests. Tracer
+  instances support concurrent calls; workers must finish before their testing.T
+  completes. This does not make concurrent global QuickConfig sessions supported.
+
+## TextBuilder validation
+
+- Focused length and style regressions fail against the original builder and
+  pass with the fix, including `go test -race ./styled -run TestTextBuilder -count=1`.
+- Tytui's full `go test -race ./... -count=1`, build, and vet pass.
+  Cords' styled packages also build and pass vet.
+- At the TextBuilder review, the broader cords styled suite retained the
+  TestStyleNoOpOnEmptySpan failure (now fixed above) and TestConsoleFixedWidth's unconditional `t.Fail()` (now fixed above) in
+  `styled/formatter/fmt_test.go:90`. At that review, cords' pinned schuko retained the old tracer races; validation with
+  a temporary module file selecting the fixed sibling schuko removes those races
+  and leaves those two unrelated test failures. No dependency files were changed in cords.
+
+## Empty style-span validation
+
+- New regressions fail against the original implementation and pass with the fix.
+  `TestStyleNoOpOnEmptySpan` now passes unchanged.
+- The full cords styled and inline packages pass under the race detector with
+  the fixed sibling schuko selected via a temporary module file:
+  `go test -modfile <validation.mod> -race ./styled ./styled/inline -count=1`.
+  No cords dependency files changed in that step. The local replacement is now
+  permanent; see the dependency wiring validation below.
+- Tytui: full `go test -race ./... -count=1`, build, and vet pass. Cords' styled
+  packages build and pass vet. At that review, the formatter's unconditional
+  `t.Fail()` was still a separate limitation; it is now fixed above.
+
+## Console formatter test validation
+
+- `go test ./styled/... -count=1` passes in cords, including the complete styled,
+  formatter, and inline packages.
+- The focused replacement test passes under `-race`. With the fixed sibling
+  schuko selected through a temporary module file, formatter and inline also
+  pass in full under `-race`; the broader styled race run exposed the separate
+  global-selector race recorded above (now fixed). No dependency files were changed.
+- Only the owning-package test changed; formatter production behavior is unchanged.
+
+## Global-selector race validation
+
+- The focused schuko regression fails under `-race` against the original code;
+  it passes ten consecutive runs with the fix.
+- Schuko and tytui: full `go test -race ./... -count=1`, `go build ./...`, and
+  `go vet ./...` pass.
+- Cords: all styled packages pass with
+  `go test -modfile <validation.mod> -race ./styled/... -count=1` using a temporary
+  replacement for the fixed sibling schuko. This temporary validation has now
+  been superseded by the permanent local replacement below.
+
+## Cords dependency wiring validation
+
+- [x] Cords' go.mod now replaces `github.com/npillmayer/schuko` with
+  `../schuko`. `go list -m github.com/npillmayer/schuko` confirms the local
+  checkout is selected. No temporary module file is needed.
+- Cords: `go test -race ./styled/... -count=1` passes, including styled,
+  formatter, and inline. Tytui: `go test -race ./... -count=1` passes.
+- README.md and AGENTS.md document the sibling layout and the independent
+  main-module replacements required by Go.
+
+## Documentation refresh validation
+
+- Cross-checked the current guides against go.mod, pipeline/svg.go,
+  pipeline/pipeline.go, fontbackend/itemize.go, fontbackend/stream.go, and the TUI
+  controls. Historical validation entries remain labeled as prior observations.
+- Checked documentation diffs and relative Markdown links. This refresh changes
+  documentation only; runtime tests were not rerun.

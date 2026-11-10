@@ -1,8 +1,8 @@
 # OpenType fonts and shaping (step 6)
 
-Step 7 supersedes the script, fallback, discretionary, and SVG limits described
-below: see [Multilingual proofs](MULTILINGUAL_PROOFS.md). The loading and ownership
-contracts continue to apply.
+This documents the current font integration, including step 7 script itemization,
+fallback, and glyph export. See [Multilingual proofs](MULTILINGUAL_PROOFS.md) for
+detailed shaping, rendering, and coverage policies.
 
 ## Workbench
 
@@ -33,15 +33,19 @@ Rows match in order. Asterisk means any value. Weight is an exact integer from
 1 to 1000; slant is normal, italic, or oblique. Family matches a case-insensitive
 name in the extracted CSS family list; simple quoted names are accepted. This
 is an explicit mapping policy, not browser font matching or system discovery.
-Unmatched styles use the chosen default file. Plain text always uses that file.
+Unmatched styles and plain text start with the chosen default file. Ordered
+explicit fallback files may supply a missing grapheme.
 CSS sizes override the panel size, which is the plain-text default. No synthetic
-bold/italic or automatic glyph fallback is performed. All configured files are
+bold/italic or system-font discovery is performed. Add
+`fallback | * | * | /path/to/font.ttf` rows for explicit ordered fallback. All configured files are
 validated, even if a rule is not used in the current paragraph.
 
 The result inspector lists file paths, names, SHA-256 hashes, parser warnings,
-and processed UTF-8 byte spans mapped to each face and size. Color remains
-metadata. SVG export still draws structural boxes from the exact frozen result;
-it does not render glyph outlines or embed fonts.
+and processed UTF-8 byte spans mapped to each face and size. SVG export renders
+positioned outlines, supported CSS colors, baselines, and line geometry from the
+exact frozen result. Font binaries are not embedded. `WriteStructuralSVG` remains
+available for box diagnostics; `WriteSVG` chooses glyph output for OpenType and
+structural output for synthetic results.
 
 ## Headless use and ownership
 
@@ -59,7 +63,8 @@ result, err := pipeline.Run(ctx, pipeline.Input{
 ```
 
 For styled HTML, also pass the matching `Source` extraction and configure
-`Settings.Rules`. Its empty Family/Slant and zero Weight are wildcards. Input
+`Settings.Rules`. Its empty Family/Slant and zero Weight are wildcards.
+`Settings.Fallbacks` holds the ordered fallback font paths. Input
 settings and source slices are cloned in the result. Every run loads private font
 bytes and fresh parsed faces; subsequent file changes affect subsequent runs,
 not saved glyph snapshots. Font hashes identify the actual bytes used at layout
@@ -93,16 +98,17 @@ Coverage is intentionally strict: every non-control/non-format scalar must have 
 cmap glyph in the mapped face. Missing coverage reports the codepoint, processed
 UTF-8 byte interval, file, and hash. Variation selectors are exempt from this
 preflight; the shaper must still succeed. This policy can reject a character
-that normalization could decompose into supported glyphs. Automatic fallback and
-normalization-aware coverage decisions are deferred. A shaped .notdef glyph also
+that normalization could decompose into supported glyphs. Explicit fallback
+checks whole graphemes in configured order; normalization-aware coverage and
+automatic system-font discovery remain deferred. A shaped .notdef glyph also
 fails explicitly with its original scalar anchor. No partial frozen result is
 published on any failure.
 
-Step 6 registers `otcore` only, with a Latin/English plain-text default. CSS lang
-supplies language and inferred script. This is not text-based script itemization;
-nonmatching engines or unsupported shaping cases return errors. Dedicated Hebrew
-and Arabic engines, font fallback, variable/collection font selection, and glyph
-rendering remain later work. Existing OpenType correctness limits still apply.
+The adapter registers `otcore` and `othebrew`. Text-based, grapheme-safe
+itemization selects Latin/Hebrew scripts; CSS lang supplies language metadata.
+Soft hyphens support discretionary replacements through both breakers. Arabic
+and broader scripts, variable/collection font selection, and normalization-aware
+fallback remain unsupported. Existing OpenType correctness limits still apply.
 
 ## Fixtures and verification
 

@@ -5,11 +5,16 @@ The pipeline supports synthetic and OpenType fonts, Latin/Hebrew mixed-direction
 paragraphs, and firstfit or Knuth–Plass line breaking. The TUI displays text and
 layout diagnostics; SVG exports render positioned glyph outlines for OpenType.
 
-Run with Go 1.25.6 or newer and sibling `cords`, `khipu`, `uax`, `w3c-dom`, and `opentype` checkouts:
+Run with Go 1.25.6 or newer and sibling `cords`, `khipu`, `uax`, `w3c-dom`, `opentype`, `tree`, and `schuko` checkouts:
 
 ```sh
 go run .
 ```
+
+Cords, tree, w3c-dom, and tytui each replace schuko with `../schuko` to use
+the local tracing race fixes. Keep these checkouts as siblings. Main-module
+replacements do not propagate from dependencies, so tytui retains its own
+replacement. Cords can run `go test -race ./styled/... -count=1` directly.
 
 - Edit the paragraph, then press **Ctrl+R** to run layout.
 - **F4** (or Ctrl+O) opens the HTML / DOM explorer. Enter a local filename and
