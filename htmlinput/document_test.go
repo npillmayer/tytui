@@ -48,8 +48,8 @@ func TestExtractMapping(t *testing.T) {
 	if got, err := d.Property(nodeNamed(d, "b"), "color"); err != nil || got != "red" {
 		t.Fatalf("inherited color=%q %v", got, err)
 	}
-	if _, err := d.Property(0, "font-family"); err == nil {
-		t.Log("font default supplied")
+	if got, err := d.Property(0, "font-family"); err != nil || got != "serif" {
+		t.Fatalf("font default = %q, %v", got, err)
 	}
 	again := parseTest(t, `<!doctype html><html><head><style></style><style>p {color: red} b {font-weight: bold}</style></head><body><p id="chosen">hé &amp; <b>世界</b>!</p></body></html>`)
 	e2, err := again.Extract(nodeNamed(again, "p"))

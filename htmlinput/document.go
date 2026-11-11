@@ -16,6 +16,7 @@ import (
 	"github.com/aymerick/douceur/parser"
 	dom "github.com/npillmayer/w3c-dom"
 	"github.com/npillmayer/w3c-dom/style"
+	domcss "github.com/npillmayer/w3c-dom/style/css"
 	"github.com/npillmayer/w3c-dom/style/cssom"
 	"github.com/npillmayer/w3c-dom/style/cssom/douceuradapter"
 	"github.com/npillmayer/w3c-dom/styledtree"
@@ -35,9 +36,10 @@ type Node struct {
 }
 
 type Document struct {
-	Name, ID string // ID is the SHA-256 of the original HTML bytes.
-	Nodes    []Node
-	Warnings []string
+	OriginalHTML string
+	Name, ID     string // ID is the SHA-256 of the original HTML bytes.
+	Nodes        []Node
+	Warnings     []string
 }
 
 // Span maps extracted UTF-8 bytes to decoded bytes in one DOM text node.
@@ -52,6 +54,7 @@ type Span struct {
 
 // Extraction is detached provenance suitable for retaining with a frozen result.
 type Extraction struct {
+	OriginalHTML             string
 	DocumentName, DocumentID string
 	SelectedID               int
 	SelectedPath             string
@@ -105,20 +108,11 @@ func Parse(name string, r io.Reader) (*Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	doc := &Document{Name: name, ID: fmt.Sprintf("%x", sha256.Sum256(data))}
-	// The library has no font defaults. Seed our inspection subset through its
-	// public extension API and reject declarations outside that known subset.
-	// The former property-forking implementation could panic on missing defaults.
-	extensions := []style.KeyValue{{Key: "font-family", Value: "serif"}, {Key: "font-size", Value: "medium"}, {Key: "font-weight", Value: "normal"}, {Key: "font-style", Value: "normal"}, {Key: "line-height", Value: "normal"}, {Key: "unicode-bidi", Value: "normal"}}
-	defaults := style.InitializeDefaultPropertyValues(extensions)
-	css := cssom.NewCSSOM(extensions)
+	doc := &Document{OriginalHTML: string(data), Name: name, ID: fmt.Sprintf("%x", sha256.Sum256(data))}
+	defaults := style.InitializeDefaultPropertyValues(nil)
+	css := cssom.NewCSSOM(nil)
 	validate := func(declarations []*dcss.Declaration) error {
-		seen := make(map[string]bool)
 		for _, decl := range declarations {
-			if decl.Important || strings.Contains(decl.Value, "!") || seen[decl.Property] {
-				return fmt.Errorf("CSS !important and repeated declarations in one rule are unsupported by this cascade subset")
-			}
-			seen[decl.Property] = true
 			properties, err := style.SplitCompoundProperty(decl.Property, style.Property(decl.Value))
 			if err != nil {
 				properties = []style.KeyValue{{Key: decl.Property, Value: style.Property(decl.Value)}}
@@ -131,48 +125,40 @@ func Parse(name string, r io.Reader) (*Document, error) {
 		}
 		return nil
 	}
-	// Extract style text ourselves: the library convenience helper dereferences
-	// missing children on empty <style> elements and only scans head/body children.
+	// Extract through the upstream error-returning API; never style partial results.
+	extracted, err := douceuradapter.ExtractStyleElementsWithError(h)
+	if err != nil {
+		return nil, fmt.Errorf("embedded CSS: %w", err)
+	}
+	for _, sheet := range extracted {
+		for _, adapted := range sheet.Rules() {
+			rule := adapted.(douceuradapter.Rule)
+			if rule.Kind != dcss.QualifiedRule {
+				return nil, fmt.Errorf("CSS at-rules are not supported by the DOM inspection subset")
+			}
+			if _, err := cascadia.Compile(rule.Prelude); err != nil {
+				return nil, fmt.Errorf("CSS selector: %w", err)
+			}
+			if err := validate(rule.Declarations); err != nil {
+				return nil, err
+			}
+		}
+		if err := css.AddStylesForScope(nil, sheet, cssom.Author); err != nil {
+			return nil, err
+		}
+	}
+	// Retain inline validation and linked-resource warnings as application policy.
 	var sheets func(*html.Node) error
 	sheets = func(n *html.Node) error {
 		for _, a := range n.Attr {
 			if a.Key == "style" {
-				if strings.Contains(a.Val, "!") {
-					return fmt.Errorf("inline CSS priority syntax is unsupported")
-				}
-				declarations, err := parser.ParseDeclarations(a.Val)
+				declarations, err := parser.ParseDeclarations(a.Val + "\n;")
 				if err != nil {
 					return fmt.Errorf("inline CSS: %w", err)
 				}
 				if err = validate(declarations); err != nil {
 					return err
 				}
-			}
-		}
-		if n.Type == html.ElementNode && n.Data == "style" {
-			var text strings.Builder
-			for c := n.FirstChild; c != nil; c = c.NextSibling {
-				if c.Type == html.TextNode {
-					text.WriteString(c.Data)
-				}
-			}
-			sheet, err := parser.Parse(text.String())
-			if err != nil {
-				return fmt.Errorf("embedded CSS: %w", err)
-			}
-			for _, rule := range sheet.Rules {
-				if rule.Kind != dcss.QualifiedRule {
-					return fmt.Errorf("CSS at-rules are not supported by the DOM inspection subset")
-				}
-				if _, err := cascadia.Compile(rule.Prelude); err != nil {
-					return fmt.Errorf("CSS selector: %w", err)
-				}
-				if err := validate(rule.Declarations); err != nil {
-					return err
-				}
-			}
-			if err = css.AddStylesForScope(nil, douceuradapter.Wrap(sheet), cssom.Author); err != nil {
-				return err
 			}
 		}
 		if n.Type == html.ElementNode && n.Data == "link" {
@@ -196,7 +182,7 @@ func Parse(name string, r io.Reader) (*Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Use FirstChild/NextSibling, not Children(), whose filtered list can have nil entries.
+	// Include text nodes in locators; Children() intentionally returns only elements.
 	var visit func(*dom.W3CNode, int, int, string)
 	visit = func(n *dom.W3CNode, parent, depth int, path string) {
 		hn := n.HTMLNode()
@@ -215,9 +201,7 @@ func Parse(name string, r io.Reader) (*Document, error) {
 	return doc, nil
 }
 
-// Property returns an inspected library value. It safely walks public property
-// maps instead of css.GetCascadedProperty, which dereferences the root's parent.
-// This is an inspection subset, not a browser computed-style implementation.
+// Property inspects upstream inheritance/default resolution, not computed layout.
 func (d *Document) Property(id int, key string) (string, error) {
 	if id < 0 || id >= len(d.Nodes) {
 		return "", fmt.Errorf("unknown DOM node %d", id)
@@ -226,25 +210,10 @@ func (d *Document) Property(id int, key string) (string, error) {
 	if sn.HTMLNode().Type == html.TextNode && sn.Parent() != nil {
 		sn = sn.Parent().Payload
 	}
-	origin := sn
-	inherit := style.IsCascading(key) || strings.HasPrefix(key, "font-")
-	for sn != nil {
-		if value, ok := sn.Styles().Property(key); ok {
-			if value != "inherit" && value != "unset" {
-				return string(value), nil
-			}
-			inherit = true
-		}
-		if !inherit {
-			break
-		}
-		parent := sn.Parent()
-		if parent == nil {
-			break
-		}
-		sn = parent.Payload
+	value, err := domcss.GetProperty(sn, key)
+	if err != nil {
+		return "", err
 	}
-	value := style.GetUserAgentDefaultProperty(origin.HTMLNode(), key)
 	if value == style.NullStyle {
 		return "", fmt.Errorf("no library value for %s", key)
 	}

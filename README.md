@@ -5,7 +5,7 @@ The pipeline supports synthetic and OpenType fonts, Latin/Hebrew mixed-direction
 paragraphs, and firstfit or Knuth–Plass line breaking. The TUI displays text and
 layout diagnostics; SVG exports render positioned glyph outlines for OpenType.
 
-Run with Go 1.25.6 or newer and sibling `cords`, `khipu`, `uax`, `w3c-dom`, `opentype`, `tree`, and `schuko` checkouts:
+Run with Go 1.25.6 or newer and sibling `cords`, `khipu`, `uax`, `w3c-dom`, `opentype`, `tree`, `schuko`, and `fontfind` checkouts:
 
 ```sh
 go run .
@@ -125,3 +125,18 @@ soft-hyphen replacements. Add `fallback | * | * | /path/to/Hebrew.ttf` in F5.
 OpenType SVG exports now render frozen outlines, colors, baselines, and line
 geometry. Try `testdata/html/multilingual.html`; see
 [policies and proof verification](doc/MULTILINGUAL_PROOFS.md).
+
+Headless offline fonts can also use immutable `fontbackend.Resource` snapshots
+through `Settings.DefaultResource`, `Rule.Resource`, and `FallbackResources`.
+Existing F5 file selection remains unchanged. The local dependency layout now
+also requires `../fontfind`; see [offline resources](doc/OPENTYPE_INTEGRATION.md).
+
+In F5, Ctrl+D switches file paths to controlled offline requests such as
+`Gentium Plus ; 400 ; normal`. The packaged catalog currently contains Gentium
+Plus Regular only; use file mode for other fonts. Ctrl+T opts into explicit
+substitution. Ctrl+P previews requested/resolved faces and diagnostics; Ctrl+S
+applies a successful preview. Ctrl+E edits again; arrows/Page keys scroll details.
+See [font requests](doc/OPENTYPE_INTEGRATION.md) for mapping syntax and limits.
+
+Headless reproducible cases use `replay.Save`/`Load` with pinned font hashes and a
+local content store; see [offline replay](doc/OFFLINE_REPLAY.md). TUI Ctrl+S remains SVG.

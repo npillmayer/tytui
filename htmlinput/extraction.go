@@ -41,7 +41,7 @@ func (d *Document) Extract(id int) (*Extraction, error) {
 	if err != nil {
 		return nil, err
 	}
-	e := &Extraction{DocumentName: d.Name, DocumentID: d.ID, SelectedID: id, SelectedPath: selected.Path, Direction: styles[id].Direction}
+	e := &Extraction{OriginalHTML: d.OriginalHTML, DocumentName: d.Name, DocumentID: d.ID, SelectedID: id, SelectedPath: selected.Path, Direction: styles[id].Direction}
 	var units []textUnit
 	var isolates []int
 	var collect func(int) error
@@ -62,7 +62,11 @@ func (d *Document) Extract(id int) (*Extraction, error) {
 				return err
 			}
 			if current != id {
-				if value, ok := n.styled.Styles().Property("display"); ok && value != "inline" && value != "contents" {
+				value, err := d.Property(current, "display")
+				if err != nil {
+					return err
+				}
+				if value != "inline" && value != "contents" {
 					return fmt.Errorf("%s: display %q is not inline content", n.Path, value)
 				}
 			}

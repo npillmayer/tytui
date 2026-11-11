@@ -14,6 +14,14 @@ import (
 )
 
 type fontEditor struct {
+	requests, substitute bool
+	cancel               context.CancelFunc
+	resolve              func(context.Context, fontbackend.DescriptorSettings) (*fontbackend.Settings, []fontbackend.FontDiagnostic, error)
+	pending              *fontbackend.Settings
+	preview              string
+	previewOpen          bool
+	previewOffset        int
+
 	open                       bool
 	path, size                 textinput.Model
 	rules                      textarea.Model
@@ -22,6 +30,8 @@ type fontEditor struct {
 	status                     string
 }
 type fontsLoadedMsg struct {
+	preview      bool
+	diagnostics  []fontbackend.FontDiagnostic
 	id, revision uint64
 	settings     *fontbackend.Settings
 	infos        []fontbackend.Info
@@ -45,7 +55,7 @@ func newFontEditor() fontEditor {
 	r.MaxWidth = 0
 	r.ShowLineNumbers = false
 	r.SetVirtualCursor(false)
-	return fontEditor{path: p, size: s, rules: r, status: "Default face is used for unmatched styles. Rows match in order; * means any."}
+	return fontEditor{resolve: offlineFontDiscovery().ResolveSettings, path: p, size: s, rules: r, status: "Default face is used for unmatched styles. Rows match in order; * means any."}
 }
 func (f *fontEditor) setFocus(n int) tea.Cmd {
 	f.path.Blur()
@@ -102,6 +112,7 @@ func (f *fontEditor) settings() (*fontbackend.Settings, error) {
 func (m *model) toggleFonts() tea.Cmd {
 	m.fontEditor.open = !m.fontEditor.open
 	if !m.fontEditor.open {
+		m.fontEditor.clearPending()
 		m.fontEditor.revision++
 		m.fontEditor.path.Blur()
 		m.fontEditor.size.Blur()
@@ -126,23 +137,80 @@ func (m model) updateFonts(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "shift+tab":
 			cmd := f.setFocus((f.focus + 2) % 3)
 			return m, cmd
-		case "ctrl+s":
+		case "ctrl+d":
+			f.clearPending()
+			f.requests = !f.requests
+			f.revision++
+			f.status = "Offline catalog: Gentium Plus Regular; serif maps to it. Edit targets; Ctrl+P previews."
+			return m, nil
+		case "ctrl+t":
+			f.clearPending()
+			f.substitute = !f.substitute
+			f.revision++
+			f.status = "Substitution policy changed; preview again."
+			return m, nil
+		case "ctrl+e":
+			f.clearPending()
+			f.revision++
+			return m, nil
+		case "up", "down", "pgup", "pgdown":
+			if f.previewOpen {
+				delta := 1
+				if key.String() == "pgup" || key.String() == "pgdown" {
+					delta = max(1, m.height-3)
+				}
+				if key.String() == "up" || key.String() == "pgup" {
+					delta = -delta
+				}
+				f.previewOffset = max(0, min(max(0, len(strings.Split(ansi.Hardwrap(f.preview, max(1, m.width), true), "\n"))-max(1, m.height-3)), f.previewOffset+delta))
+				return m, nil
+			}
+		case "ctrl+s", "ctrl+p":
+			if key.String() == "ctrl+s" && f.pending != nil {
+				m.fontSettings = f.pending.Clone()
+				m.invalidate()
+				m.status = "OpenType enabled · ctrl+r to run"
+				m.viewport.SetContent(f.preview)
+				cmd := m.toggleFonts()
+				return m, cmd
+			}
 			s, err := f.settings()
+			var request fontbackend.DescriptorSettings
+			if f.requests {
+				request, err = f.descriptorSettings()
+			}
 			if err != nil {
 				f.status = err.Error()
 				return m, nil
 			}
+			f.clearPending()
+			ctx, cancel := context.WithCancel(context.Background())
+			f.cancel = cancel
 			f.nextID++
 			f.activeID = f.nextID
 			id, rev := f.activeID, f.revision
+			preview := f.requests || key.String() == "ctrl+p"
+			requests, resolve := f.requests, f.resolve
 			f.status = "Loading and validating fonts…"
 			return m, func() tea.Msg {
-				r, err := fontbackend.LoadSettings(context.Background(), *s)
-				var infos []fontbackend.Info
-				if r != nil {
-					infos = r.Infos()
+				defer cancel()
+				var diagnostics []fontbackend.FontDiagnostic
+				var err error
+				if requests {
+					s, diagnostics, err = resolve(ctx, request)
 				}
-				return fontsLoadedMsg{id, rev, s, infos, err}
+				var infos []fontbackend.Info
+				if err == nil {
+					var r *fontbackend.Resolver
+					r, err = fontbackend.LoadSettings(ctx, *s)
+					if r != nil {
+						infos = r.Infos()
+					}
+				}
+				if err == nil {
+					err = ctx.Err()
+				}
+				return fontsLoadedMsg{id: id, revision: rev, settings: s, infos: infos, err: err, preview: preview, diagnostics: diagnostics}
 			}
 		}
 	}
@@ -157,13 +225,31 @@ func (m model) updateFonts(msg tea.Msg) (tea.Model, tea.Cmd) {
 		f.rules, cmd = f.rules.Update(msg)
 	}
 	if before != f.path.Value()+"\x00"+f.size.Value()+"\x00"+f.rules.Value() {
+		f.clearPending()
 		f.revision++
-		f.status = "Draft changed · ctrl+s validates and applies"
+		f.status = "Draft changed · ctrl+p previews; ctrl+s applies"
 	}
 	return m, cmd
 }
 func (m model) fontsView() tea.View {
 	f := m.fontEditor
+	if f.previewOpen {
+		lines := strings.Split(ansi.Hardwrap(f.preview, max(1, m.width), true), "\n")
+		start := min(f.previewOffset, len(lines))
+		end := min(len(lines), start+max(1, m.height-3))
+		content := []string{"Font preview · Ctrl+S apply · Ctrl+E edit · Esc close"}
+		content = append(content, lines[start:end]...)
+		content = append(content, "↑/↓ PgUp/PgDn scroll · "+f.status)
+		for i := range content {
+			content[i] = ansi.Truncate(content[i], m.width, "…")
+		}
+		if len(content) > m.height && m.height > 0 {
+			content = content[:m.height]
+		}
+		v := tea.NewView(strings.Join(content, "\n"))
+		v.AltScreen = true
+		return v
+	}
 	label := func(n int, s string) string {
 		if f.focus == n {
 			return "> " + s
@@ -174,7 +260,7 @@ func (m model) fontsView() tea.View {
 	if m.fontSettings != nil {
 		mode = "OpenType"
 	}
-	content := strings.Join([]string{"Fonts · current backend: " + mode, label(0, "Default font file"), f.path.View(), label(1, "Plain-text size (bp); CSS sizes override"), f.size.View(), label(2, "Mappings: family | weight | slant | path; fallback | * | * | path"), f.rules.View(), ansi.Truncate(f.status, m.width, "…"), "Tab focus · Ctrl+S apply · F6 synthetic · F5/Esc close"}, "\n")
+	content := strings.Join([]string{"Fonts · current backend: " + mode, label(0, fontSourceLabel(f.requests, f.substitute)), f.path.View(), label(1, "Plain-text size (bp); CSS sizes override"), f.size.View(), label(2, "Mappings: family | weight | slant | target; fallback | * | * | target"), f.rules.View(), ansi.Truncate(f.status, m.width, "…"), "Tab focus · ^D file/request · ^T substitution · ^P preview · ^S apply · Esc close"}, "\n")
 	lines := strings.Split(content, "\n")
 	for i, line := range lines {
 		lines[i] = ansi.Truncate(line, m.width, "…")
@@ -201,4 +287,25 @@ func (m model) fontsView() tea.View {
 		}
 	}
 	return v
+}
+
+func (f *fontEditor) clearPending() {
+	if f.cancel != nil {
+		f.cancel()
+		f.cancel = nil
+	}
+	f.pending = nil
+	f.previewOpen = false
+	f.preview = ""
+	f.previewOffset = 0
+}
+func fontSourceLabel(requests, substitute bool) string {
+	if !requests {
+		return "Default font file (Ctrl+D for requests)"
+	}
+	policy := "strict"
+	if substitute {
+		policy = "allow substitution"
+	}
+	return "Request: families ; weight ; slant · " + policy
 }

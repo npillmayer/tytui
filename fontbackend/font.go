@@ -1,4 +1,4 @@
-// Package fontbackend adapts local OpenType fonts to khipu's public contracts.
+// Package fontbackend adapts offline OpenType fonts to khipu's public contracts.
 package fontbackend
 
 import (
@@ -28,6 +28,8 @@ type Face struct {
 	outline   *sfnt.Font
 }
 type Info struct {
+	ResourceID                      string
+	Origin                          Origin
 	Path, Family, Subfamily, SHA256 string
 	Warnings                        []string
 }
@@ -75,6 +77,7 @@ func (Loader) LoadFont(src io.Reader) (contracts.FontFace, error) {
 	if err != nil {
 		return nil, err
 	}
+	f.setResourceID()
 	return f, nil
 }
 func LoadFile(path string) (*Face, error) {
@@ -96,6 +99,8 @@ func LoadFile(path string) (*Face, error) {
 	}
 	f := face.(*Face)
 	f.info.Path = path
+	f.info.Origin = Origin{Provider: "file", Location: path}
+	f.setResourceID()
 	return f, nil
 }
 func (f *Face) Metrics() (contracts.FontMetrics, error) {

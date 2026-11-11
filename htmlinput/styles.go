@@ -10,6 +10,7 @@ import (
 	"github.com/npillmayer/cords/styled"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/uax/bidi"
+	domdimen "github.com/npillmayer/w3c-dom/dimen"
 	"golang.org/x/net/html"
 	"golang.org/x/text/language"
 	ubidi "golang.org/x/text/unicode/bidi"
@@ -222,6 +223,7 @@ func assignProperty(s *Style, from Style, key string) {
 	}
 }
 func resolveSize(v string, parent, root dimen.DU) (dimen.DU, error) {
+	v = strings.ToLower(strings.TrimSpace(v))
 	var value float64
 	keywords := map[string]float64{"xx-small": 6.75, "x-small": 7.5, "small": 9.75, "medium": 12, "large": 13.5, "x-large": 18, "xx-large": 24}
 	if points, ok := keywords[v]; ok {
@@ -234,7 +236,7 @@ func resolveSize(v string, parent, root dimen.DU) (dimen.DU, error) {
 		units := []struct {
 			suffix string
 			scale  float64
-		}{{"rem", float64(root)}, {"em", float64(parent)}, {"px", .75 * float64(dimen.BP)}, {"pt", float64(dimen.BP)}, {"%", float64(parent) / 100}}
+		}{{"rem", float64(root)}, {"em", float64(parent)}, {"%", float64(parent) / 100}}
 		found := false
 		for _, unit := range units {
 			if strings.HasSuffix(v, unit.suffix) {
@@ -248,7 +250,21 @@ func resolveSize(v string, parent, root dimen.DU) (dimen.DU, error) {
 			}
 		}
 		if !found {
-			return 0, fmt.Errorf("unsupported font-size %q (use px, pt, em, rem or %%)", v)
+			for _, unit := range []string{"px", "pt", "in", "mm", "cm"} {
+				if strings.HasSuffix(v, unit) {
+					absolute, err := domdimen.ParseAbsolute(strings.TrimSpace(strings.TrimSuffix(v, unit)), unit)
+					if err != nil {
+						return 0, err
+					}
+					// Both libraries use 65536 DU per big point; retain the explicit conversion.
+					value = float64(absolute) * float64(dimen.BP) / float64(domdimen.BP)
+					found = true
+					break
+				}
+			}
+			if !found {
+				return 0, fmt.Errorf("unsupported font-size %q (use px, pt, in, mm, cm, em, rem or %%)", v)
+			}
 		}
 	}
 	value = math.Round(value)

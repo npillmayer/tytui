@@ -28,6 +28,13 @@ func renderResult(result *pipeline.Result) string {
 	}
 	if len(result.Fonts) > 0 {
 		b.WriteString("OpenType faces (core/Hebrew)\n")
+		for _, d := range result.FontDiagnostics {
+			label := d.Stage
+			if d.Substituted {
+				label += " SUBSTITUTION"
+			}
+			fmt.Fprintf(&b, "Discovery %s · requested %q · %s: %s\n", label, d.Request.Pattern, d.Provider, d.Message)
+		}
 		for _, f := range result.Fonts {
 			fmt.Fprintf(&b, "%q · %s %s\nSHA-256 %s\n", f.Path, f.Family, f.Subfamily, f.SHA256)
 			for _, w := range f.Warnings {
@@ -35,7 +42,7 @@ func renderResult(result *pipeline.Result) string {
 			}
 		}
 		for _, binding := range result.FontBindings {
-			fmt.Fprintf(&b, "bytes [%d,%d) → %q · %.2f bp · %s\n", binding.Start, binding.End, binding.Path, binding.EmSize.Points(), binding.Script)
+			fmt.Fprintf(&b, "Coverage binding bytes [%d,%d) → %q · %.2f bp · %s\n", binding.Start, binding.End, binding.Path, binding.EmSize.Points(), binding.Script)
 		}
 		b.WriteString("SVG renders frozen glyph outlines with baselines, colors, and line geometry.\n\n")
 	}

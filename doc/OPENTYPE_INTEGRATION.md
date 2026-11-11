@@ -131,3 +131,135 @@ Both breakers, mapped styled runs, detached settings, parser failures, absent
 files, missing multibyte glyphs, cancellation under backpressure, stream lifecycle,
 panel failure/staleness, backend switching, and small terminal sizes are covered.
 No upstream source changes were required for step 6.
+
+## Offline resources and identities
+
+File-path loading and the F5 file mode remain supported. Headless callers may select
+exactly one of DefaultPath/DefaultResource, and Path/Resource for each mapping rule.
+Fallbacks retains its existing file ordering; FallbackResources follows those
+files in slice order. First-match style rules are unchanged.
+
+`ReadResource(reader, Origin)` copies at most 64 MiB plus one detection byte and
+returns a Resource with private immutable bytes. `FontfindResource(sf, provider,
+request)` reads an already resolved `fontfind.ScalableFont` through ReadFontData,
+not by opening Path as an OS path. Its allocation is not bounded upstream before
+the size check: use it only for trusted offline resources; use the reader API for
+bounded input. Neither API performs discovery. Context-free resource snapshotting
+must happen before publishing a request to an asynchronous command.
+
+LoadResource uses the normal Loader parser, preserving parser failures, warnings,
+and coverage checks. Packaged Gentium is verified through shaping and proof export;
+other embedded fonts, including Go-Regular, are not promised parser compatibility.
+No relaxed parser flags or silent fallback are introduced.
+
+Info and Binding separate display Path, Origin (provider, resolved name, location,
+requested descriptor), SHA256 of the exact bytes, and ResourceID. SHA256 is the
+content identity. ResourceID hashes content plus provenance, allowing identical
+bytes from different origins to remain distinguishable. Different bytes at the
+same relative path cannot collide in face maps or itemized styles. These IDs are
+not yet a versioned replay manifest format. Parsed family/subfamily remain in Info;
+provider descriptions are not authoritative font metadata.
+
+Settings.Clone copies selection slices; Resource pointers safely share private
+immutable snapshots. Each pipeline run parses owned bytes; frozen faces retain
+those bytes and never reread the filesystem during proof export. Resources are now persisted by the separate step 4 replay API; see
+[offline replay](OFFLINE_REPLAY.md) for manifests, storage, and verification.
+
+`fontbackend/resource_test.go` covers bounded/read/parser errors, snapshot ownership,
+selection ambiguity and cloning. `pipeline/resource_test.go` covers injected fs.FS,
+packaged Gentium, identical relative locations with different fonts, mapping and
+coverage fallback, and file/resource proof equivalence under both breakers after
+source removal. Existing file, missing-glyph, and parser-warning tests remain active.
+
+## Controlled offline descriptor resolution
+
+Step 2 adds `NewDiscovery([]OfflineProvider, genericMappings)` and
+`Discovery.ResolveSettings(ctx, DescriptorSettings)`. The result is ordinary
+resource-backed Settings suitable for `pipeline.Run`; F5 now uses this layer
+for the request mode described below.
+There is no automatic system lookup, download, or implicit packaged default.
+
+A FontRequest has ordered Families, CSS Weight (100..900 in steps of 100; zero
+means 400), Slant (normal/italic/oblique), and AllowSubstitution (false by default).
+Pass family names separately, not an unsplit CSS declaration; names are not parsed
+as comma-separated patterns. Generic families require explicit session mappings.
+Unsupported intermediate weights are rejected rather than silently rounded.
+DescriptorSettings supplies the default, mapping rules, coverage fallback requests,
+and size. Original requests are deep-copied into Settings.DescriptorInput.
+
+An OfflineProvider has a stable unique name and a context-aware Find function
+returning Match{Font, Exact, Reason}. Exact is a trust assertion by a controlled
+catalog provider, not inferred from nil error or fontfind's requested metadata.
+For packaged fonts, resolve an explicit known face into a catalog entry; do not
+mark arbitrary filename matches or system lookup results exact without verification.
+A font plus error or Exact=false is accepted only with AllowSubstitution and is
+recorded as a substitution. Missing/declined matches advance through providers
+in order, then families in order. No implicit registry fallback is accepted.
+
+Each search uses fontfind's ResolverPipeline with an explicit private registry.
+The session caches successful immutable resources together with all diagnostic
+values, rather than relying on fontfind's resource-only cache. Provider policy
+and generic mappings are fixed at construction; create a new session if they
+change. Strict and substitution requests have distinct cache keys. Concurrent
+calls are serialized, with cancellation while waiting for the session. Active
+providers must cooperate with the search context. Resource I/O itself retains
+the trusted/offline and allocation limitations described above.
+
+Resolve/ResolveSettings return diagnostics even on failure. Stages distinguish
+lookup attempts, resolved identities/substitutions, read errors, parse errors,
+and parser warnings. ResolutionError supports errors.As and unwraps its cause.
+Read or parse failure terminates resolution; it never silently selects another
+font. Settings.ResolutionDiagnostics and Result.FontDiagnostics retain detached
+copies. Existing Info.Warnings and FontBindings remain available. Itemization
+failures are wrapped as ResolutionError with stage coverage; this includes the
+itemizer's unsupported-script/boundary diagnostics as well as missing glyphs.
+
+Discovery substitution is independent of grapheme fallback: all requested faces
+are resolved first, then the existing itemizer chooses among configured coverage
+candidates and records exact byte spans and resource IDs. Fontfind still does not
+provide general exact-match/provenance diagnostics, so unrestricted providers
+remain outside this integration's supported scope.
+
+Tests in fontbackend/discovery_test.go cover descriptor translation, provider and
+family order, strict/substituted results, cached diagnostics, generic policy,
+read/parse failures, cancellation, and concurrent cache use. The pipeline discovery
+test verifies detached diagnostics, mapped resources, Hebrew fallback and soft
+hyphens under both breakers. All tests use injected offline fixtures.
+
+## TUI descriptor requests and preview (step 3)
+
+F5 now offers two modes; Ctrl+D switches between existing file paths and offline
+requests. In request mode the default field and mapping/fallback target columns
+use `families ; weight ; slant`, for example `Gentium Plus ; 400 ; normal` or
+`Missing, Gentium Plus ; 400 ; normal`. Families are comma-separated names, not
+full CSS string syntax; quoted names containing commas are unsupported. Mapping
+predicates still use `family | weight | slant | target`. Each target has its own
+requested weight/slant, independently of the rule predicate. Fallback rows retain
+list order. All targets in the panel use the selected mode.
+
+The built-in controlled catalog contains only packaged Gentium Plus Regular
+(alias Gentium). The generic serif explicitly maps to this face; other generics
+have no default mapping. This deliberately small catalog needs no installation or
+network. Use file mode for other local fonts, including Hebrew coverage fonts.
+Requests for unavailable names/variants fail in strict mode. Ctrl+T explicitly
+allows substitution to the catalog's regular face; every such use is labeled
+SUBSTITUTION. No bold/italic synthesis or synthetic-backend recovery occurs.
+
+Ctrl+P resolves and validates a draft asynchronously and opens a scrollable
+preview of requests, actual parsed faces, provider/location, hashes, warnings,
+and substitutions. Ctrl+S in request mode also previews first; Ctrl+S from a
+successful preview applies its retained settings. Ctrl+E returns to editing;
+F5/Esc closes. Arrow and Page keys scroll wrapped preview text, including hashes.
+File mode retains direct Ctrl+S validation/application, with optional Ctrl+P preview.
+
+Lookup runs outside Update. Editing, switching mode/policy, closing, selecting
+synthetic, or quitting cancels work. Request/revision IDs discard stale completions.
+Pending/failed selections leave the current settings and displayed frozen result
+unchanged; application invalidates current layout while retaining saved history.
+Result inspection separately labels discovery substitutions and byte-range
+coverage bindings. The file/resource limitations above still apply.
+
+`font_requests_test.go` covers syntax and rule/fallback ordering, preview-before-
+apply, packaged lookup, substitution policy, retained results, cancelled and stale
+completions with controllable providers, and preview bounds. Existing file-panel
+and synthetic-switch tests remain active.

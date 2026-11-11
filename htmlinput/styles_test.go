@@ -159,13 +159,6 @@ func TestUnselectedStyleDoesNotBlockExtraction(t *testing.T) {
 		t.Fatal(e.Text)
 	}
 }
-func TestRejectAmbiguousCascade(t *testing.T) {
-	for _, source := range []string{`<p style="color:red!important">x</p>`, `<style>p {color:red;color:blue}</style><p>x</p>`} {
-		if _, err := Parse("test", strings.NewReader(source)); err == nil {
-			t.Fatalf("accepted unsupported cascade: %s", source)
-		}
-	}
-}
 func TestInvalidBidiAndStyleCoordinates(t *testing.T) {
 	e := extractP(t, `<p>é abc xyz</p>`)
 	e.Styles[0].End = 1

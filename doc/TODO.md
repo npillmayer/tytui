@@ -1,4 +1,4 @@
-# Integration review TODO — 2026-11-10
+# Integration review TODO — updated 2026-11-11
 
 Review of steps 1–7 against IMPLEMENTATION_PLAN.md. All vertical slices exist,
 but the supported subsets are not fully validated. The tytui race-enabled suite
@@ -78,7 +78,9 @@ from observations; unchecked items remain open.
    `pipeline/specificity_test.go` verifies extraction, inherited font size,
    freezing, and glyph-proof colors with OpenType under both breakers. Regressions
    fail before the fix and pass afterward. No tytui cascade workaround was added;
-   broader CSS cascade and parser limitations remain outside this fix.
+   broader CSS cascade and parser limitations remain outside this fix. Subsequent
+   upstream fixes and the three adapter migrations now also enable duplicate
+   declarations and !important; see the completed migration entries below.
 6. **P2 — dir=auto includes explicitly directed descendants.**
    `<p dir="auto"><span dir="rtl">אב</span>abc</p>` incorrectly resolves RTL.
    The outer direction scan must exclude the nested directional subtree.
@@ -96,6 +98,30 @@ from observations; unchecked items remain open.
 
 ## Remaining integration and test gaps
 
+- [x] Delegate property inspection and recursive stylesheet extraction to w3c-dom.
+  `Document.Property` uses `css.GetProperty`, with text-node parent inspection
+  and explicit absent-property errors. Built-in font metadata replaces local
+  default registrations. `ExtractStyleElementsWithError` supplies recursive,
+  ordered sheets and node-specific errors; any error rejects the load rather
+  than styling partial results. Tytui retains supported-CSS validation and
+  linked-resource policy. `htmlinput/upstream_dom_test.go` covers inheritance,
+  initial/unset, nested/empty sheets, source maps, and partial-result rejection.
+- [x] Remove duplicate-declaration and !important rejection. Upstream CSSOM owns
+  importance, specificity, source order, and shorthand/longhand competition.
+  `htmlinput/cascade_test.go` covers inline/stylesheet precedence and quoted
+  punctuation; `pipeline/priority_test.go` verifies inherited sizes and proof
+  colors under both breakers. Inline validation adds a terminator to avoid
+  douceur truncating a final multi-token value; styling sees the original
+  attribute. Unsupported properties, selectors, and at-rules remain rejected.
+- [x] Delegate absolute-unit parsing and HTML display defaults. Font sizes in
+  px/pt/in/mm/cm use w3c-dom's checked `dimen.ParseAbsolute`, with explicit
+  conversion to khipu DU and positive/finite checks. Descendant display checks
+  now use resolved properties, including inherit/initial/unset and upstream
+  HTML defaults. `htmlinput/units_display_test.go` covers conversions and retained
+  eligibility constraints; `pipeline/css_units_test.go` checks equivalent units
+  plus relative child sizing through frozen proofs under both breakers.
+  Relative sizes, inherited computed sizes, keywords, paragraph/tag eligibility,
+  hidden-content rejection, directionality, and byte/source maps remain local.
 - [x] Remove the visual-order API mismatch between OpenType and frozen khipu
   glyphs. `otshape.VisualOrder[G any]` now accepts client-defined record slices
   directly. `pipeline.BuildGlyphProof` applies it in place to each detached
@@ -119,11 +145,13 @@ from observations; unchecked items remain open.
   establish correct bidi run arrangement, line origins, or line breaking. The
   independent HarfBuzz single-run captures remain valuable; broader physical
   oracles remain open.
-- [ ] Implement reproducible case export/import: original HTML/CSS or text,
+- [x] Implement headless reproducible case export/import: original HTML/CSS or text,
   selection, extracted styles/map, font identities/hashes, mappings, units,
   direction, breaker configuration, diagnostics, and sibling repository revisions.
-  Session history and SVG alone cannot replay failures. This remains an unmet
-  requirement of the implementation plan's reproducibility section.
+  Implemented in replay.Save/Load with pinned local font objects, retained HTML
+  and extraction, semantic request/provider policy, source revisions and dirty
+  status, and comparison of frozen runs/proofs. See OFFLINE_REPLAY.md. TUI case
+  import/export controls and license-cleared archive packaging remain future work.
 - [x] Resolve cords TextBuilder defects in `../cords/styled/builder.go`.
   AppendString and Append now record byte lengths and style spans consistently;
   empty appends create no spans and rejected UTF-8 leaves the builder unchanged.
@@ -195,6 +223,13 @@ cleanup and dependency wiring are complete. The generic VisualOrder integration
 resolves the glyph-type mismatch, but does not resolve paragraph bidi or layout
 validation gaps.
 
+The three w3c-dom migrations are complete against the updated sibling checkout.
+The former font metadata, recursive stylesheet extraction, absolute-unit, and
+display-default obstacles no longer block this adapter. Remaining local paragraph
+policy and computed font-size handling are intentional responsibilities, not
+unfinished removal of those workarounds. These migrations do not add preserved
+whitespace, general CSS layout, or a computed-style engine.
+
 **Recommended next gap: independent mixed-direction physical-layout fixtures.**
 Start with a small, manually reviewed LTR/RTL paragraph pair containing Latin,
 pointed Hebrew, punctuation, and digits. Specify expected physical word/knot
@@ -205,8 +240,16 @@ HarfBuzz glyph expectations for individual runs; do not generate expected run
 order or geometry from the implementation under test. Check original source
 provenance and replacement-local anchors alongside rendering. Put any exposed
 defect in its owning package with a focused regression. This closes the most
-important remaining correctness blind spot before adding replayable case bundles
-or broader script support.
+important remaining correctness blind spot; the new replay cases can now retain
+these fixtures without expanding script support.
+
+Use the newly accepted CSS priority and inherited display behavior in a follow-up
+fixture, while keeping the first mixed-direction fixture small enough to review
+independently. Passing cascade and unit-equivalence tests do not establish correct
+physical bidi arrangement. Headless replay is now implemented; TUI case controls
+and portable archive packaging remain tooling follow-ups after these fixtures. Fontfind integration has resumed: steps 1–4 (offline resources, descriptor resolution, TUI requests/previews, and
+headless replay) are complete; optional remote discovery remains a later step
+in FONTFIND_INTEGRATION_PLAN.md.
 
 Steps 1–3 provide the strongest foundation: headless operation, asynchronous TUI
 lifecycle, fresh owners, freezing, history, and export. Step 4's constrained DOM
@@ -343,3 +386,13 @@ fixtures over a broad shaping repair campaign.
   independent mixed-direction layout fixtures recommended above.
 - This TODO review updates documentation only; those validation results are
   from the integration implementation, not a new test run.
+
+## W3c-dom migration validation
+
+- Each of the three migrations passed tytui's full `go test ./... -count=1`,
+  `go test -race ./... -count=1`, `go build ./...`, and `go vet ./...` checks.
+- The focused tests named above exercise the public upstream APIs through the
+  adapter; pipeline tests cover frozen results and glyph proofs with both breakers.
+  No sibling implementation changes were needed for these migrations.
+- This status review is documentation-only. Validation above records the completed
+  implementation runs; runtime suites were not rerun for this edit.

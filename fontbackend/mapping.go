@@ -13,17 +13,24 @@ import (
 )
 
 // Settings is a detached request. Rules use first-match order; zero/empty fields
-// are wildcards. Unmatched styles deliberately use DefaultPath, never synthetic.
+// are wildcards. Select exactly one default file or immutable resource.
+// Unmatched styles use that default, never synthetic. Path fallbacks precede resources.
 type Settings struct {
-	DefaultPath string
-	Size        dimen.DU
-	Rules       []Rule
-	Fallbacks   []string
+	DiscoveryPolicy       *DiscoveryPolicy
+	DescriptorInput       *DescriptorSettings
+	ResolutionDiagnostics []FontDiagnostic
+	DefaultPath           string
+	DefaultResource       *Resource
+	FallbackResources     []*Resource
+	Size                  dimen.DU
+	Rules                 []Rule
+	Fallbacks             []string
 }
 type Rule struct {
 	Family      string
 	Weight      int
 	Slant, Path string
+	Resource    *Resource
 }
 
 func (s *Settings) Clone() *Settings {
@@ -31,6 +38,10 @@ func (s *Settings) Clone() *Settings {
 		return nil
 	}
 	c := *s
+	c.DiscoveryPolicy = s.DiscoveryPolicy.Clone()
+	c.DescriptorInput = s.DescriptorInput.Clone()
+	c.ResolutionDiagnostics = append([]FontDiagnostic(nil), s.ResolutionDiagnostics...)
+	c.FallbackResources = append([]*Resource(nil), s.FallbackResources...)
 	c.Fallbacks = append([]string(nil), s.Fallbacks...)
 	c.Rules = append([]Rule(nil), s.Rules...)
 	return &c
@@ -40,47 +51,80 @@ func (s *Settings) Clone() *Settings {
 type Binding struct {
 	Start, End   uint64
 	Path, SHA256 string
+	ResourceID   string
+	Origin       Origin
 	EmSize       dimen.DU
 	Script       string
 }
 type Resolver struct {
-	settings Settings
-	faces    map[string]*Face
-	infos    []Info
+	settings    Settings
+	faces       map[string]*Face
+	infos       []Info
+	defaultID   string
+	ruleIDs     []string
+	fallbackIDs []string
 }
 
 func LoadSettings(ctx context.Context, s Settings) (*Resolver, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("nil context")
 	}
-	if strings.TrimSpace(s.DefaultPath) == "" {
-		return nil, fmt.Errorf("select a default font file")
-	}
 	if s.Size <= 0 || s.Size >= dimen.Fil {
 		return nil, fmt.Errorf("font size must be positive and finite")
 	}
 	r := &Resolver{settings: *s.Clone(), faces: make(map[string]*Face)}
-	paths := []string{s.DefaultPath}
+	load := func(path string, resource *Resource) (string, error) {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		if (strings.TrimSpace(path) == "") == (resource == nil) {
+			return "", fmt.Errorf("select exactly one font file or resource")
+		}
+		var f *Face
+		var err error
+		if resource != nil {
+			f, err = LoadResource(resource)
+		} else {
+			f, err = LoadFile(path)
+		}
+		if err != nil {
+			return "", err
+		}
+		id := f.Info().ResourceID
+		if r.faces[id] == nil {
+			r.faces[id] = f
+			r.infos = append(r.infos, f.Info())
+		}
+		return id, nil
+	}
+	var err error
+	r.defaultID, err = load(s.DefaultPath, s.DefaultResource)
+	if err != nil {
+		return nil, err
+	}
 	for i, rule := range s.Rules {
-		if rule.Path == "" || rule.Weight < 0 || rule.Weight > 1000 || (rule.Slant != "" && rule.Slant != "normal" && rule.Slant != "italic" && rule.Slant != "oblique") {
+		if rule.Weight < 0 || rule.Weight > 1000 || (rule.Slant != "" && rule.Slant != "normal" && rule.Slant != "italic" && rule.Slant != "oblique") {
 			return nil, fmt.Errorf("invalid font mapping row %d", i+1)
 		}
-		paths = append(paths, rule.Path)
+		id, err := load(rule.Path, rule.Resource)
+		if err != nil {
+			return nil, fmt.Errorf("font mapping row %d: %w", i+1, err)
+		}
+		r.ruleIDs = append(r.ruleIDs, id)
 	}
-	paths = append(paths, s.Fallbacks...)
-	for _, path := range paths {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		if r.faces[path] != nil {
-			continue
-		}
-		f, err := LoadFile(path)
+	for _, path := range s.Fallbacks {
+		id, err := load(path, nil)
 		if err != nil {
 			return nil, err
 		}
-		r.faces[path] = f
-		r.infos = append(r.infos, f.Info())
+		r.fallbackIDs = append(r.fallbackIDs, id)
+	}
+	for _, resource := range s.FallbackResources {
+		id, err := load("", resource)
+		if err != nil {
+			return nil, err
+		}
+		r.fallbackIDs = append(r.fallbackIDs, id)
 	}
 	return r, ctx.Err()
 }
@@ -93,7 +137,7 @@ func (r *Resolver) Infos() []Info {
 	return infos
 }
 func (r *Resolver) Defaults() contracts.ResolvedRunStyle {
-	return contracts.ResolvedRunStyle{Font: r.faces[r.settings.DefaultPath], EmSize: r.settings.Size, Language: language.English, Script: language.MustParseScript("Latn"), Spacing: contracts.SpacingElastic}
+	return contracts.ResolvedRunStyle{Font: r.faces[r.defaultID], EmSize: r.settings.Size, Language: language.English, Script: language.MustParseScript("Latn"), Spacing: contracts.SpacingElastic}
 }
 func familyMatches(list, want string) bool {
 	for _, family := range strings.Split(list, ",") {
@@ -113,7 +157,7 @@ func (r *Resolver) ResolveStyle(value styled.Style, defaults contracts.ResolvedR
 		if err != nil {
 			return result, err
 		}
-		result.Font = r.faces[item.Path]
+		result.Font = r.faces[item.ResourceID]
 		result.Script = language.MustParseScript(item.Script)
 		return result, nil
 	}
@@ -126,10 +170,10 @@ func (r *Resolver) ResolveStyle(value styled.Style, defaults contracts.ResolvedR
 	if !ok {
 		return result, fmt.Errorf("unknown style %T", value)
 	}
-	path := r.settings.DefaultPath
-	for _, rule := range r.settings.Rules {
+	path := r.defaultID
+	for i, rule := range r.settings.Rules {
 		if (rule.Family == "" || familyMatches(css.Family, rule.Family)) && (rule.Weight == 0 || rule.Weight == css.Weight) && (rule.Slant == "" || rule.Slant == css.Slant) {
-			path = rule.Path
+			path = r.ruleIDs[i]
 			break
 		}
 	}
@@ -152,4 +196,23 @@ func (r *Resolver) ResolveStyle(value styled.Style, defaults contracts.ResolvedR
 func (r *Resolver) CheckText(ctx context.Context, text string, source *htmlinput.Extraction) ([]Binding, error) {
 	_, bindings, err := r.Itemize(ctx, text, source)
 	return bindings, err
+}
+
+// Snapshot pins every configured face, including unused rules/fallbacks. It never
+// reopens original paths and preserves provenance for offline replay.
+func (r *Resolver) Snapshot() *Settings {
+	s := r.settings.Clone()
+	resource := func(id string) *Resource { f := r.faces[id]; return &Resource{data: f.data, origin: f.info.Origin} }
+	s.DefaultPath = ""
+	s.DefaultResource = resource(r.defaultID)
+	for i := range s.Rules {
+		s.Rules[i].Path = ""
+		s.Rules[i].Resource = resource(r.ruleIDs[i])
+	}
+	s.Fallbacks = nil
+	s.FallbackResources = nil
+	for _, id := range r.fallbackIDs {
+		s.FallbackResources = append(s.FallbackResources, resource(id))
+	}
+	return s
 }

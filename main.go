@@ -171,10 +171,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.revision != f.revision || !f.open {
 			return m, nil
 		}
+		if f.cancel != nil {
+			f.cancel()
+			f.cancel = nil
+		}
 		if msg.err != nil {
-			f.status = "Font load failed · Esc for full diagnostics: " + msg.err.Error()
-			m.result = nil // Saved layouts remain available through history.
-			m.viewport.SetContent(f.status)
+			f.status = "Font load failed: " + msg.err.Error()
+			f.preview = fontReport(msg.infos, msg.diagnostics) + "\n" + f.status
+			f.previewOpen = true
+			f.previewOffset = 0
+			return m, nil
+		}
+		if msg.preview {
+			f.pending = msg.settings.Clone()
+			f.preview = fontReport(msg.infos, msg.diagnostics)
+			f.previewOpen = true
+			f.previewOffset = 0
+			f.status = "Validated · Ctrl+S applies this selection"
 			return m, nil
 		}
 		m.fontSettings = msg.settings.Clone()
@@ -253,6 +266,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 		if msg.String() == "f6" {
+			m.fontEditor.clearPending()
 			m.fontEditor.revision++
 			m.fontSettings = nil
 			m.invalidate()
@@ -309,6 +323,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			result, export := m.result, m.export
 			return m, func() tea.Msg { path, err := export(result); return exportMsg{path, err} }
 		case key.Matches(msg, keys.Quit):
+			m.fontEditor.clearPending()
 			if m.cancel != nil {
 				m.cancel()
 			}

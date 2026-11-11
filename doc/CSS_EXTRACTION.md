@@ -13,7 +13,7 @@ result snapshots clone source, style, and isolate slices.
 Supported properties are family, size, weight, slant, color, language (HTML lang),
 direction, white-space, and normal/isolate unicode-bidi. Relative sizes resolve
 against each element's parent; rem uses the HTML root. CSS px is 0.75 big points,
-CSS pt is one big point. Supported size units are px, pt, em, rem, and percent,
+CSS pt is one big point. Supported size units are px, pt, in, mm, cm, em, rem, and percent,
 plus standard size keywords. Initial medium is 16px. CSS inherit, initial, and
 unset are supported. Basic bold/italic tags supply defaults. Invalid or
 unsupported values on the selected subtree or its ancestors return errors.
@@ -74,8 +74,8 @@ distinct boundaries work; coincident nested opens/closes exceed the UAX callback
 capacity and return errors. Overrides and embeddings are unsupported.
 
 Embedded and inline declarations still use the sibling CSSOM. !important and
-repeated properties within a declaration block are rejected until upstream
-parsing/priority handling is reliable. The sibling CSSOM now compares parsed
+repeated properties within a declaration block are accepted and resolved upstream,
+including inline/stylesheet precedence and shorthand/longhand conflicts. The sibling CSSOM now compares parsed
 specificity tuples, then source order on ties; selector lists use only matching
 branches. This fixes issue 5 in TODO.md without extending the supported selector
 syntax or establishing full browser CSS conformance. Linked sheets and at-rules
@@ -108,3 +108,12 @@ text-edit detachment, and frozen history.
 `paragraphtext/normalize_test.go` and `pipeline/newlines_test.go` cover CR/LF,
 blank lines, multibyte offsets, NBSP, omitted whitespace, and frozen source text
 under both breakers with synthetic and OpenType fonts.
+
+Absolute font-size magnitudes are parsed by w3c-dom's `dimen.ParseAbsolute`,
+including checked fractional scaling. Tytui converts its scaled-big-point result
+to khipu DU and enforces positive finite font sizes. Relative em/rem/percent,
+keywords, parent/root computation, and inherited computed sizes remain local.
+Non-CSS bp/sp, unitless sizes, and unsupported relative units remain rejected.
+Descendant display checks use upstream resolved properties and HTML defaults,
+including inherit/initial/unset; the supported paragraph/inline tag allowlists
+remain independent eligibility constraints.

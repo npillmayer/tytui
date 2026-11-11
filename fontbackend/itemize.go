@@ -11,13 +11,13 @@ import (
 
 // runStyle is a value identity: no mutable font pointer enters styled.Text.
 type runStyle struct {
-	CSS          htmlinput.Style
-	Plain        bool
-	Path, Script string
+	CSS                htmlinput.Style
+	Plain              bool
+	ResourceID, Script string
 }
 
 func (s runStyle) Equals(other styled.Style) bool { o, ok := other.(runStyle); return ok && s == o }
-func (s runStyle) String() string                 { return fmt.Sprintf("%s %s %s", s.Script, s.Path, s.CSS) }
+func (s runStyle) String() string                 { return fmt.Sprintf("%s %s %s", s.Script, s.ResourceID, s.CSS) }
 
 // Itemize keeps extended grapheme clusters intact. Common/Inherited clusters
 // adopt the preceding strong script, or the following one at a span's start.
@@ -54,7 +54,7 @@ func (r *Resolver) Itemize(ctx context.Context, text string, source *htmlinput.E
 		if err != nil {
 			return out, nil, err
 		}
-		primary := resolved.Font.(*Face).Info().Path
+		primary := resolved.Font.(*Face).Info().ResourceID
 		var local []item
 		clusters := uniseg.NewGraphemes(text[span.Start:span.End])
 		for clusters.Next() {
@@ -83,7 +83,7 @@ func (r *Resolver) Itemize(ctx context.Context, text string, source *htmlinput.E
 			}
 			chosen := ""
 			var missing rune
-			candidates := append([]string{primary}, r.settings.Fallbacks...)
+			candidates := append([]string{primary}, r.fallbackIDs...)
 			for _, path := range candidates {
 				covered := true
 				for _, c := range chunk {
@@ -130,18 +130,18 @@ func (r *Resolver) Itemize(ctx context.Context, text string, source *htmlinput.E
 		// an original CSS span or replace a real text item's selected face.
 		previousFace := ""
 		for i := range local {
-			if local[i].style.Path != "" {
-				previousFace = local[i].style.Path
+			if local[i].style.ResourceID != "" {
+				previousFace = local[i].style.ResourceID
 			} else if previousFace != "" {
-				local[i].style.Path = previousFace
+				local[i].style.ResourceID = previousFace
 			}
 		}
 		nextFace := primary
 		for i := len(local) - 1; i >= 0; i-- {
-			if local[i].style.Path != "" {
-				nextFace = local[i].style.Path
+			if local[i].style.ResourceID != "" {
+				nextFace = local[i].style.ResourceID
 			} else {
-				local[i].style.Path = nextFace
+				local[i].style.ResourceID = nextFace
 			}
 		}
 		for _, it := range local {
@@ -164,8 +164,8 @@ func (r *Resolver) Itemize(ctx context.Context, text string, source *htmlinput.E
 		if err != nil {
 			return out, nil, err
 		}
-		info := r.faces[it.style.Path].Info()
-		bindings = append(bindings, Binding{Start: it.start, End: it.end, Path: info.Path, SHA256: info.SHA256, EmSize: resolved.EmSize, Script: it.style.Script})
+		info := r.faces[it.style.ResourceID].Info()
+		bindings = append(bindings, Binding{Start: it.start, End: it.end, Path: info.Path, SHA256: info.SHA256, ResourceID: info.ResourceID, Origin: info.Origin, EmSize: resolved.EmSize, Script: it.style.Script})
 	}
 	return out, bindings, nil
 }

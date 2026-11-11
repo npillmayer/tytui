@@ -65,16 +65,18 @@ type Diagnostic struct {
 // UTF-8 byte endpoints. Frozen contains line fit diagnostics and retained glyphs.
 // No mutable encoder or elastic paragraph is exposed.
 type Result struct {
-	ParagraphText  string               // Processed text addressed by frozen ranges and glyph clusters.
-	TextSpans      []paragraphtext.Span // Plain input: processed bytes to Input.Text bytes; HTML uses Source.Spans.
-	Fonts          []fontbackend.Info
-	FontBindings   []fontbackend.Binding
-	Input          Input
-	Text           styled.Text
-	BreakPositions []uint64
-	Frozen         *khipu.FrozenKhipu
-	Diagnostics    []Diagnostic
-	BidiRuns       []bidi.Segment // Logical UTF-8 byte ranges before line reordering.
+	FontSnapshot    *fontbackend.Settings // All configured fonts pinned at layout time.
+	FontDiagnostics []fontbackend.FontDiagnostic
+	ParagraphText   string               // Processed text addressed by frozen ranges and glyph clusters.
+	TextSpans       []paragraphtext.Span // Plain input: processed bytes to Input.Text bytes; HTML uses Source.Spans.
+	Fonts           []fontbackend.Info
+	FontBindings    []fontbackend.Binding
+	Input           Input
+	Text            styled.Text
+	BreakPositions  []uint64
+	Frozen          *khipu.FrozenKhipu
+	Diagnostics     []Diagnostic
+	BidiRuns        []bidi.Segment // Logical UTF-8 byte ranges before line reordering.
 }
 
 // ErrInvalidInput identifies invalid pipeline configuration or text.
@@ -153,18 +155,22 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 	config := syntheticConfig()
 	backend := "synthetic"
 	var fonts []fontbackend.Info
+	var fontSnapshot *fontbackend.Settings
+	var fontDiagnostics []fontbackend.FontDiagnostic
 	var bindings []fontbackend.Binding
 	if input.Fonts != nil {
 		input.Fonts = input.Fonts.Clone()
+		fontDiagnostics = append([]fontbackend.FontDiagnostic(nil), input.Fonts.ResolutionDiagnostics...)
 		resolver, err := fontbackend.LoadSettings(ctx, *input.Fonts)
 		if err != nil {
 			return fail(StageFonts, err)
 		}
 		text, bindings, err = resolver.Itemize(ctx, paragraphText, input.Source)
 		if err != nil {
-			return fail(StageFonts, err)
+			return fail(StageFonts, &fontbackend.ResolutionError{Stage: "coverage", Err: err})
 		}
 		fonts = resolver.Infos()
+		fontSnapshot = resolver.Snapshot()
 		config = khipu.Config{Streaming: &khipu.StreamingConfig{
 			NewShaper: func() (contracts.StreamingShaper, error) { return fontbackend.NewStream(64) },
 			Resolver:  resolver, Defaults: resolver.Defaults(),
@@ -218,7 +224,7 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 		return fail(StageFreeze, err)
 	}
 	return &Result{
-		ParagraphText: paragraphText, TextSpans: textSpans, Fonts: fonts, FontBindings: bindings, Input: input, Text: text, BreakPositions: positions, Frozen: frozen, BidiRuns: bidiRuns,
+		FontSnapshot: fontSnapshot, FontDiagnostics: fontDiagnostics, ParagraphText: paragraphText, TextSpans: textSpans, Fonts: fonts, FontBindings: bindings, Input: input, Text: text, BreakPositions: positions, Frozen: frozen, BidiRuns: bidiRuns,
 		Diagnostics: []Diagnostic{
 			{StageInput, fmt.Sprintf("Accepted %d UTF-8 bytes", len(input.Text))},
 			{StageParagraph, paragraphDiagnostic},

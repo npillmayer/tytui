@@ -2,6 +2,8 @@ module tytui
 
 go 1.25.6
 
+replace github.com/npillmayer/fontfind => ../fontfind
+
 replace github.com/npillmayer/cords => ../cords
 
 replace github.com/npillmayer/khipu => ../khipu
@@ -23,6 +25,7 @@ require (
 	github.com/andybalholm/cascadia v1.3.3
 	github.com/aymerick/douceur v0.2.0
 	github.com/charmbracelet/x/ansi v0.11.6
+	github.com/npillmayer/fontfind v0.0.0
 	github.com/npillmayer/cords v0.1.2-alpha.3
 	github.com/npillmayer/khipu v0.0.0
 	github.com/npillmayer/opentype v0.0.0
