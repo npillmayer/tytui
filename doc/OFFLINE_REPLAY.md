@@ -1,7 +1,8 @@
 # Font manifests and offline paragraph replay
 
-The headless `tytui/replay` package implements version 1 of a case manifest and a
-separate local font content store. It supports OpenType and synthetic results.
+The headless `tytui/replay` package reads versions 1–3 and uses a separate local
+font content store. Compatibility layouts save as version 1 or 2; explicit
+line-height layouts save as version 3. It supports OpenType and synthetic results.
 This is an API for export/import; the TUI's existing Ctrl+S still exports SVG.
 
 ```go
@@ -14,7 +15,7 @@ reproduced, err := replay.Load(ctx, "case.json", "font-store")
 ```
 
 CaptureRevisions reads Git HEAD and tracked/untracked dirty status for tytui and
-its eight sibling dependencies. Save requires explicit revision evidence; callers
+its nine sibling dependencies. Save requires explicit revision evidence; callers
 may supply equivalent records for their build environment. Capture at layout time:
 these records describe source provenance, not proof that a running binary was
 built from that checkout. A dirty flag does not archive the patch. The manifest
@@ -33,6 +34,12 @@ locator, extracted text, styles, source maps and bidi isolates. Replay uses the
 retained extraction, not a new DOM parse or network stylesheet fetch. Source HTML
 is checked against its original document hash. Plain whitespace normalization is
 rerun and the processed paragraph is compared with the recorded result.
+
+The rendering bypass does not change this format. Document colors remain in
+Input.Source/Styles on the wire. Run/Load derive color-free typesetter styles and
+a separate renderer color snapshot; Result.PaintSpans() returns a detached copy.
+Glyph proofs use that snapshot rather than looking up colors in retained input.
+Version-1 boundary behavior and version-2 glyph-anchor colors remain unchanged.
 
 Font entries record parsed family/subfamily, origin/request, byte size, SHA-256,
 and provenance-scoped resource ID. Selection records default/rule/ordered fallback
@@ -80,3 +87,90 @@ and deletion, source/style/map round trips, synthetic replay, discovery-policy a
 diagnostic retention without provider calls, and rejection of missing/tampered
 bytes, hashes, references, versions, source hashes, and proof evidence. Existing
 pipeline and immutable-resource regressions remain active.
+
+Shared-style extraction preserves existing version-1 style field names and IDs.
+Non-DOM styled cases use optional `Input.Styles` (processed UTF-8 byte coordinates);
+plain and DOM cases omit it and retain their old shape. Current readers accept old
+cases. Older readers with strict unknown-field checks cannot read new shared-style
+cases; use the recorded revisions when replaying them. Revision capture also lists
+the local typography checkout (directories without .git are explicitly recorded as `unversioned`, dirty;
+missing modules and Git errors still fail).
+
+
+Typography extraction step 5 preserves manifest version 1. Explicit serialization records
+remain the wire boundary; neutral discovery/render services are not serialized.
+Frozen evidence obtains identity from Result.Identity, and glyph proofs use the
+retained Renderer. Save reads pinned bytes through FontSource; Load validates the
+content store through the configured backend without invoking providers or reopening
+provenance paths. Static pre-step-5 manifests in replay/testdata exercise both
+breakers and mixed Latin/pointed Hebrew with external fixture fonts. Treat these
+files as compatibility inputs, not regenerated golden output.
+
+
+Step 6 introduces a semantic format version: new cases record version 2 and
+`Input.PaintPolicy="glyph-boundary-v1"`. Version-1 cases omit that field and load
+with legacy style-boundary shaping and knot paint. Resaving a legacy result keeps
+version 1 and omits the field again; there is no automatic migration. To deliberately
+rerun under the new policy, change Input.PaintPolicy and run the pipeline afresh.
+Unknown or inconsistent version/policy combinations fail before layout. Font IDs
+and DTO encoding are unchanged. The static pre-step6-paint.json fixture protects
+old red-f/blue-i output; new output has a single red fi glyph when the font ligates.
+
+
+Typography extraction step 7 removes runtime `fontbackend` wrappers. Font records
+in `replay/wire.go` explicitly retain the version-1/version-2 JSON field names and
+numeric provenance codes; these records are independent of runtime adapter types.
+Save reads pinned `typography.Settings` from Result.FontSnapshot and discovery
+metadata from Result.Input.Fonts (`discovery.Resolution`). Load reconstructs that
+resolution from validated local resources without discovery. It preserves legacy
+policy and resource identities. Wire tests and unchanged static fixtures cover this
+boundary; moving types introduced no manifest version change.
+
+Rendering colors still bypass the typesetter: replay input retains document styles,
+while Run rebuilds color-free typesetter styles and a detached renderer snapshot.
+Proof generation uses that snapshot and retained services, not mutable replay input.
+
+
+Paragraph-engine step 2 retains the compatibility vlist in completed results.
+Load rebuilds it through pipeline.Run; Save continues to write only the existing
+v1/v2 records and proof evidence. No placement or vertical-policy field is added.
+The glyph proof reads retained baselines/line extents, paint spans and paint policy,
+so changing inspection Input does not reflow or recolor an existing proof. To change
+layout or paint semantics, construct new input and run the pipeline again before
+saving. Static legacy manifests now also have load/resave/reload coverage for
+identical geometry, colors, identities and versions. New v2 round trips compare
+rebuilt placements. Successful diagnostic records retain their existing shape;
+assembly failures return StageAssemble without producing a replayable result.
+
+
+Paragraph-engine step 3 moves bidi preparation and encode/break/freeze/assembly
+into the public `typography/paragraph.Run` API. Pipeline.Run prepares input and
+injects services, then maps the neutral result into the existing application
+records. Replay still reaches this same path through pipeline.Run: v1/v2 wire
+values, identities, successful diagnostic messages, ProofCompatibility geometry
+and separate paint snapshots are unchanged. No fixtures were regenerated.
+
+
+## Explicit line-height cases (version 3)
+
+`pipeline.Input.LineLayout` opts into the CSS-inspired baseline line-box policy.
+Save selects `LineHeightVersion` (3) for these results, using the detached policy
+retained at layout time. `Version` (2) remains the default compatibility format;
+legacy paint with compatibility geometry still saves as version 1. Old records
+and their static fixture evidence are unchanged.
+
+Version 3 requires Input.LineLayout with a Default line-height and optional Runs
+(ordered normalized UTF-8 byte ranges), an explicit glyph-boundary or legacy paint
+policy, and Evidence.Layout with box and line placement numbers. Line-height kinds
+are `normal`, `factor` and `length`; lengths use DU, factors are unitless. This
+version fixes `normal` to ascent+descent+max(0,font gap) and uses half-leading with
+baseline alignment and no trailing kern. Strut metrics come from the same pinned
+backend font/size defaults used for layout. It adds no provider calls or live fonts.
+
+Versions 1/2 must omit LineLayout and Layout evidence; version 3 must include both.
+The loader reconstructs placements and compares evidence even for synthetic cases
+without a glyph proof. Invalid or missing policy values, incompatible versions,
+changed metrics/placements and tampered line-height values fail explicitly. Both
+paint policies are independent of the spacing policy and retain their old meaning.
+Round-trip/resave regressions cover both breakers and backends. No VList or service
+objects are serialized; rendering still reads separate retained paint and geometry.

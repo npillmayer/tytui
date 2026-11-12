@@ -11,13 +11,14 @@ import (
 // OpenType results draw positioned outlines and line geometry; synthetic results
 // draw structural boxes. Text and font binaries are not embedded.
 func WriteSVG(w io.Writer, result *Result) error {
-	if result != nil && result.Input.Fonts != nil {
+	if result != nil && (result.Renderer != nil || result.Identity != nil) {
 		return WriteGlyphSVG(w, result)
 	}
 	return WriteStructuralSVG(w, result)
 }
 
 // WriteStructuralSVG retains the advance-box diagnostic view for either backend.
+// Its debug spacing is not the retained paragraph's vertical geometry.
 func WriteStructuralSVG(w io.Writer, result *Result) error {
 	if result == nil || result.Frozen == nil {
 		return fmt.Errorf("SVG export requires a completed layout")

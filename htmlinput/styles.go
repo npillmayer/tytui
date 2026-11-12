@@ -9,6 +9,7 @@ import (
 
 	"github.com/npillmayer/cords/styled"
 	"github.com/npillmayer/khipu/dimen"
+	typestyle "github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
 	domdimen "github.com/npillmayer/w3c-dom/dimen"
 	"golang.org/x/net/html"
@@ -16,40 +17,18 @@ import (
 	ubidi "golang.org/x/text/unicode/bidi"
 )
 
-// Style is an immutable-by-value resolved style. All fields are values; store it
-// in styled.Text as a value, not a pointer. Family/weight/slant/color are metadata
-// until a real-font adapter is selected. EmSize is in scaled big points.
-type Style struct {
-	Family                                          string
-	EmSize                                          dimen.DU
-	Weight                                          int
-	Slant, Color, Language, WhiteSpace, UnicodeBidi string
-	Direction                                       bidi.Direction
-}
-
-func (s Style) Equals(other styled.Style) bool { o, ok := other.(Style); return ok && s == o }
-func (s Style) String() string {
-	return fmt.Sprintf("%s %.3g bp weight=%d %s color=%s lang=%s dir=%s white-space=%s", s.Family, s.EmSize.Points(), s.Weight, s.Slant, s.Color, s.Language, s.Direction, s.WhiteSpace)
-}
-
-// StyleSpan uses half-open UTF-8 byte coordinates in processed paragraph text.
-type StyleSpan struct {
-	Start, End uint64
-	Style      Style
-}
-
 // Isolate supplies zero-byte bidi markup; it does not change source coordinates.
 type Isolate struct {
 	Start, End uint64
 	Direction  bidi.Direction
 }
 
-func initialStyle() Style {
-	return Style{Family: "serif", EmSize: 12 * dimen.BP, Weight: 400, Slant: "normal", Color: "black", Language: "und", WhiteSpace: "normal", UnicodeBidi: "normal"}
+func initialStyle() typestyle.Style {
+	return typestyle.Style{Family: "serif", EmSize: 12 * dimen.BP, Weight: 400, Slant: "normal", Color: "black", Language: "und", WhiteSpace: "normal", UnicodeBidi: "normal"}
 }
 
-func (d *Document) resolvedStyles(selected int) (map[int]Style, error) {
-	result := make(map[int]Style, len(d.Nodes))
+func (d *Document) resolvedStyles(selected int) (map[int]typestyle.Style, error) {
+	result := make(map[int]typestyle.Style, len(d.Nodes))
 	rootSize := initialStyle().EmSize
 	needed := make(map[int]bool)
 	for id := selected; id >= 0; id = d.Nodes[id].Parent {
@@ -202,7 +181,7 @@ func (d *Document) resolvedStyles(selected int) (map[int]Style, error) {
 	}
 	return result, nil
 }
-func assignProperty(s *Style, from Style, key string) {
+func assignProperty(s *typestyle.Style, from typestyle.Style, key string) {
 	switch key {
 	case "font-family":
 		s.Family = from.Family

@@ -8,12 +8,13 @@ import (
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/khipu/helpers"
+	"github.com/npillmayer/typography"
+	typestyle "github.com/npillmayer/typography/style"
 	"golang.org/x/text/language"
-	"tytui/htmlinput"
 )
 
-// CSS metadata remains in styled.Text. The synthetic face has no family/weight
-// variants or color renderer; only size, language and spacing affect this bridge.
+// M projects document values before they enter styled.Text. The synthetic face
+// has no family/weight variants; size, language and spacing affect this bridge.
 type syntheticStyleResolver struct{}
 
 func (syntheticStyleResolver) ResolveStyle(value styled.Style, defaults contracts.ResolvedRunStyle) (contracts.ResolvedRunStyle, error) {
@@ -24,8 +25,13 @@ func (syntheticStyleResolver) ResolveStyle(value styled.Style, defaults contract
 	if value == nil {
 		return result, nil
 	}
-	css, ok := value.(htmlinput.Style)
-	if !ok {
+	var css typestyle.Typography
+	switch v := value.(type) {
+	case typestyle.Style: // Used by M while resolving the input projection.
+		css = v.Typography()
+	case typography.TypographyStyle:
+		css = v.Typography
+	default:
 		return contracts.ResolvedRunStyle{}, fmt.Errorf("unknown paragraph style %T", value)
 	}
 	result.EmSize = css.EmSize

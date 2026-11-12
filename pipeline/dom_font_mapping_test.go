@@ -1,17 +1,21 @@
-package fontbackend
+package pipeline_test
 
 import (
 	"context"
-	"github.com/npillmayer/khipu/dimen"
 	"strings"
 	"testing"
+
+	"github.com/npillmayer/khipu/dimen"
+	"github.com/npillmayer/typography"
+	otadapter "github.com/npillmayer/typography/adapter/opentype"
+
 	"tytui/htmlinput"
 )
 
 func TestSoftHyphenFaceContext(t *testing.T) {
 	const latin = "../../opentype/testdata/fonts/GentiumPlus-R.ttf"
 	const hebrew = "../../opentype/testdata/fonts/NotoSansHebrew-Regular.ttf"
-	resolver, err := LoadSettings(context.Background(), Settings{DefaultPath: latin, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}, Rules: []Rule{{Weight: 700, Path: progressFont}}})
+	resolver, err := typography.LoadSettings(context.Background(), typography.Settings{DefaultPath: latin, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}, Rules: []typography.Rule{{Weight: 700, Path: "../../opentype/testdata/fonts/ShaperTestProgress.ttf"}}}, typography.Services{Loader: otadapter.Services{}, Coverage: otadapter.Services{}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,11 +52,11 @@ func TestSoftHyphenFaceContext(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, bindings, err = resolver.Itemize(context.Background(), e.Text, e)
+		_, bindings, err = resolver.Itemize(context.Background(), e.Text, e.Styles)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(bindings) != 3 || bindings[1].Path != progressFont || bindings[1].Start != 4 || bindings[1].End != 6 {
+		if len(bindings) != 3 || bindings[1].Path != "../../opentype/testdata/fonts/ShaperTestProgress.ttf" || bindings[1].Start != 4 || bindings[1].End != 6 {
 			t.Fatalf("explicit marker style lost: %+v", bindings)
 		}
 	}

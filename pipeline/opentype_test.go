@@ -5,11 +5,14 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"tytui/fontbackend"
-	"tytui/pipeline"
 
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
+	"github.com/npillmayer/typography"
+	otadapter "github.com/npillmayer/typography/adapter/opentype"
+	fontdiscovery "github.com/npillmayer/typography/discovery"
+
+	"tytui/pipeline"
 )
 
 const gentium = "../../opentype/testdata/fonts/GentiumPlus-R.ttf"
@@ -17,7 +20,7 @@ const progress = "../../opentype/testdata/fonts/ShaperTestProgress.ttf"
 
 func TestOpenTypeFrozenReference(t *testing.T) {
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "office", Width: 200 * dimen.BP, Breaker: breaker, Fonts: &fontbackend.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})
+		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "office", Width: 200 * dimen.BP, Breaker: breaker, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -52,7 +55,7 @@ func TestOpenTypeFrozenReference(t *testing.T) {
 }
 func TestOpenTypeStyleMappingAndSnapshot(t *testing.T) {
 	e := styledInput(t, `<p lang="en" style="font-family:serif;font-size:12pt">a <b style="font-size:24pt">aa</b> a</p>`)
-	fonts := &fontbackend.Settings{DefaultPath: gentium, Size: 10 * dimen.BP, Rules: []fontbackend.Rule{{Family: "serif", Weight: 700, Slant: "normal", Path: progress}}}
+	fonts := &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: gentium, Size: 10 * dimen.BP, Rules: []typography.Rule{{Family: "serif", Weight: 700, Slant: "normal", Path: progress}}}}
 	input := pipeline.Input{Text: e.Text, Source: e, Width: 200 * dimen.BP, Fonts: fonts}
 	r, err := pipeline.Run(context.Background(), input)
 	if err != nil {
@@ -67,7 +70,7 @@ func TestOpenTypeStyleMappingAndSnapshot(t *testing.T) {
 		if !ok {
 			continue
 		}
-		f := text.Context.Params.Font.(*fontbackend.Face)
+		f := text.Context.Params.Font.(*otadapter.Face)
 		if f.Info().Path == progress {
 			found = true
 			if text.Context.EmSize != 24*dimen.BP {
@@ -94,7 +97,7 @@ func TestOpenTypeStyleMappingAndSnapshot(t *testing.T) {
 }
 func TestOpenTypeDiagnostics(t *testing.T) {
 	for _, tc := range []struct{ text, path, diagnostic string }{{"a", "missing.ttf", "font"}, {"a", "../../opentype/testdata/fonts/ShaperTestHebrew-NoGPOS.ttf", "parse"}, {"a世", progress, "U+4E16"}} {
-		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: tc.text, Width: 100 * dimen.BP, Fonts: &fontbackend.Settings{DefaultPath: tc.path, Size: 12 * dimen.BP}})
+		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: tc.text, Width: 100 * dimen.BP, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: tc.path, Size: 12 * dimen.BP}}})
 		var se *pipeline.StageError
 		if r != nil || !errors.As(err, &se) || se.Stage != pipeline.StageFonts || !strings.Contains(err.Error(), tc.diagnostic) {
 			t.Fatalf("%+v: %v", tc, err)

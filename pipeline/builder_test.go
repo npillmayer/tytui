@@ -9,13 +9,13 @@ import (
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/khipu/linebreak"
 	"github.com/npillmayer/khipu/linebreak/firstfit"
+	typestyle "github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
-	"tytui/htmlinput"
 )
 
 func TestBuiltStylesReachFrozenLayout(t *testing.T) {
 	b := styled.NewTextBuilder()
-	style := htmlinput.Style{Family: "serif", EmSize: 12 * dimen.BP, Weight: 400, Slant: "normal", Color: "red", Language: "en", Direction: bidi.LeftToRight, WhiteSpace: "normal", UnicodeBidi: "normal"}
+	style := typestyle.Style{Family: "serif", EmSize: 12 * dimen.BP, Weight: 400, Slant: "normal", Color: "red", Language: "en", Direction: bidi.LeftToRight, WhiteSpace: "normal", UnicodeBidi: "normal"}
 	if err := b.AppendString("é ", style); err != nil {
 		t.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-# Integration review TODO — updated 2026-11-11
+# Integration review TODO — updated 2026-11-12
 
 Review of steps 1–7 against IMPLEMENTATION_PLAN.md. All vertical slices exist,
 but the supported subsets are not fully validated. The tytui race-enabled suite
@@ -25,13 +25,13 @@ from observations; unchecked items remain open.
    At 12 bp and 20 bp width, `אב\u00adגד` breaks into two lines with Noto Sans
    Hebrew primary. With Gentium primary and Noto fallback, both breakers instead
    produce one overfull line. The exempt marker selects the primary font and
-   introduces an artificial style boundary. Owner: tytui itemization, with khipu
+   introduces an artificial style boundary. Owner: typography itemization (extracted from tytui), with khipu
    integration coverage. Glyphless controls need surrounding shaping context.
-   Status: fixed in tytui `fontbackend/itemize.go`. Soft hyphens defer face
+   Status: fixed; implementation now lives in `typography/itemize.go`. Soft hyphens defer face
    selection and inherit the preceding face inside the same CSS span, or the
    following face at the span's start. Marker-only spans use their mapped primary
    face. Real font/script transitions and explicit CSS boundaries are retained.
-   `fontbackend/soft_hyphen_test.go` covers interior, repeated, leading, trailing,
+   `pipeline/dom_font_mapping_test.go` covers interior, repeated, leading, trailing,
    marker-only, and explicitly styled markers. `pipeline/fallback_hyphen_test.go`
    compares direct Noto and fallback under both breakers at narrow and wide widths,
    checking line geometry, selected replacements, glyphs, clusters, and source.
@@ -230,7 +230,12 @@ policy and computed font-size handling are intentional responsibilities, not
 unfinished removal of those workarounds. These migrations do not add preserved
 whitespace, general CSS layout, or a computed-style engine.
 
-**Recommended next gap: independent mixed-direction physical-layout fixtures.**
+**Remaining validation gap: broader independent real-font physical-layout fixtures.**
+Paragraph-engine step 2 now supplies hand-calculated synthetic LTR/RTL coordinates,
+baselines and word order, including isolates/digits, multiline layout and narrow/wide
+soft-hyphen cases under both breakers (`pipeline/retained_placements_test.go`). Real
+mixed-size/fallback proofs consume retained placements, and static replay evidence
+is unchanged. The real-font paragraph oracle described below remains follow-up work.
 Start with a small, manually reviewed LTR/RTL paragraph pair containing Latin,
 pointed Hebrew, punctuation, and digits. Specify expected physical word/knot
 order and absolute line origins independently of the frozen result and
@@ -371,7 +376,7 @@ fixtures over a broad shaping repair campaign.
 ## Documentation refresh validation
 
 - Cross-checked the current guides against go.mod, pipeline/svg.go,
-  pipeline/pipeline.go, fontbackend/itemize.go, fontbackend/stream.go, and the TUI
+  pipeline/pipeline.go, typography/itemize.go, typography/adapter/opentype/stream.go, and the TUI
   controls. Historical validation entries remain labeled as prior observations.
 - Checked documentation diffs and relative Markdown links. This refresh changes
   documentation only; runtime tests were not rerun.
@@ -396,3 +401,23 @@ fixtures over a broad shaping repair campaign.
   No sibling implementation changes were needed for these migrations.
 - This status review is documentation-only. Validation above records the completed
   implementation runs; runtime suites were not rerun for this edit.
+
+
+Typography extraction step 7 (2026-11-12): removed runtime fontbackend wrappers and
+htmlinput style aliases; consumers use extracted APIs with explicit services.
+Dependency audits guard the generic boundaries. Replay wire records preserve both
+existing versions and fixtures, and renderer colors still bypass typesetter styles.
+Full ordinary/race suites, build and vet pass in tytui and typography. This completes
+extraction cleanup; independent physical-layout fixtures and boxed-vlist design
+remain separate work, and the general annotation API remains deferred.
+
+
+Paragraph engine (2026-11-12): steps 1–4's engine slice is implemented in
+`typography/paragraph`: frozen-line assembly, retained placements, a public prepared
+styled.Text entry point, and opt-in CSS-inspired baseline line-height policies.
+Independent synthetic geometry and mixed-direction/font integration coverage now
+exercise those boundaries. Rendering bypass and v1/v2 replay fixtures are preserved;
+explicit line-height cases use v3 with numeric placement evidence. Remaining work:
+DOM line-height computation/extraction, a css-box-layout bridge when ready, and
+separately scoped vertical alignment, atomic inline content and packing. The general
+annotation API remains deferred. See [the engine plan](PARAGRAPH_ENGINE_PLAN.md).

@@ -1,11 +1,22 @@
 # tytui
 
-An interactive paragraph workbench built with [Bubble Tea](https://charm.land/).
+An experimental typography integration laboratory, with an interactive paragraph
+workbench built with [Bubble Tea](https://charm.land/). Tytui is a practical example
+of progress in combining typographic functionality from other modules. Its purpose
+is to explore their strengths, limitations, and interoperability, and to turn
+findings into reproducible tests, clearer API boundaries, and upstream fixes.
+
+Development is guided by integration experiments rather than an end-user
+application roadmap. The TUI makes those experiments accessible: it lets us vary
+inputs, compare results, inspect diagnostics, and export visual proofs. Reusable
+functionality belongs in the participating libraries; tytui provides the wiring
+and evidence needed to exercise and improve them.
+
 The pipeline supports synthetic and OpenType fonts, Latin/Hebrew mixed-direction
 paragraphs, and firstfit or Knuth–Plass line breaking. The TUI displays text and
 layout diagnostics; SVG exports render positioned glyph outlines for OpenType.
 
-Run with Go 1.25.6 or newer and sibling `cords`, `khipu`, `uax`, `w3c-dom`, `opentype`, `tree`, `schuko`, and `fontfind` checkouts:
+Run with Go 1.25.6 or newer and sibling `cords`, `khipu`, `uax`, `w3c-dom`, `opentype`, `tree`, `schuko`, `fontfind`, and `typography` checkouts:
 
 ```sh
 go run .
@@ -126,7 +137,7 @@ OpenType SVG exports now render frozen outlines, colors, baselines, and line
 geometry. Try `testdata/html/multilingual.html`; see
 [policies and proof verification](doc/MULTILINGUAL_PROOFS.md).
 
-Headless offline fonts can also use immutable `fontbackend.Resource` snapshots
+Headless offline fonts can also use immutable `fontresource.Resource` snapshots
 through `Settings.DefaultResource`, `Rule.Resource`, and `FallbackResources`.
 Existing F5 file selection remains unchanged. The local dependency layout now
 also requires `../fontfind`; see [offline resources](doc/OPENTYPE_INTEGRATION.md).
@@ -140,3 +151,65 @@ See [font requests](doc/OPENTYPE_INTEGRATION.md) for mapping syntax and limits.
 
 Headless reproducible cases use `replay.Save`/`Load` with pinned font hashes and a
 local content store; see [offline replay](doc/OFFLINE_REPLAY.md). TUI Ctrl+S remains SVG.
+
+Shared styles now live in `github.com/npillmayer/typography/style` (local
+`../typography`). DOM extraction and headless input use `style.Style` and
+`style.Span` directly; the former htmlinput aliases have been removed.
+Headless callers may supply `pipeline.Input.Styles` without a DOM: spans cover
+processed paragraph bytes after `paragraphtext.Normalize`, not original source
+bytes. `Input.Source` and `Input.Styles` are mutually exclusive; `TextSpans` retains
+the plain-source mapping. See [typography contracts](doc/TYPOGRAPHY_API_CONTRACTS.md).
+
+Immutable resource storage and the OpenType backend now live in
+`typography/fontresource` and `typography/adapter/opentype`. The workbench
+`fontbackend` forwarding package has been removed. Parser, identity, fallback and proof
+behavior are unchanged. The backend-independent paragraph engine is
+`typography/paragraph.Run`; pipeline.Run wires the selected backend and prepares
+its input. The former `pipeline/internal/layout` package is removed.
+
+The typography resolver is now extracted too: mapping, itemization, coverage policy
+and pinned snapshots live in the root `typography` package behind explicit loader
+and coverage services. Application wiring supplies `opentype.Services` explicitly.
+`pipeline.Input.Fonts` accepts `*discovery.Resolution`, embedding `typography.Settings`
+with request/policy diagnostics. `Result.FontSnapshot` retains pinned settings;
+request metadata remains in the detached input. No generic constructor selects a backend.
+
+Discovery is split between neutral `typography/discovery` session policy and the
+controlled `typography/adapter/fontfind` provider adapter. F5's offline catalog is
+unchanged. Frozen proof and replay consumers now use injected rendering/identity
+services; the OpenType adapter owns outlines and visual glyph ordering. Version-1
+and version-2 replay compatibility is verified against static pre-migration manifests.
+Explicit serialization records in `replay/wire.go` preserve the existing wire format.
+
+New layouts use glyph-boundary colors: paint changes preserve shaping, ligatures
+remain one color, and independently anchored marks may have their own color.
+Original paint spans are retained. New replay cases use version 2; version-1 cases
+retain their original shaping and paint behavior rather than silently changing.
+
+Color now bypasses the paragraph typesetter. M's `typography.ProjectStyles` owns
+the projection into color-free typesetter styles; the renderer receives a separate
+snapshot of logical color spans. `Result.PaintSpans()` returns a detached copy.
+Document colors remain in the existing inspection/replay fields, so the replay
+formats and glyph-color policy are unchanged.
+
+The headless `typography/paragraph.Run` API consumes prepared `styled.Text`, base
+direction and zero-byte bidi markup, with explicit width/breaker/assembly parameters
+and injected `khipu.Config` services. It prepares bidi levels, encodes, breaks,
+freezes and assembles a boxed vertical list. `paragraph.Assemble` remains available
+for callers that already have frozen lines. Its compatibility
+policy preserves proof geometry. Completed results expose detached placements via
+`Result.VList()`; glyph rendering consumes those placements without remeasuring
+line metrics. Colors remain separate, and replay versions 1–2 rebuild placements
+without new wire fields. See the
+[paragraph-engine plan](doc/PARAGRAPH_ENGINE_PLAN.md).
+
+
+Headless callers can opt into CSS-inspired line boxes with
+`pipeline.Input.LineLayout = &paragraph.LineLayout{Default:
+paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 1.5}}`.
+The policy uses a font/size strut, half-leading and natural stacking without a
+trailing gap. Normal and resolved-length values are also supported; optional
+byte ranges override line-height without splitting shaping or carrying paint.
+TUI defaults remain unchanged. CSS declaration extraction and the CSS box-engine
+bridge remain future work. Explicit line-height cases use replay version 3 with
+placement evidence; compatibility layouts continue to save as version 1 or 2.

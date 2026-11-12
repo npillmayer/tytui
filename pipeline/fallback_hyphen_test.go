@@ -2,13 +2,17 @@ package pipeline_test
 
 import (
 	"context"
-	"github.com/npillmayer/khipu"
-	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/uax/bidi"
 	"io"
 	"reflect"
 	"testing"
-	"tytui/fontbackend"
+
+	"github.com/npillmayer/khipu"
+	"github.com/npillmayer/khipu/dimen"
+	"github.com/npillmayer/typography"
+	otadapter "github.com/npillmayer/typography/adapter/opentype"
+	fontdiscovery "github.com/npillmayer/typography/discovery"
+	"github.com/npillmayer/uax/bidi"
+
 	"tytui/pipeline"
 )
 
@@ -17,12 +21,12 @@ func TestFallbackPreservesSoftHyphenBreaks(t *testing.T) {
 		for _, width := range []dimen.DU{20 * dimen.BP, 100 * dimen.BP} {
 			t.Run(string(breaker)+"/"+width.String(), func(t *testing.T) {
 				source := "אב\u00adגד"
-				input := pipeline.Input{Text: source, Direction: bidi.RightToLeft, Width: width, Breaker: breaker, Fonts: &fontbackend.Settings{DefaultPath: hebrew, Size: 12 * dimen.BP}}
+				input := pipeline.Input{Text: source, Direction: bidi.RightToLeft, Width: width, Breaker: breaker, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: hebrew, Size: 12 * dimen.BP}}}
 				direct, err := pipeline.Run(context.Background(), input)
 				if err != nil {
 					t.Fatal(err)
 				}
-				input.Fonts = &fontbackend.Settings{DefaultPath: gentium, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}
+				input.Fonts = &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: gentium, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}}
 				fallback, err := pipeline.Run(context.Background(), input)
 				if err != nil {
 					t.Fatal(err)
@@ -63,7 +67,7 @@ func TestFallbackPreservesSoftHyphenBreaks(t *testing.T) {
 					if !reflect.DeepEqual(ta.Glyphs, tb.Glyphs) || !reflect.DeepEqual(ta.Clusters, tb.Clusters) || ta.ReplacementText != tb.ReplacementText || ta.IsReplacement != tb.IsReplacement {
 						t.Fatalf("glyphs or provenance differ at knot %d", i)
 					}
-					if tb.Context.Params.Font.(*fontbackend.Face).Info().SHA256 != direct.Fonts[0].SHA256 {
+					if tb.Context.Params.Font.(*otadapter.Face).Info().SHA256 != direct.Fonts[0].SHA256 {
 						t.Fatal("replacement uses wrong font")
 					}
 				}

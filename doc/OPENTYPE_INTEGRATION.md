@@ -55,10 +55,10 @@ request OpenType; a failure never switches backends:
 ```go
 result, err := pipeline.Run(ctx, pipeline.Input{
     Text: "office", Width: 200 * dimen.BP,
-    Fonts: &fontbackend.Settings{
+    Fonts: &discovery.Resolution{Settings: typography.Settings{
         DefaultPath: "../opentype/testdata/fonts/GentiumPlus-R.ttf",
         Size: 12 * dimen.BP,
-    },
+    }},
 })
 ```
 
@@ -71,8 +71,11 @@ not saved glyph snapshots. Font hashes identify the actual bytes used at layout
 time, which may differ from an earlier panel validation. Files are local regular
 files, capped at 64 MiB. No fonts are fetched or discovered automatically.
 
-`fontbackend.Loader`, `Face`, `Scale`, `Resolver`, and `Stream` implement the khipu
-contracts. Metrics preserve signed font units. Scaling caches the factor from
+`typography/adapter/opentype` owns Loader, Face, Scale and Stream. The root
+`typography` package owns Resolver and accepts explicit loading/coverage services;
+application wiring supplies `opentype.Services`. No workbench forwarding package
+remains. `discovery.Resolution` embeds `typography.Settings` and discovery metadata.
+The adapter owns parser bytes, synchronization, streaming, scaling and outlines. Metrics preserve signed font units. Scaling caches the factor from
 `otquery.FontScale` and retains fractional DU until khipu rounds geometry. The
 bounded stream adapts the synchronous public OpenType shaper directly to a
 context-aware channel sink; it starts no goroutines. The producer calls Shape,
@@ -139,8 +142,8 @@ exactly one of DefaultPath/DefaultResource, and Path/Resource for each mapping r
 Fallbacks retains its existing file ordering; FallbackResources follows those
 files in slice order. First-match style rules are unchanged.
 
-`ReadResource(reader, Origin)` copies at most 64 MiB plus one detection byte and
-returns a Resource with private immutable bytes. `FontfindResource(sf, provider,
+`fontresource.Read(reader, Origin)` copies at most 64 MiB plus one detection byte and
+returns a Resource with private immutable bytes. `findadapter.ReadResource(sf, provider,
 request)` reads an already resolved `fontfind.ScalableFont` through ReadFontData,
 not by opening Path as an OS path. Its allocation is not bounded upstream before
 the size check: use it only for trusted offline resources; use the reader API for
@@ -156,8 +159,7 @@ Info and Binding separate display Path, Origin (provider, resolved name, locatio
 requested descriptor), SHA256 of the exact bytes, and ResourceID. SHA256 is the
 content identity. ResourceID hashes content plus provenance, allowing identical
 bytes from different origins to remain distinguishable. Different bytes at the
-same relative path cannot collide in face maps or itemized styles. These IDs are
-not yet a versioned replay manifest format. Parsed family/subfamily remain in Info;
+same relative path cannot collide in face maps or itemized styles. The fixed encoding is preserved by the version-1 replay manifest. Parsed family/subfamily remain in Info;
 provider descriptions are not authoritative font metadata.
 
 Settings.Clone copies selection slices; Resource pointers safely share private
@@ -165,17 +167,18 @@ immutable snapshots. Each pipeline run parses owned bytes; frozen faces retain
 those bytes and never reread the filesystem during proof export. Resources are now persisted by the separate step 4 replay API; see
 [offline replay](OFFLINE_REPLAY.md) for manifests, storage, and verification.
 
-`fontbackend/resource_test.go` covers bounded/read/parser errors, snapshot ownership,
-selection ambiguity and cloning. `pipeline/resource_test.go` covers injected fs.FS,
+Typography tests in fontresource, adapter/opentype and the root resolver cover
+bounded/read/parser errors, snapshot ownership, selection ambiguity and cloning. `pipeline/resource_test.go` covers injected fs.FS,
 packaged Gentium, identical relative locations with different fonts, mapping and
 coverage fallback, and file/resource proof equivalence under both breakers after
 source removal. Existing file, missing-glyph, and parser-warning tests remain active.
 
 ## Controlled offline descriptor resolution
 
-Step 2 adds `NewDiscovery([]OfflineProvider, genericMappings)` and
-`Discovery.ResolveSettings(ctx, DescriptorSettings)`. The result is ordinary
-resource-backed Settings suitable for `pipeline.Run`; F5 now uses this layer
+Application wiring calls `findadapter.New([]OfflineProvider)` and then
+`discovery.New(searcher, otadapter.Services{}, genericMappings)`.
+`Discovery.ResolveSettings(ctx, DescriptorSettings)` returns a resource-backed
+`discovery.Resolution` suitable for `pipeline.Run`; F5 uses this layer
 for the request mode described below.
 There is no automatic system lookup, download, or implicit packaged default.
 
@@ -185,7 +188,7 @@ Pass family names separately, not an unsplit CSS declaration; names are not pars
 as comma-separated patterns. Generic families require explicit session mappings.
 Unsupported intermediate weights are rejected rather than silently rounded.
 DescriptorSettings supplies the default, mapping rules, coverage fallback requests,
-and size. Original requests are deep-copied into Settings.DescriptorInput.
+and size. Original requests are deep-copied into Resolution.DescriptorInput.
 
 An OfflineProvider has a stable unique name and a context-aware Find function
 returning Match{Font, Exact, Reason}. Exact is a trust assertion by a controlled
@@ -209,7 +212,7 @@ Resolve/ResolveSettings return diagnostics even on failure. Stages distinguish
 lookup attempts, resolved identities/substitutions, read errors, parse errors,
 and parser warnings. ResolutionError supports errors.As and unwraps its cause.
 Read or parse failure terminates resolution; it never silently selects another
-font. Settings.ResolutionDiagnostics and Result.FontDiagnostics retain detached
+font. Resolution.ResolutionDiagnostics and Result.FontDiagnostics retain detached
 copies. Existing Info.Warnings and FontBindings remain available. Itemization
 failures are wrapped as ResolutionError with stage coverage; this includes the
 itemizer's unsupported-script/boundary diagnostics as well as missing glyphs.
@@ -220,7 +223,8 @@ candidates and records exact byte spans and resource IDs. Fontfind still does no
 provide general exact-match/provenance diagnostics, so unrestricted providers
 remain outside this integration's supported scope.
 
-Tests in fontbackend/discovery_test.go cover descriptor translation, provider and
+Tests in typography/discovery and typography/adapter/fontfind cover descriptor
+translation, provider and
 family order, strict/substituted results, cached diagnostics, generic policy,
 read/parse failures, cancellation, and concurrent cache use. The pipeline discovery
 test verifies detached diagnostics, mapped resources, Hebrew fallback and soft
@@ -263,3 +267,28 @@ coverage bindings. The file/resource limitations above still apply.
 apply, packaged lookup, substitution policy, retained results, cancelled and stale
 completions with controllable providers, and preview bounds. Existing file-panel
 and synthetic-switch tests remain active.
+
+
+## Typography extraction ownership
+
+Steps 1–7 of the typography extraction are complete. `typography/fontresource`
+owns bytes, neutral provenance and stable IDs; `typography/adapter/opentype` owns
+loading, coverage, shaping, identity and outlines. Root `typography` owns mapping,
+itemization and pinned settings through injected khipu-contract faces and services.
+`typography/discovery` owns request/session policy, and `adapter/fontfind` adapts
+controlled providers. Tytui directly composes these APIs; its former `fontbackend`
+package and htmlinput style aliases have been removed.
+
+Generic bidi/encode/break/freeze/assembly orchestration now lives in
+`typography/paragraph.Run`. It consumes prepared styled.Text and injected khipu
+services, without a concrete font or adapter dependency. The local internal/layout
+package is removed.
+Proof and replay evidence use retained identity/rendering services; concrete face
+access and VisualOrder remain inside the adapter. Typesetter styles stay color-free;
+the application retains a separate renderer paint snapshot. Replay owns explicit
+font wire records for existing versions 1 and 2, with unchanged fixtures and IDs.
+See [the final API contracts](TYPOGRAPHY_API_CONTRACTS.md#implemented-step-7-api).
+
+Both modules pass ordinary/race tests, build and vet. Owning upstream tests use the
+sibling OpenType font fixtures; tytui retains DOM/TUI and both-breaker frozen proof
+integration. Dependency tests guard the generic package boundaries.

@@ -5,8 +5,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	typestyle "github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
 	"golang.org/x/net/html"
+
 	"tytui/paragraphtext"
 )
 
@@ -14,7 +16,7 @@ type textUnit struct {
 	r          rune
 	id         int
 	start, end uint64
-	style      Style
+	style      typestyle.Style
 }
 
 // Extract resolves inherited styles and collapses whitespace across text nodes.
@@ -118,7 +120,7 @@ func (d *Document) Extract(id int) (*Extraction, error) {
 		if len(e.Styles) > 0 && e.Styles[len(e.Styles)-1].Style == u.style {
 			e.Styles[len(e.Styles)-1].End = end
 		} else {
-			e.Styles = append(e.Styles, StyleSpan{start, end, u.style})
+			e.Styles = append(e.Styles, typestyle.Span{Start: start, End: end, Style: u.style})
 		}
 		for node := u.id; node >= 0; node = d.Nodes[node].Parent {
 			if old, ok := ranges[node]; ok {

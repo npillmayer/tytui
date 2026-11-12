@@ -1,12 +1,13 @@
 package main
 
 import (
-	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"context"
 	"strings"
 	"testing"
-	"tytui/fontbackend"
+
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	fontdiscovery "github.com/npillmayer/typography/discovery"
 )
 
 func fontControl(r rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: r, Mod: tea.ModCtrl} }
@@ -79,7 +80,7 @@ func TestFontRequestCancellationAndStalePreview(t *testing.T) {
 		m := requestModel()
 		entered := make(chan struct{})
 		done := make(chan tea.Msg, 1)
-		m.fontEditor.resolve = func(ctx context.Context, _ fontbackend.DescriptorSettings) (*fontbackend.Settings, []fontbackend.FontDiagnostic, error) {
+		m.fontEditor.resolve = func(ctx context.Context, _ fontdiscovery.DescriptorSettings) (*fontdiscovery.Resolution, []fontdiscovery.FontDiagnostic, error) {
 			close(entered)
 			<-ctx.Done()
 			return nil, nil, ctx.Err()

@@ -3,14 +3,18 @@ package pipeline_test
 import (
 	"context"
 	"fmt"
-	"github.com/npillmayer/fontfind"
-	"github.com/npillmayer/khipu"
-	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/uax/bidi"
 	"os"
 	"testing"
 	"testing/fstest"
-	"tytui/fontbackend"
+
+	"github.com/npillmayer/fontfind"
+	"github.com/npillmayer/khipu"
+	"github.com/npillmayer/khipu/dimen"
+	findadapter "github.com/npillmayer/typography/adapter/fontfind"
+	otadapter "github.com/npillmayer/typography/adapter/opentype"
+	fontdiscovery "github.com/npillmayer/typography/discovery"
+	"github.com/npillmayer/uax/bidi"
+
 	"tytui/pipeline"
 )
 
@@ -25,17 +29,21 @@ func TestDescriptorCoverageThroughFreezing(t *testing.T) {
 		sf.SetFS(fstest.MapFS{"font.ttf": &fstest.MapFile{Data: data}}, "font.ttf")
 		catalog[name] = sf
 	}
-	session, err := fontbackend.NewDiscovery([]fontbackend.OfflineProvider{{Name: "offline", Find: func(_ context.Context, d fontfind.Descriptor) (fontbackend.Match, error) {
+	search, err := findadapter.New([]findadapter.OfflineProvider{{Name: "offline", Find: func(_ context.Context, d fontfind.Descriptor) (findadapter.Match, error) {
 		sf, ok := catalog[d.Pattern]
 		if !ok {
-			return fontbackend.Match{Font: catalog["Latin"], Reason: "explicit catalog default"}, fmt.Errorf("missing %s", d.Pattern)
+			return findadapter.Match{Font: catalog["Latin"], Reason: "explicit catalog default"}, fmt.Errorf("missing %s", d.Pattern)
 		}
-		return fontbackend.Match{Font: sf, Exact: true}, nil
-	}}}, nil)
+		return findadapter.Match{Font: sf, Exact: true}, nil
+	}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	settings, diagnostics, err := session.ResolveSettings(context.Background(), fontbackend.DescriptorSettings{Default: fontbackend.FontRequest{Families: []string{"Absent"}, AllowSubstitution: true}, Fallbacks: []fontbackend.FontRequest{{Families: []string{"Hebrew"}}}, Rules: []fontbackend.DescriptorRule{{Weight: 700, Request: fontbackend.FontRequest{Families: []string{"Latin"}}}}, Size: 12 * dimen.BP})
+	session, err := fontdiscovery.New(search, otadapter.Services{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings, diagnostics, err := session.ResolveSettings(context.Background(), fontdiscovery.DescriptorSettings{Default: fontdiscovery.FontRequest{Families: []string{"Absent"}, AllowSubstitution: true}, Fallbacks: []fontdiscovery.FontRequest{{Families: []string{"Hebrew"}}}, Rules: []fontdiscovery.DescriptorRule{{Weight: 700, Request: fontdiscovery.FontRequest{Families: []string{"Latin"}}}}, Size: 12 * dimen.BP})
 	if err != nil {
 		t.Fatal(err)
 	}

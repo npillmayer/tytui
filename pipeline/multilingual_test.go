@@ -6,15 +6,18 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"github.com/npillmayer/khipu"
-	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/uax/bidi"
 	"io"
 	"math"
 	"os"
 	"strings"
 	"testing"
-	"tytui/fontbackend"
+
+	"github.com/npillmayer/khipu"
+	"github.com/npillmayer/khipu/dimen"
+	"github.com/npillmayer/typography"
+	fontdiscovery "github.com/npillmayer/typography/discovery"
+	"github.com/npillmayer/uax/bidi"
+
 	"tytui/pipeline"
 )
 
@@ -52,7 +55,7 @@ func TestIndependentGlyphProofs(t *testing.T) {
 		if strings.HasPrefix(c.ID, "hebrew") {
 			dir = bidi.RightToLeft
 		}
-		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: c.Text, Direction: dir, Width: 200 * dimen.BP, Fonts: &fontbackend.Settings{DefaultPath: "../../opentype/" + c.FontPath, Size: 18 * dimen.BP}})
+		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: c.Text, Direction: dir, Width: 200 * dimen.BP, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: "../../opentype/" + c.FontPath, Size: 18 * dimen.BP}}})
 		if err != nil {
 			t.Fatalf("%s: %v", c.ID, err)
 		}
@@ -103,7 +106,7 @@ func TestMixedScriptsFallbackAndProof(t *testing.T) {
 	for _, direction := range []bidi.Direction{bidi.LeftToRight, bidi.RightToLeft} {
 		e.Direction = direction
 		for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-			r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, Fonts: &fontbackend.Settings{DefaultPath: gentium, Size: 18 * dimen.BP, Fallbacks: []string{hebrew}}})
+			r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: gentium, Size: 18 * dimen.BP, Fallbacks: []string{hebrew}}}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -149,7 +152,7 @@ func TestMixedScriptsFallbackAndProof(t *testing.T) {
 }
 func TestSoftHyphenFrozenProof(t *testing.T) {
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "office\u00adoffice", Width: 35 * dimen.BP, Breaker: breaker, Fonts: &fontbackend.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})
+		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "office\u00adoffice", Width: 35 * dimen.BP, Breaker: breaker, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -168,12 +171,12 @@ func TestSoftHyphenFrozenProof(t *testing.T) {
 }
 
 func TestProofErrorsAndGraphemeStyleBoundary(t *testing.T) {
-	e := styledInput(t, `<p>a<b>́</b></p>`)
-	_, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Fonts: &fontbackend.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})
+	e := styledInput(t, `<p>a<span style="font-size:24pt">́</span></p>`)
+	_, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}})
 	if err == nil || !strings.Contains(err.Error(), "grapheme") {
 		t.Fatalf("split grapheme accepted: %v", err)
 	}
-	r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "office", Width: 100 * dimen.BP, Fonts: &fontbackend.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})
+	r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "office", Width: 100 * dimen.BP, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}})
 	if err != nil {
 		t.Fatal(err)
 	}

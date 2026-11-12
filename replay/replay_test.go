@@ -3,16 +3,21 @@ package replay
 import (
 	"context"
 	"encoding/json"
-	"github.com/npillmayer/fontfind"
-	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/uax/bidi"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 	"testing/fstest"
-	"tytui/fontbackend"
+
+	"github.com/npillmayer/fontfind"
+	"github.com/npillmayer/khipu/dimen"
+	"github.com/npillmayer/typography"
+	findadapter "github.com/npillmayer/typography/adapter/fontfind"
+	otadapter "github.com/npillmayer/typography/adapter/opentype"
+	fontdiscovery "github.com/npillmayer/typography/discovery"
+	"github.com/npillmayer/uax/bidi"
+
 	"tytui/htmlinput"
 	"tytui/pipeline"
 )
@@ -60,7 +65,7 @@ func TestOfflineRoundTrip(t *testing.T) {
 				if e = os.WriteFile(path, data, 0600); e != nil {
 					t.Fatal(e)
 				}
-				input := pipeline.Input{Text: "אב\u00adגד", Direction: bidi.RightToLeft, Width: width, Breaker: breaker, Fonts: &fontbackend.Settings{DefaultPath: path, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}, Rules: []fontbackend.Rule{{Weight: 700, Path: path}}}}
+				input := pipeline.Input{Text: "אב\u00adגד", Direction: bidi.RightToLeft, Width: width, Breaker: breaker, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: path, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}, Rules: []typography.Rule{{Weight: 700, Path: path}}}}}
 				original, e := pipeline.Run(context.Background(), input)
 				if e != nil {
 					t.Fatal(e)
@@ -144,7 +149,7 @@ func TestHTMLAndSyntheticReplay(t *testing.T) {
 	}
 }
 func TestReplayRejectsMissingAndTamperedResources(t *testing.T) {
-	result, e := pipeline.Run(context.Background(), pipeline.Input{Text: "abc", Width: 100 * dimen.BP, Fonts: &fontbackend.Settings{DefaultPath: latin, Size: 12 * dimen.BP}})
+	result, e := pipeline.Run(context.Background(), pipeline.Input{Text: "abc", Width: 100 * dimen.BP, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: latin, Size: 12 * dimen.BP}}})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -197,14 +202,18 @@ func TestDescriptorReplayBypassesDiscovery(t *testing.T) {
 	sf := fontfind.ScalableFont{Name: "catalog"}
 	sf.SetFS(fsys, "font.ttf")
 	calls := 0
-	discovery, err := fontbackend.NewDiscovery([]fontbackend.OfflineProvider{{Name: "offline", Find: func(context.Context, fontfind.Descriptor) (fontbackend.Match, error) {
+	search, err := findadapter.New([]findadapter.OfflineProvider{{Name: "offline", Find: func(context.Context, fontfind.Descriptor) (findadapter.Match, error) {
 		calls++
-		return fontbackend.Match{Font: sf, Reason: "explicit substitute"}, nil
-	}}}, map[string]string{"serif": "catalog"})
+		return findadapter.Match{Font: sf, Reason: "explicit substitute"}, nil
+	}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	settings, _, err := discovery.ResolveSettings(context.Background(), fontbackend.DescriptorSettings{Default: fontbackend.FontRequest{Families: []string{"serif"}, AllowSubstitution: true}, Size: 12 * dimen.BP})
+	discovery, err := fontdiscovery.New(search, otadapter.Services{}, map[string]string{"serif": "catalog"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings, _, err := discovery.ResolveSettings(context.Background(), fontdiscovery.DescriptorSettings{Default: fontdiscovery.FontRequest{Families: []string{"serif"}, AllowSubstitution: true}, Size: 12 * dimen.BP})
 	if err != nil {
 		t.Fatal(err)
 	}

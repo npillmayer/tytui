@@ -5,7 +5,6 @@ package htmlinput
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/npillmayer/uax/bidi"
 	"io"
 	"os"
 	"strings"
@@ -14,6 +13,8 @@ import (
 	"github.com/andybalholm/cascadia"
 	dcss "github.com/aymerick/douceur/css"
 	"github.com/aymerick/douceur/parser"
+	typestyle "github.com/npillmayer/typography/style"
+	"github.com/npillmayer/uax/bidi"
 	dom "github.com/npillmayer/w3c-dom"
 	"github.com/npillmayer/w3c-dom/style"
 	domcss "github.com/npillmayer/w3c-dom/style/css"
@@ -60,7 +61,7 @@ type Extraction struct {
 	SelectedPath             string
 	Text                     string
 	Spans                    []Span
-	Styles                   []StyleSpan
+	Styles                   []typestyle.Span
 	Direction                bidi.Direction
 	Isolates                 []Isolate
 }
@@ -71,7 +72,7 @@ func (e *Extraction) Clone() *Extraction {
 	}
 	copy := *e
 	copy.Spans = append([]Span(nil), e.Spans...)
-	copy.Styles = append([]StyleSpan(nil), e.Styles...)
+	copy.Styles = append([]typestyle.Span(nil), e.Styles...)
 	copy.Isolates = append([]Isolate(nil), e.Isolates...)
 	return &copy
 }

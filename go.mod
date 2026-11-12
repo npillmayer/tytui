@@ -2,6 +2,8 @@ module tytui
 
 go 1.25.6
 
+replace github.com/npillmayer/typography => ../typography
+
 replace github.com/npillmayer/fontfind => ../fontfind
 
 replace github.com/npillmayer/cords => ../cords
@@ -29,6 +31,7 @@ require (
 	github.com/npillmayer/cords v0.1.2-alpha.3
 	github.com/npillmayer/khipu v0.0.0
 	github.com/npillmayer/opentype v0.0.0
+	github.com/npillmayer/typography v0.0.0
 	github.com/npillmayer/uax v0.3.0-alpha1
 	golang.org/x/image v0.34.0
 	golang.org/x/net v0.49.0

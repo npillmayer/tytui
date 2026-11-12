@@ -4,6 +4,17 @@ Source review: 2026-11-11, refreshed against `1b6583b`, sibling `../fontfind` (m
 `github.com/npillmayer/fontfind`). Steps 1–4 are implemented; later steps remain proposed. Public API and implementation references below are relative to that
 checkout unless prefixed with `tytui/`. The step 1 implementation wires the sibling dependency for offline resource adapters.
 
+## Ownership update (2026-11-12)
+
+The original milestones below use their implementation-time `fontbackend` names.
+Typography extraction steps 1–7 have since moved resources to typography/fontresource,
+neutral discovery to typography/discovery, and provider conversion to
+typography/adapter/fontfind. Tytui's forwarding package is removed; F5 and pipeline
+compose those APIs directly with injected OpenType services. Existing offline scope,
+resource IDs, diagnostics and replay formats are preserved. Current imports and
+constructors are documented in [OPENTYPE_INTEGRATION.md](OPENTYPE_INTEGRATION.md)
+and [the final contracts](TYPOGRAPHY_API_CONTRACTS.md#implemented-step-7-api).
+
 ## API inventory and boundaries
 
 | API | Contract and integration consequence |

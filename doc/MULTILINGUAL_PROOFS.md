@@ -63,13 +63,14 @@ to replacement text. Proofs use the retained replacement glyphs directly.
 
 ## Positioned SVG renderer
 
-The renderer uses public khipu frozen snapshots and x/image/font/sfnt for unhinted
-outlines from the face's retained bytes. It never calls shaping or line breaking
+The generic renderer uses public khipu frozen snapshots and injected services.
+Typography's OpenType adapter uses x/image/font/sfnt for unhinted outlines from
+the face's retained bytes. It never calls shaping or line breaking
 and never reloads the file path. There are no embedded font binaries, external
 resources, SVG text elements, scripts, or browser font substitutions.
 
 Frozen knots are already physical left-to-right. Their final widths, including
-adjusted glue, advance the knot pen. The generic `otshape.VisualOrder` converts
+adjusted glue, advance the knot pen. The adapter's generic `otshape.VisualOrder` converts
 each knot's logical glyph fragment directly from khipu's glyph type. It reorders
 the detached `CopyText` slice in place, leaving frozen data unchanged. RTL records
 are reversed, including marks sharing a cluster; LTR records stay in logical
@@ -110,3 +111,17 @@ No font binaries were copied and no upstream source changes were needed.
 Its source is `testdata/html/multilingual.html`. The SVG contains per-glyph font
 hashes, cluster IDs, knot indexes, and line indexes. These scalar clusters are not
 UTF-8 byte offsets; use the retained source map for DOM correspondence.
+
+
+Color bypasses typesetter styles through an independently retained paint snapshot.
+M owns the typography projection; `Result.PaintSpans()` exposes a detached copy of
+the renderer's logical color ranges. The proof walker does not read color from
+the retained DOM/shared-style input. Existing replay fields remain unchanged.
+
+Glyph-boundary paint (step 6) is now the default. The renderer maps each frozen glyph
+anchor to original source paint before visual reordering. A ligature stays one color;
+marks with distinct anchors can differ, while shared anchors inherit cluster paint.
+There is no clipping or conflict diagnostic. Explicit soft-hyphen replacements map
+surrounding text back to its own colors and '-' to the marker's color. Paint-only
+changes preserve shaping, fallback, positioning and line breaks. Version-1 replay
+retains the earlier style-boundary behavior through an explicit compatibility path.

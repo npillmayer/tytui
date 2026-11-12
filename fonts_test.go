@@ -1,11 +1,13 @@
 package main
 
 import (
-	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"strings"
 	"testing"
-	"tytui/fontbackend"
+
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/npillmayer/typography"
+	fontdiscovery "github.com/npillmayer/typography/discovery"
 )
 
 const uiFont = "../opentype/testdata/fonts/GentiumPlus-R.ttf"
@@ -94,7 +96,7 @@ func TestFontEditorRowsAndSize(t *testing.T) {
 }
 func TestFontSwitchDiscardsActiveLayout(t *testing.T) {
 	m := initialModel()
-	m.fontSettings = &fontbackend.Settings{DefaultPath: uiFont}
+	m.fontSettings = &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: uiFont}}
 	m, _ = updateModel(m, runKey())
 	revision := m.revision
 	m, _ = updateModel(m, keyPress(tea.KeyF6))

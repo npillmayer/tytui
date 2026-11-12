@@ -17,7 +17,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/npillmayer/khipu/dimen"
-	"tytui/fontbackend"
+	fontdiscovery "github.com/npillmayer/typography/discovery"
+
 	"tytui/htmlinput"
 	"tytui/pipeline"
 )
@@ -43,7 +44,7 @@ type pipelineRunner func(context.Context, pipeline.Input) (*pipeline.Result, err
 
 type model struct {
 	fontEditor                 fontEditor
-	fontSettings               *fontbackend.Settings
+	fontSettings               *fontdiscovery.Resolution
 	browser                    htmlBrowser
 	source                     *htmlinput.Extraction
 	width, height              int

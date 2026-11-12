@@ -1,0 +1,351 @@
+{
+  "GoVersion": "go1.25.6",
+  "Evidence": {
+    "Lines": [
+      {
+        "FirstKnot": 0,
+        "KnotCount": 3,
+        "Width": 6553600,
+        "TargetWidth": 6553600,
+        "Residual": 0,
+        "LeftSkip": 0,
+        "RightSkip": 0,
+        "Source": {
+          "Start": 0,
+          "End": 2
+        },
+        "Fit": 0,
+        "Ratio": 0,
+        "Badness": 0,
+        "FillOrder": 2147483645
+      }
+    ],
+    "Knots": [
+      {
+        "W": 244608,
+        "Kind": 2,
+        "Flags": 0,
+        "Source": {
+          "Bytes": {
+            "Start": 0,
+            "End": 1
+          },
+          "ScalarStart": 0,
+          "ScalarEnd": 1
+        },
+        "Material": 0
+      },
+      {
+        "W": 213120,
+        "Kind": 2,
+        "Flags": 0,
+        "Source": {
+          "Bytes": {
+            "Start": 1,
+            "End": 2
+          },
+          "ScalarStart": 1,
+          "ScalarEnd": 2
+        },
+        "Material": 0
+      },
+      {
+        "W": 6095872,
+        "Kind": 1,
+        "Flags": 0,
+        "Source": {
+          "Bytes": {
+            "Start": 2,
+            "End": 2
+          },
+          "ScalarStart": 2,
+          "ScalarEnd": 2
+        },
+        "Material": 3
+      }
+    ],
+    "Runs": [
+      {
+        "Knot": 0,
+        "ResourceID": "sha256:29b2b496215455e625ef8a370a77622825703b73a610abd67ebc25ec365dddaa",
+        "SHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8",
+        "Replacement": false,
+        "ReplacementText": "",
+        "EmSize": 786432,
+        "Direction": 0,
+        "Script": "Latn",
+        "Language": "en",
+        "Features": null,
+        "Glyphs": [
+          {
+            "GlyphID": 73,
+            "Cluster": 0,
+            "XAdvance": 637,
+            "YAdvance": 0,
+            "XOffset": 0,
+            "YOffset": 0
+          }
+        ],
+        "Clusters": [
+          {
+            "Input": {
+              "Bytes": {
+                "Start": 0,
+                "End": 1
+              },
+              "ScalarStart": 0,
+              "ScalarEnd": 1
+            },
+            "FirstGlyph": 0,
+            "GlyphCount": 1
+          }
+        ]
+      },
+      {
+        "Knot": 1,
+        "ResourceID": "sha256:29b2b496215455e625ef8a370a77622825703b73a610abd67ebc25ec365dddaa",
+        "SHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8",
+        "Replacement": false,
+        "ReplacementText": "",
+        "EmSize": 786432,
+        "Direction": 0,
+        "Script": "Latn",
+        "Language": "en",
+        "Features": null,
+        "Glyphs": [
+          {
+            "GlyphID": 76,
+            "Cluster": 1,
+            "XAdvance": 555,
+            "YAdvance": 0,
+            "XOffset": 0,
+            "YOffset": 0
+          }
+        ],
+        "Clusters": [
+          {
+            "Input": {
+              "Bytes": {
+                "Start": 1,
+                "End": 2
+              },
+              "ScalarStart": 1,
+              "ScalarEnd": 2
+            },
+            "FirstGlyph": 0,
+            "GlyphCount": 1
+          }
+        ]
+      }
+    ],
+    "Proof": {
+      "Glyphs": [
+        {
+          "Line": 0,
+          "Knot": 0,
+          "GlyphID": 73,
+          "Cluster": 0,
+          "X": 0,
+          "Y": 13.18359375,
+          "Scale": 0.005859375,
+          "Color": "red",
+          "Path": "M817 -1454 Q817 -1446 802 -1430 Q788 -1414 768 -1397 Q748 -1380 726 -1365 Q705 -1350 690 -1343 Q666 -1364 641 -1379 Q617 -1395 594 -1405 Q572 -1415 552 -1420 Q533 -1425 520 -1425 Q494 -1425 464 -1407 Q435 -1390 409 -1344 Q384 -1298 367 -1219 Q350 -1140 350 -1016 L350 -930 L608 -930 L637 -901 Q628 -887 614 -871 Q601 -855 587 -841 Q574 -827 561 -815 Q548 -804 539 -800 Q516 -812 473 -823 Q430 -835 350 -835 L350 -102 Q350 -96 360 -90 Q371 -84 396 -77 Q421 -71 460 -62 Q500 -54 559 -43 L559 0 L60 0 L60 -43 Q129 -55 164 -72 Q200 -90 200 -102 L200 -835 L66 -835 L45 -863 L123 -930 L200 -930 L200 -961 Q200 -1079 216 -1159 Q232 -1240 259 -1295 Q287 -1351 323 -1388 Q359 -1426 399 -1458 Q426 -1480 458 -1497 Q490 -1514 521 -1526 Q553 -1538 581 -1544 Q610 -1550 629 -1550 Q660 -1550 693 -1538 Q726 -1526 753 -1510 Q781 -1495 799 -1479 Q817 -1463 817 -1454 ",
+          "FaceSHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8"
+        },
+        {
+          "Line": 0,
+          "Knot": 1,
+          "GlyphID": 76,
+          "Cluster": 1,
+          "X": 3.732421875,
+          "Y": 13.18359375,
+          "Scale": 0.005859375,
+          "Color": "blue",
+          "Path": "M70 0 L70 -43 Q138 -57 174 -73 Q210 -90 210 -104 L210 -670 Q210 -721 208 -752 Q206 -784 193 -801 Q180 -819 151 -827 Q123 -835 70 -840 L70 -880 Q101 -886 135 -894 Q170 -903 204 -913 Q238 -924 269 -936 Q300 -948 326 -960 L360 -960 L360 -104 Q360 -92 393 -74 Q427 -57 500 -43 L500 0 L70 0 M390 -1261 Q390 -1233 381 -1208 Q372 -1183 356 -1164 Q341 -1146 320 -1135 Q299 -1124 274 -1124 Q229 -1124 209 -1149 Q190 -1174 190 -1220 Q190 -1248 199 -1273 Q208 -1298 224 -1316 Q240 -1335 260 -1345 Q281 -1356 305 -1356 Q390 -1356 390 -1261 ",
+          "FaceSHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8"
+        }
+      ],
+      "Lines": [
+        {
+          "X": 0,
+          "Baseline": 13.18359375,
+          "Top": 0,
+          "Height": 19.978125,
+          "Width": 100,
+          "TargetWidth": 100
+        }
+      ],
+      "MinX": 0,
+      "MinY": 0,
+      "MaxX": 100,
+      "MaxY": 19.978125
+    }
+  },
+  "Version": 1,
+  "Units": "65536 DU per big point; 72 big points per inch",
+  "Input": {
+    "Styles": [
+      {
+        "Start": 0,
+        "End": 1,
+        "Style": {
+          "Family": "serif",
+          "EmSize": 786432,
+          "Weight": 400,
+          "Slant": "normal",
+          "Color": "red",
+          "Language": "en",
+          "WhiteSpace": "normal",
+          "UnicodeBidi": "normal",
+          "Direction": 0
+        }
+      },
+      {
+        "Start": 1,
+        "End": 2,
+        "Style": {
+          "Family": "serif",
+          "EmSize": 786432,
+          "Weight": 400,
+          "Slant": "normal",
+          "Color": "blue",
+          "Language": "en",
+          "WhiteSpace": "normal",
+          "UnicodeBidi": "normal",
+          "Direction": 0
+        }
+      }
+    ],
+    "Fonts": null,
+    "Text": "fi",
+    "Width": 6553600,
+    "Direction": 0,
+    "Breaker": "firstfit",
+    "Source": null
+  },
+  "Fonts": [
+    {
+      "Info": {
+        "ResourceID": "sha256:29b2b496215455e625ef8a370a77622825703b73a610abd67ebc25ec365dddaa",
+        "Origin": {
+          "Provider": "fixture",
+          "Name": "",
+          "Location": "GentiumPlus-R.ttf",
+          "Request": {
+            "Pattern": "",
+            "Style": 0,
+            "Weight": 0
+          }
+        },
+        "Path": "GentiumPlus-R.ttf",
+        "Family": "Gentium Plus",
+        "Subfamily": "Regular",
+        "SHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8",
+        "Warnings": [
+          "[WARNING] DSIG at offset 444: table not interpreted",
+          "[WARNING] Feat at offset 452: table not interpreted",
+          "[WARNING] Glat at offset 90304: table not interpreted",
+          "[WARNING] Gloc at offset 172404: table not interpreted",
+          "[WARNING] LTSH at offset 189904: table not interpreted",
+          "[WARNING] Silf at offset 194364: table not interpreted",
+          "[WARNING] Sill at offset 404004: table not interpreted",
+          "[WARNING] Silt at offset 404104: table not interpreted",
+          "[WARNING] VDMX at offset 416080: table not interpreted",
+          "[WARNING] cvt  at offset 460852: table not interpreted",
+          "[WARNING] fpgm at offset 460892: table not interpreted",
+          "[WARNING] gasp at offset 461264: table not interpreted",
+          "[WARNING] glyf at offset 461280: table not interpreted",
+          "[WARNING] hdmx at offset 1697756: table not interpreted",
+          "[WARNING] name at offset 1833136: table not interpreted",
+          "[WARNING] post at offset 1867316: table not interpreted",
+          "[WARNING] prep at offset 1918296: table not interpreted"
+        ]
+      },
+      "Bytes": 1918536
+    }
+  ],
+  "Selection": {
+    "Policy": null,
+    "Default": "sha256:29b2b496215455e625ef8a370a77622825703b73a610abd67ebc25ec365dddaa",
+    "RequestedPath": "",
+    "Rules": null,
+    "Fallbacks": null,
+    "RequestedFallbackPaths": null,
+    "Descriptors": null,
+    "Size": 786432,
+    "Diagnostics": null
+  },
+  "Bindings": [
+    {
+      "Start": 0,
+      "End": 1,
+      "Path": "GentiumPlus-R.ttf",
+      "SHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8",
+      "ResourceID": "sha256:29b2b496215455e625ef8a370a77622825703b73a610abd67ebc25ec365dddaa",
+      "Origin": {
+        "Provider": "fixture",
+        "Name": "",
+        "Location": "GentiumPlus-R.ttf",
+        "Request": {
+          "Pattern": "",
+          "Style": 0,
+          "Weight": 0
+        }
+      },
+      "EmSize": 786432,
+      "Script": "Latn"
+    },
+    {
+      "Start": 1,
+      "End": 2,
+      "Path": "GentiumPlus-R.ttf",
+      "SHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8",
+      "ResourceID": "sha256:29b2b496215455e625ef8a370a77622825703b73a610abd67ebc25ec365dddaa",
+      "Origin": {
+        "Provider": "fixture",
+        "Name": "",
+        "Location": "GentiumPlus-R.ttf",
+        "Request": {
+          "Pattern": "",
+          "Style": 0,
+          "Weight": 0
+        }
+      },
+      "EmSize": 786432,
+      "Script": "Latn"
+    }
+  ],
+  "Revisions": [
+    {
+      "Module": "fixture",
+      "Commit": "pre-step6",
+      "Dirty": true
+    }
+  ],
+  "Diagnostics": [
+    {
+      "Stage": "input",
+      "Message": "Accepted 2 UTF-8 bytes"
+    },
+    {
+      "Stage": "paragraph",
+      "Message": "Prepared 2 shared style spans"
+    },
+    {
+      "Stage": "encode",
+      "Message": "Encoded 3 knots with the OpenType (core/Hebrew) backend"
+    },
+    {
+      "Stage": "break",
+      "Message": "Selected 1 firstfit line breaks"
+    },
+    {
+      "Stage": "freeze",
+      "Message": "Froze 1 lines"
+    }
+  ],
+  "ParagraphText": "fi",
+  "BreakPositions": [
+    2
+  ]
+}

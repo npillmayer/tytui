@@ -1,0 +1,596 @@
+{
+  "GoVersion": "go1.25.6",
+  "Evidence": {
+    "Lines": [
+      {
+        "FirstKnot": 0,
+        "KnotCount": 4,
+        "Width": 3932160,
+        "TargetWidth": 3932160,
+        "Residual": 0,
+        "LeftSkip": 0,
+        "RightSkip": 0,
+        "Source": {
+          "Start": 0,
+          "End": 19
+        },
+        "Fit": 0,
+        "Ratio": 0,
+        "Badness": 0,
+        "FillOrder": 2147483645
+      }
+    ],
+    "Knots": [
+      {
+        "W": 286940,
+        "Kind": 1,
+        "Flags": 0,
+        "Source": {
+          "Bytes": {
+            "Start": 19,
+            "End": 19
+          },
+          "ScalarStart": 13,
+          "ScalarEnd": 13
+        },
+        "Material": 3
+      },
+      {
+        "W": 1667236,
+        "Kind": 2,
+        "Flags": 0,
+        "Source": {
+          "Bytes": {
+            "Start": 7,
+            "End": 19
+          },
+          "ScalarStart": 7,
+          "ScalarEnd": 13
+        },
+        "Material": 0
+      },
+      {
+        "W": 173184,
+        "Kind": 1,
+        "Flags": 1,
+        "Source": {
+          "Bytes": {
+            "Start": 6,
+            "End": 7
+          },
+          "ScalarStart": 6,
+          "ScalarEnd": 7
+        },
+        "Material": 0
+      },
+      {
+        "W": 1804800,
+        "Kind": 2,
+        "Flags": 0,
+        "Source": {
+          "Bytes": {
+            "Start": 0,
+            "End": 6
+          },
+          "ScalarStart": 0,
+          "ScalarEnd": 6
+        },
+        "Material": 0
+      }
+    ],
+    "Runs": [
+      {
+        "Knot": 1,
+        "ResourceID": "sha256:bb01585913d64020d01ab2e0aa31ac3699b285e27f16915fffb9f7860c43ea7a",
+        "SHA256": "a7fa16fffb27bedb060a0866267c29e9859aeb9c21cc33f5b3aaf6eb062eca85",
+        "Replacement": false,
+        "ReplacementText": "",
+        "EmSize": 786432,
+        "Direction": 1,
+        "Script": "Hebr",
+        "Language": "en",
+        "Features": null,
+        "Glyphs": [
+          {
+            "GlyphID": 3,
+            "Cluster": 7,
+            "XAdvance": 632,
+            "YAdvance": 0,
+            "XOffset": 0,
+            "YOffset": 0
+          },
+          {
+            "GlyphID": 12,
+            "Cluster": 8,
+            "XAdvance": 572,
+            "YAdvance": 0,
+            "XOffset": 0,
+            "YOffset": 0
+          },
+          {
+            "GlyphID": 95,
+            "Cluster": 8,
+            "XAdvance": 0,
+            "YAdvance": 0,
+            "XOffset": 192,
+            "YOffset": 0
+          },
+          {
+            "GlyphID": 34,
+            "Cluster": 11,
+            "XAdvance": 374,
+            "YAdvance": 0,
+            "XOffset": 0,
+            "YOffset": 0
+          },
+          {
+            "GlyphID": 16,
+            "Cluster": 12,
+            "XAdvance": 542,
+            "YAdvance": 0,
+            "XOffset": 0,
+            "YOffset": 0
+          }
+        ],
+        "Clusters": [
+          {
+            "Input": {
+              "Bytes": {
+                "Start": 7,
+                "End": 9
+              },
+              "ScalarStart": 7,
+              "ScalarEnd": 8
+            },
+            "FirstGlyph": 0,
+            "GlyphCount": 1
+          },
+          {
+            "Input": {
+              "Bytes": {
+                "Start": 9,
+                "End": 15
+              },
+              "ScalarStart": 8,
+              "ScalarEnd": 11
+            },
+            "FirstGlyph": 1,
+            "GlyphCount": 2
+          },
+          {
+            "Input": {
+              "Bytes": {
+                "Start": 15,
+                "End": 17
+              },
+              "ScalarStart": 11,
+              "ScalarEnd": 12
+            },
+            "FirstGlyph": 3,
+            "GlyphCount": 1
+          },
+          {
+            "Input": {
+              "Bytes": {
+                "Start": 17,
+                "End": 19
+              },
+              "ScalarStart": 12,
+              "ScalarEnd": 13
+            },
+            "FirstGlyph": 4,
+            "GlyphCount": 1
+          }
+        ]
+      },
+      {
+        "Knot": 3,
+        "ResourceID": "sha256:68c5d0aa70d6209fbbb540c2e7a72e3a2f510737bcca6ff8a6bb8394c02f13b2",
+        "SHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8",
+        "Replacement": false,
+        "ReplacementText": "",
+        "EmSize": 786432,
+        "Direction": 0,
+        "Script": "Latn",
+        "Language": "en",
+        "Features": null,
+        "Glyphs": [
+          {
+            "GlyphID": 82,
+            "Cluster": 0,
+            "XAdvance": 1030,
+            "YAdvance": 0,
+            "XOffset": 0,
+            "YOffset": 0
+          },
+          {
+            "GlyphID": 741,
+            "Cluster": 1,
+            "XAdvance": 1829,
+            "YAdvance": 0,
+            "XOffset": 0,
+            "YOffset": 0
+          },
+          {
+            "GlyphID": 70,
+            "Cluster": 4,
+            "XAdvance": 895,
+            "YAdvance": 0,
+            "XOffset": 0,
+            "YOffset": 0
+          },
+          {
+            "GlyphID": 72,
+            "Cluster": 5,
+            "XAdvance": 946,
+            "YAdvance": 0,
+            "XOffset": 0,
+            "YOffset": 0
+          }
+        ],
+        "Clusters": [
+          {
+            "Input": {
+              "Bytes": {
+                "Start": 0,
+                "End": 1
+              },
+              "ScalarStart": 0,
+              "ScalarEnd": 1
+            },
+            "FirstGlyph": 0,
+            "GlyphCount": 1
+          },
+          {
+            "Input": {
+              "Bytes": {
+                "Start": 1,
+                "End": 4
+              },
+              "ScalarStart": 1,
+              "ScalarEnd": 4
+            },
+            "FirstGlyph": 1,
+            "GlyphCount": 1
+          },
+          {
+            "Input": {
+              "Bytes": {
+                "Start": 4,
+                "End": 5
+              },
+              "ScalarStart": 4,
+              "ScalarEnd": 5
+            },
+            "FirstGlyph": 2,
+            "GlyphCount": 1
+          },
+          {
+            "Input": {
+              "Bytes": {
+                "Start": 5,
+                "End": 6
+              },
+              "ScalarStart": 5,
+              "ScalarEnd": 6
+            },
+            "FirstGlyph": 3,
+            "GlyphCount": 1
+          }
+        ]
+      }
+    ],
+    "Proof": {
+      "Glyphs": [
+        {
+          "Line": 0,
+          "Knot": 1,
+          "GlyphID": 16,
+          "Cluster": 12,
+          "X": 4.37835693359375,
+          "Y": 13.18359375,
+          "Scale": 0.012,
+          "Color": "black",
+          "Path": "M322 0 L322 -444 Q322 -461 328 -484 Q335 -507 353 -517 L38 -517 L38 -593 L511 -593 L501 -517 L425 -517 Q418 -510 416 -495 Q414 -480 414 -462 L414 0 L322 0 ",
+          "FaceSHA256": "a7fa16fffb27bedb060a0866267c29e9859aeb9c21cc33f5b3aaf6eb062eca85"
+        },
+        {
+          "Line": 0,
+          "Knot": 1,
+          "GlyphID": 34,
+          "Cluster": 11,
+          "X": 10.88235693359375,
+          "Y": 13.18359375,
+          "Scale": 0.012,
+          "Color": "black",
+          "Path": "M269 5 L231 -128 L224 -128 Q188 -66 144 -33 Q101 0 38 0 L23 0 L23 -78 L36 -78 Q77 -78 114 -98 Q151 -118 178 -146 Q205 -174 217 -199 L217 -444 Q217 -482 198 -499 Q180 -517 140 -517 L78 -517 L88 -593 L163 -593 Q309 -593 309 -453 L309 -161 L351 -13 L269 5 ",
+          "FaceSHA256": "a7fa16fffb27bedb060a0866267c29e9859aeb9c21cc33f5b3aaf6eb062eca85"
+        },
+        {
+          "Line": 0,
+          "Knot": 1,
+          "GlyphID": 95,
+          "Cluster": 8,
+          "X": 17.67435693359375,
+          "Y": 13.18359375,
+          "Scale": 0.012,
+          "Color": "black",
+          "Path": "M82 126 Q71 126 62 117 Q54 109 54 97 Q54 86 62 78 Q71 70 82 70 Q94 70 102 78 Q110 86 110 97 Q110 109 102 117 Q94 126 82 126 M82 221 Q71 221 62 213 Q54 205 54 193 Q54 182 62 173 Q71 165 82 165 Q94 165 102 173 Q110 182 110 193 Q110 205 102 213 Q94 221 82 221 ",
+          "FaceSHA256": "a7fa16fffb27bedb060a0866267c29e9859aeb9c21cc33f5b3aaf6eb062eca85"
+        },
+        {
+          "Line": 0,
+          "Knot": 1,
+          "GlyphID": 12,
+          "Cluster": 8,
+          "X": 15.370356933593749,
+          "Y": 13.18359375,
+          "Scale": 0.012,
+          "Color": "black",
+          "Path": "M41 0 L41 -76 L369 -76 L369 -402 Q369 -517 258 -517 L71 -517 L81 -593 L265 -593 Q461 -593 461 -405 L461 -76 L535 -76 L524 0 L41 0 ",
+          "FaceSHA256": "a7fa16fffb27bedb060a0866267c29e9859aeb9c21cc33f5b3aaf6eb062eca85"
+        },
+        {
+          "Line": 0,
+          "Knot": 1,
+          "GlyphID": 3,
+          "Cluster": 7,
+          "X": 22.234356933593748,
+          "Y": 13.18359375,
+          "Scale": 0.012,
+          "Color": "black",
+          "Path": "M36 0 L60 -166 Q71 -248 103 -310 Q135 -372 208 -408 Q161 -467 122 -516 Q83 -565 58 -593 L169 -593 Q197 -560 231 -516 Q265 -472 309 -416 Q327 -391 346 -365 Q365 -339 385 -312 Q436 -339 459 -387 Q483 -435 489 -499 L498 -593 L590 -593 L581 -496 Q573 -414 536 -353 Q500 -292 426 -256 Q469 -195 513 -130 Q557 -66 596 0 L491 0 Q433 -99 371 -188 Q310 -278 252 -354 Q201 -326 180 -277 Q160 -228 151 -163 L127 0 L36 0 ",
+          "FaceSHA256": "a7fa16fffb27bedb060a0866267c29e9859aeb9c21cc33f5b3aaf6eb062eca85"
+        },
+        {
+          "Line": 0,
+          "Knot": 3,
+          "GlyphID": 82,
+          "Cluster": 0,
+          "X": 32.4609375,
+          "Y": 13.18359375,
+          "Scale": 0.005859375,
+          "Color": "black",
+          "Path": "M795 -455 Q795 -534 769 -605 Q743 -677 702 -731 Q661 -786 609 -818 Q557 -850 506 -850 Q430 -850 378 -821 Q326 -792 294 -741 Q263 -691 249 -622 Q235 -553 235 -473 Q235 -394 263 -322 Q291 -251 333 -197 Q376 -143 427 -111 Q478 -80 524 -80 Q595 -80 646 -106 Q697 -133 730 -182 Q763 -231 779 -300 Q795 -369 795 -455 M950 -485 Q950 -418 933 -354 Q916 -290 886 -233 Q856 -176 814 -127 Q772 -79 721 -44 Q671 -9 614 10 Q557 30 496 30 Q401 30 324 -6 Q248 -42 193 -105 Q139 -168 109 -255 Q80 -342 80 -444 Q80 -510 96 -574 Q113 -638 142 -695 Q172 -753 213 -801 Q255 -850 305 -885 Q356 -920 414 -940 Q473 -960 535 -960 Q629 -960 705 -924 Q782 -888 836 -824 Q891 -761 920 -674 Q950 -587 950 -485 ",
+          "FaceSHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8"
+        },
+        {
+          "Line": 0,
+          "Knot": 3,
+          "GlyphID": 741,
+          "Cluster": 1,
+          "X": 38.49609375,
+          "Y": 13.18359375,
+          "Scale": 0.005859375,
+          "Color": "black",
+          "Path": "M817 -1454 Q817 -1446 802 -1430 Q788 -1414 768 -1397 Q748 -1380 726 -1365 Q705 -1350 690 -1343 Q666 -1364 641 -1379 Q617 -1395 594 -1405 Q572 -1415 552 -1420 Q533 -1425 520 -1425 Q494 -1425 464 -1407 Q435 -1390 409 -1344 Q384 -1298 367 -1219 Q350 -1140 350 -1016 L350 -930 L608 -930 L637 -901 Q628 -887 614 -871 Q601 -855 587 -841 Q574 -827 561 -815 Q548 -804 539 -800 Q516 -812 473 -823 Q430 -835 350 -835 L350 -102 Q350 -96 360 -90 Q371 -84 396 -77 Q421 -71 460 -62 Q500 -54 559 -43 L559 0 L60 0 L60 -43 Q129 -55 164 -72 Q200 -90 200 -102 L200 -835 L66 -835 L45 -863 L123 -930 L200 -930 L200 -961 Q200 -1079 216 -1159 Q232 -1240 259 -1295 Q287 -1351 323 -1388 Q359 -1426 399 -1458 Q426 -1480 458 -1497 Q490 -1514 521 -1526 Q553 -1538 581 -1544 Q610 -1550 629 -1550 Q660 -1550 693 -1538 Q726 -1526 753 -1510 Q781 -1495 799 -1479 Q817 -1463 817 -1454 M1454 -1454 Q1454 -1446 1439 -1430 Q1425 -1414 1405 -1397 Q1385 -1380 1363 -1365 Q1342 -1350 1327 -1343 Q1303 -1364 1278 -1379 Q1254 -1395 1231 -1405 Q1209 -1415 1189 -1420 Q1170 -1425 1157 -1425 Q1131 -1425 1101 -1407 Q1072 -1390 1046 -1344 Q1021 -1298 1004 -1219 Q987 -1140 987 -1016 L987 -930 L1245 -930 L1274 -901 Q1265 -887 1251 -871 Q1238 -855 1224 -841 Q1211 -827 1198 -815 Q1185 -804 1176 -800 Q1153 -812 1110 -823 Q1067 -835 987 -835 L987 -102 Q987 -96 997 -90 Q1008 -84 1033 -77 Q1058 -71 1097 -62 Q1137 -54 1196 -43 L1196 0 L697 0 L697 -43 Q766 -55 801 -72 Q837 -90 837 -102 L837 -835 L703 -835 L682 -863 L760 -930 L837 -930 L837 -961 Q837 -1079 853 -1159 Q869 -1240 896 -1295 Q924 -1351 960 -1388 Q996 -1426 1036 -1458 Q1063 -1480 1095 -1497 Q1127 -1514 1158 -1526 Q1190 -1538 1218 -1544 Q1247 -1550 1266 -1550 Q1297 -1550 1330 -1538 Q1363 -1526 1390 -1510 Q1418 -1495 1436 -1479 Q1454 -1463 1454 -1454 M1344 0 L1344 -43 Q1412 -57 1448 -73 Q1484 -90 1484 -104 L1484 -670 Q1484 -721 1482 -752 Q1480 -784 1467 -801 Q1454 -819 1425 -827 Q1397 -835 1344 -840 L1344 -880 Q1375 -886 1409 -894 Q1444 -903 1478 -913 Q1512 -924 1543 -936 Q1574 -948 1600 -960 L1634 -960 L1634 -104 Q1634 -92 1667 -74 Q1701 -57 1774 -43 L1774 0 L1344 0 M1664 -1261 Q1664 -1233 1655 -1208 Q1646 -1183 1630 -1164 Q1615 -1146 1594 -1135 Q1573 -1124 1548 -1124 Q1503 -1124 1483 -1149 Q1464 -1174 1464 -1220 Q1464 -1248 1473 -1273 Q1482 -1298 1498 -1316 Q1514 -1335 1534 -1345 Q1555 -1356 1579 -1356 Q1664 -1356 1664 -1261 ",
+          "FaceSHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8"
+        },
+        {
+          "Line": 0,
+          "Knot": 3,
+          "GlyphID": 70,
+          "Cluster": 4,
+          "X": 49.212890625,
+          "Y": 13.18359375,
+          "Scale": 0.005859375,
+          "Color": "black",
+          "Path": "M840 -190 Q775 -113 725 -69 Q676 -26 634 -3 Q592 19 552 24 Q512 30 465 30 Q392 30 322 -2 Q253 -35 199 -96 Q145 -157 112 -245 Q80 -333 80 -444 Q80 -552 119 -646 Q159 -740 227 -809 Q296 -879 389 -919 Q482 -960 590 -960 Q623 -960 657 -954 Q692 -949 723 -938 Q755 -928 781 -913 Q808 -899 825 -881 Q827 -869 822 -847 Q817 -825 808 -800 Q799 -776 788 -753 Q777 -731 768 -717 L731 -727 Q723 -745 705 -766 Q687 -787 658 -806 Q630 -825 590 -837 Q551 -850 500 -850 Q447 -850 398 -826 Q350 -803 312 -756 Q275 -709 252 -639 Q230 -569 230 -475 Q230 -390 255 -320 Q281 -251 323 -202 Q366 -153 421 -126 Q477 -100 537 -100 Q565 -100 589 -102 Q613 -105 641 -118 Q670 -131 707 -157 Q745 -183 801 -231 L840 -190 ",
+          "FaceSHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8"
+        },
+        {
+          "Line": 0,
+          "Knot": 3,
+          "GlyphID": 72,
+          "Cluster": 5,
+          "X": 54.45703125,
+          "Y": 13.18359375,
+          "Scale": 0.005859375,
+          "Color": "black",
+          "Path": "M496 -855 Q444 -855 400 -835 Q357 -815 323 -778 Q290 -742 267 -691 Q245 -641 236 -580 L664 -580 Q687 -580 694 -587 Q702 -595 702 -616 Q702 -643 694 -683 Q687 -724 664 -762 Q642 -801 601 -828 Q561 -855 496 -855 M866 -557 Q848 -537 818 -520 Q788 -503 756 -490 L230 -490 Q231 -412 251 -341 Q272 -271 310 -217 Q349 -164 403 -132 Q458 -100 526 -100 Q557 -100 586 -104 Q616 -108 650 -122 Q684 -136 725 -163 Q767 -190 823 -236 Q836 -229 845 -216 Q855 -203 860 -195 Q793 -122 742 -77 Q692 -33 647 -9 Q603 15 559 22 Q516 30 465 30 Q388 30 318 -3 Q249 -36 196 -96 Q143 -157 111 -242 Q80 -328 80 -434 Q80 -501 95 -566 Q110 -631 138 -689 Q167 -747 208 -796 Q249 -845 301 -881 Q323 -896 350 -910 Q378 -925 408 -936 Q438 -947 467 -953 Q497 -960 524 -960 Q589 -960 640 -942 Q691 -924 729 -893 Q767 -863 793 -822 Q819 -782 835 -737 Q852 -692 859 -645 Q866 -599 866 -557 ",
+          "FaceSHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8"
+        }
+      ],
+      "Lines": [
+        {
+          "X": 0,
+          "Baseline": 13.18359375,
+          "Top": 0,
+          "Height": 19.978125,
+          "Width": 60,
+          "TargetWidth": 60
+        }
+      ],
+      "MinX": 0,
+      "MinY": 0,
+      "MaxX": 60,
+      "MaxY": 19.978125
+    }
+  },
+  "Version": 1,
+  "Units": "65536 DU per big point; 72 big points per inch",
+  "Input": {
+    "Fonts": null,
+    "Text": "office אבְ­גד",
+    "Width": 3932160,
+    "Direction": 1,
+    "Breaker": "knuth-plass",
+    "Source": null
+  },
+  "Fonts": [
+    {
+      "Info": {
+        "ResourceID": "sha256:68c5d0aa70d6209fbbb540c2e7a72e3a2f510737bcca6ff8a6bb8394c02f13b2",
+        "Origin": {
+          "Provider": "fixture",
+          "Name": "GentiumPlus-R.ttf",
+          "Location": "GentiumPlus-R.ttf",
+          "Request": {
+            "Pattern": "",
+            "Style": 0,
+            "Weight": 0
+          }
+        },
+        "Path": "GentiumPlus-R.ttf",
+        "Family": "Gentium Plus",
+        "Subfamily": "Regular",
+        "SHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8",
+        "Warnings": [
+          "[WARNING] DSIG at offset 444: table not interpreted",
+          "[WARNING] Feat at offset 452: table not interpreted",
+          "[WARNING] Glat at offset 90304: table not interpreted",
+          "[WARNING] Gloc at offset 172404: table not interpreted",
+          "[WARNING] LTSH at offset 189904: table not interpreted",
+          "[WARNING] Silf at offset 194364: table not interpreted",
+          "[WARNING] Sill at offset 404004: table not interpreted",
+          "[WARNING] Silt at offset 404104: table not interpreted",
+          "[WARNING] VDMX at offset 416080: table not interpreted",
+          "[WARNING] cvt  at offset 460852: table not interpreted",
+          "[WARNING] fpgm at offset 460892: table not interpreted",
+          "[WARNING] gasp at offset 461264: table not interpreted",
+          "[WARNING] glyf at offset 461280: table not interpreted",
+          "[WARNING] hdmx at offset 1697756: table not interpreted",
+          "[WARNING] name at offset 1833136: table not interpreted",
+          "[WARNING] post at offset 1867316: table not interpreted",
+          "[WARNING] prep at offset 1918296: table not interpreted"
+        ]
+      },
+      "Bytes": 1918536
+    },
+    {
+      "Info": {
+        "ResourceID": "sha256:bb01585913d64020d01ab2e0aa31ac3699b285e27f16915fffb9f7860c43ea7a",
+        "Origin": {
+          "Provider": "fixture",
+          "Name": "NotoSansHebrew-Regular.ttf",
+          "Location": "NotoSansHebrew-Regular.ttf",
+          "Request": {
+            "Pattern": "",
+            "Style": 0,
+            "Weight": 0
+          }
+        },
+        "Path": "NotoSansHebrew-Regular.ttf",
+        "Family": "Noto Sans Hebrew",
+        "Subfamily": "Regular",
+        "SHA256": "a7fa16fffb27bedb060a0866267c29e9859aeb9c21cc33f5b3aaf6eb062eca85",
+        "Warnings": [
+          "[WARNING] DSIG at offset 26892: table not interpreted",
+          "[WARNING] cvt  at offset 5348: table not interpreted",
+          "[WARNING] fpgm at offset 1572: table not interpreted",
+          "[WARNING] gasp at offset 22676: table not interpreted",
+          "[WARNING] glyf at offset 5688: table not interpreted",
+          "[WARNING] name at offset 19460: table not interpreted",
+          "[WARNING] post at offset 21088: table not interpreted",
+          "[WARNING] prep at offset 5180: table not interpreted"
+        ]
+      },
+      "Bytes": 26900
+    }
+  ],
+  "Selection": {
+    "Policy": {
+      "Providers": [
+        "fixture"
+      ],
+      "Generics": {
+        "serif": "Gentium"
+      }
+    },
+    "Default": "sha256:68c5d0aa70d6209fbbb540c2e7a72e3a2f510737bcca6ff8a6bb8394c02f13b2",
+    "RequestedPath": "",
+    "Rules": null,
+    "Fallbacks": [
+      "sha256:bb01585913d64020d01ab2e0aa31ac3699b285e27f16915fffb9f7860c43ea7a"
+    ],
+    "RequestedFallbackPaths": null,
+    "Descriptors": {
+      "Default": {
+        "Families": [
+          "serif"
+        ],
+        "Weight": 400,
+        "Slant": "",
+        "AllowSubstitution": false
+      },
+      "Rules": null,
+      "Fallbacks": null,
+      "Size": 786432
+    },
+    "Size": 786432,
+    "Diagnostics": null
+  },
+  "Bindings": [
+    {
+      "Start": 0,
+      "End": 7,
+      "Path": "GentiumPlus-R.ttf",
+      "SHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8",
+      "ResourceID": "sha256:68c5d0aa70d6209fbbb540c2e7a72e3a2f510737bcca6ff8a6bb8394c02f13b2",
+      "Origin": {
+        "Provider": "fixture",
+        "Name": "GentiumPlus-R.ttf",
+        "Location": "GentiumPlus-R.ttf",
+        "Request": {
+          "Pattern": "",
+          "Style": 0,
+          "Weight": 0
+        }
+      },
+      "EmSize": 786432,
+      "Script": "Latn"
+    },
+    {
+      "Start": 7,
+      "End": 19,
+      "Path": "NotoSansHebrew-Regular.ttf",
+      "SHA256": "a7fa16fffb27bedb060a0866267c29e9859aeb9c21cc33f5b3aaf6eb062eca85",
+      "ResourceID": "sha256:bb01585913d64020d01ab2e0aa31ac3699b285e27f16915fffb9f7860c43ea7a",
+      "Origin": {
+        "Provider": "fixture",
+        "Name": "NotoSansHebrew-Regular.ttf",
+        "Location": "NotoSansHebrew-Regular.ttf",
+        "Request": {
+          "Pattern": "",
+          "Style": 0,
+          "Weight": 0
+        }
+      },
+      "EmSize": 786432,
+      "Script": "Hebr"
+    }
+  ],
+  "Revisions": [
+    {
+      "Module": "fixture",
+      "Commit": "pre-step5",
+      "Dirty": true
+    }
+  ],
+  "Diagnostics": [
+    {
+      "Stage": "input",
+      "Message": "Accepted 19 UTF-8 bytes"
+    },
+    {
+      "Stage": "paragraph",
+      "Message": "Prepared an unstyled bidi paragraph"
+    },
+    {
+      "Stage": "encode",
+      "Message": "Encoded 4 knots with the OpenType (core/Hebrew) backend"
+    },
+    {
+      "Stage": "break",
+      "Message": "Selected 1 knuth-plass line breaks"
+    },
+    {
+      "Stage": "freeze",
+      "Message": "Froze 1 lines"
+    }
+  ],
+  "ParagraphText": "office אבְ­גד",
+  "BreakPositions": [
+    19
+  ]
+}

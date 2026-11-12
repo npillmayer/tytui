@@ -10,14 +10,16 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	"tytui/fontbackend"
+	"github.com/npillmayer/typography"
+	otadapter "github.com/npillmayer/typography/adapter/opentype"
+	fontdiscovery "github.com/npillmayer/typography/discovery"
 )
 
 type fontEditor struct {
 	requests, substitute bool
 	cancel               context.CancelFunc
-	resolve              func(context.Context, fontbackend.DescriptorSettings) (*fontbackend.Settings, []fontbackend.FontDiagnostic, error)
-	pending              *fontbackend.Settings
+	resolve              func(context.Context, fontdiscovery.DescriptorSettings) (*fontdiscovery.Resolution, []fontdiscovery.FontDiagnostic, error)
+	pending              *fontdiscovery.Resolution
 	preview              string
 	previewOpen          bool
 	previewOffset        int
@@ -31,10 +33,10 @@ type fontEditor struct {
 }
 type fontsLoadedMsg struct {
 	preview      bool
-	diagnostics  []fontbackend.FontDiagnostic
+	diagnostics  []fontdiscovery.FontDiagnostic
 	id, revision uint64
-	settings     *fontbackend.Settings
-	infos        []fontbackend.Info
+	settings     *fontdiscovery.Resolution
+	infos        []typography.Info
 	err          error
 }
 
@@ -71,12 +73,12 @@ func (f *fontEditor) setFocus(n int) tea.Cmd {
 		return f.rules.Focus()
 	}
 }
-func (f *fontEditor) settings() (*fontbackend.Settings, error) {
+func (f *fontEditor) settings() (*fontdiscovery.Resolution, error) {
 	size, err := parseWidth(f.size.Value())
 	if err != nil {
 		return nil, fmt.Errorf("Font size: %w", err)
 	}
-	s := &fontbackend.Settings{DefaultPath: strings.TrimSpace(f.path.Value()), Size: size}
+	s := &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: strings.TrimSpace(f.path.Value()), Size: size}}
 	for i, line := range strings.Split(f.rules.Value(), "\n") {
 		if strings.TrimSpace(line) == "" {
 			continue
@@ -105,7 +107,7 @@ func (f *fontEditor) settings() (*fontbackend.Settings, error) {
 			s.Fallbacks = append(s.Fallbacks, parts[3])
 			continue
 		}
-		s.Rules = append(s.Rules, fontbackend.Rule{Family: parts[0], Weight: weight, Slant: parts[2], Path: parts[3]})
+		s.Rules = append(s.Rules, typography.Rule{Family: parts[0], Weight: weight, Slant: parts[2], Path: parts[3]})
 	}
 	return s, nil
 }
@@ -175,7 +177,7 @@ func (m model) updateFonts(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 			s, err := f.settings()
-			var request fontbackend.DescriptorSettings
+			var request fontdiscovery.DescriptorSettings
 			if f.requests {
 				request, err = f.descriptorSettings()
 			}
@@ -194,15 +196,15 @@ func (m model) updateFonts(msg tea.Msg) (tea.Model, tea.Cmd) {
 			f.status = "Loading and validating fonts…"
 			return m, func() tea.Msg {
 				defer cancel()
-				var diagnostics []fontbackend.FontDiagnostic
+				var diagnostics []fontdiscovery.FontDiagnostic
 				var err error
 				if requests {
 					s, diagnostics, err = resolve(ctx, request)
 				}
-				var infos []fontbackend.Info
+				var infos []typography.Info
 				if err == nil {
-					var r *fontbackend.Resolver
-					r, err = fontbackend.LoadSettings(ctx, *s)
+					var r *typography.Resolver
+					r, err = typography.LoadSettings(ctx, s.Settings, typography.Services{Loader: otadapter.Services{}, Coverage: otadapter.Services{}})
 					if r != nil {
 						infos = r.Infos()
 					}

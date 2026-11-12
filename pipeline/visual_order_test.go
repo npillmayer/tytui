@@ -9,9 +9,10 @@ import (
 	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/opentype/otshape"
+	"github.com/npillmayer/typography"
+	fontdiscovery "github.com/npillmayer/typography/discovery"
 	"github.com/npillmayer/uax/bidi"
 
-	"tytui/fontbackend"
 	"tytui/pipeline"
 )
 
@@ -36,7 +37,7 @@ func TestFrozenGlyphProofVisualOrderCompatibility(t *testing.T) {
 			t.Run(string(breaker)+"/"+tc.name, func(t *testing.T) {
 				r, err := pipeline.Run(context.Background(), pipeline.Input{
 					Text: tc.text, Direction: tc.direction, Width: tc.width, Breaker: breaker,
-					Fonts: &fontbackend.Settings{DefaultPath: tc.font, Size: 12 * dimen.BP},
+					Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: tc.font, Size: 12 * dimen.BP}},
 				})
 				if err != nil {
 					t.Fatal(err)

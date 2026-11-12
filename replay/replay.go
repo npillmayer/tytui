@@ -9,18 +9,25 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/npillmayer/khipu/dimen"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
 
-	"tytui/fontbackend"
+	"github.com/npillmayer/khipu/dimen"
+	"github.com/npillmayer/typography"
+	otadapter "github.com/npillmayer/typography/adapter/opentype"
+	fontdiscovery "github.com/npillmayer/typography/discovery"
+	"github.com/npillmayer/typography/fontresource"
+
 	"tytui/pipeline"
 )
 
-const Version = 1
+// Version is the default compatibility format. LineHeightVersion is selected
+// only for results explicitly using CSS-inspired line boxes.
+const Version = 2
+const LineHeightVersion = 3
 const maxBytes = 64 << 20
 
 // Revision describes source provenance, not a promise of identical build output.
@@ -28,8 +35,11 @@ type Revision struct {
 	Module, Commit string
 	Dirty          bool
 }
+
+// Font and Selection preserve the version-1/version-2 serialization contract.
+// Font wire records are independent of runtime identity and adapter types.
 type Font struct {
-	Info  fontbackend.Info
+	Info  wireInfo
 	Bytes int64
 }
 type Rule struct {
@@ -38,14 +48,14 @@ type Rule struct {
 	Slant, ResourceID, RequestedPath string
 }
 type Selection struct {
-	Policy                 *fontbackend.DiscoveryPolicy
+	Policy                 *fontdiscovery.DiscoveryPolicy
 	Default, RequestedPath string
 	Rules                  []Rule
 	Fallbacks              []string
 	RequestedFallbackPaths []string
-	Descriptors            *fontbackend.DescriptorSettings
+	Descriptors            *fontdiscovery.DescriptorSettings
 	Size                   int32
-	Diagnostics            []fontbackend.FontDiagnostic
+	Diagnostics            []wireDiagnostic
 }
 type Manifest struct {
 	GoVersion      string
@@ -55,7 +65,7 @@ type Manifest struct {
 	Input          pipeline.Input // Fonts is always nil; Selection contains pinned references.
 	Fonts          []Font
 	Selection      *Selection
-	Bindings       []fontbackend.Binding
+	Bindings       []wireBinding
 	Revisions      []Revision
 	Diagnostics    []pipeline.Diagnostic
 	ParagraphText  string
@@ -91,7 +101,14 @@ func Save(ctx context.Context, result *pipeline.Result, manifestPath, store stri
 	if len(revisions) == 0 {
 		return fmt.Errorf("source revisions required; use CaptureRevisions at layout time")
 	}
-	m := Manifest{GoVersion: runtime.Version(), Version: Version, Units: "65536 DU per big point; 72 big points per inch", Input: result.Input, Bindings: append([]fontbackend.Binding(nil), result.FontBindings...), Revisions: append([]Revision(nil), revisions...), Diagnostics: append([]pipeline.Diagnostic(nil), result.Diagnostics...), ParagraphText: result.ParagraphText, BreakPositions: append([]uint64(nil), result.BreakPositions...)}
+	m := Manifest{GoVersion: runtime.Version(), Version: Version, Units: "65536 DU per big point; 72 big points per inch", Input: result.Input, Bindings: bindingsWire(result.FontBindings), Revisions: append([]Revision(nil), revisions...), Diagnostics: append([]pipeline.Diagnostic(nil), result.Diagnostics...), ParagraphText: result.ParagraphText, BreakPositions: append([]uint64(nil), result.BreakPositions...)}
+	m.Input.LineLayout = result.LineLayout()
+	if m.Input.LineLayout != nil {
+		m.Version = LineHeightVersion
+	} else if result.Input.PaintPolicy == typography.LegacyStyleBoundary {
+		m.Version = 1
+		m.Input.PaintPolicy = ""
+	}
 	var evidenceErr error
 	m.Evidence, evidenceErr = evidence(result)
 	if evidenceErr != nil {
@@ -104,27 +121,25 @@ func Save(ctx context.Context, result *pipeline.Result, manifestPath, store stri
 			return fmt.Errorf("result lacks pinned fonts; rerun layout")
 		}
 		settings := result.FontSnapshot
-		sel := &Selection{Policy: settings.DiscoveryPolicy.Clone(), Size: int32(settings.Size), RequestedPath: result.Input.Fonts.DefaultPath, RequestedFallbackPaths: append([]string(nil), result.Input.Fonts.Fallbacks...), Descriptors: settings.DescriptorInput.Clone(), Diagnostics: append([]fontbackend.FontDiagnostic(nil), settings.ResolutionDiagnostics...)}
+		sel := &Selection{Policy: result.Input.Fonts.DiscoveryPolicy.Clone(), Size: int32(settings.Size), RequestedPath: result.Input.Fonts.DefaultPath, RequestedFallbackPaths: append([]string(nil), result.Input.Fonts.Fallbacks...), Descriptors: result.Input.Fonts.DescriptorInput.Clone(), Diagnostics: diagnosticsWire(result.Input.Fonts.ResolutionDiagnostics)}
 		m.Selection = sel
 		seen := map[string]bool{}
-		pin := func(r *fontbackend.Resource) (string, error) {
+		pin := func(r *fontresource.Resource) (string, error) {
 			if err := ctx.Err(); err != nil {
 				return "", err
 			}
 			if r == nil {
 				return "", fmt.Errorf("missing pinned resource")
 			}
-			face, err := fontbackend.LoadResource(r)
+			loaded, err := (otadapter.Services{}).Load(ctx, "", r)
+			info := loaded.Info
 			if err != nil {
 				return "", err
 			}
-			info := face.Info()
 			if seen[info.ResourceID] {
 				return info.ResourceID, nil
 			}
-			reader := r.Open()
-			data, err := readBounded(reader)
-			reader.Close()
+			data, err := readFontSource(r)
 			if err != nil {
 				return "", err
 			}
@@ -135,7 +150,7 @@ func Save(ctx context.Context, result *pipeline.Result, manifestPath, store stri
 				return "", err
 			}
 			seen[info.ResourceID] = true
-			m.Fonts = append(m.Fonts, Font{Info: info, Bytes: int64(len(data))})
+			m.Fonts = append(m.Fonts, Font{Info: infoWire(info), Bytes: int64(len(data))})
 			return info.ResourceID, nil
 		}
 		var err error
@@ -237,8 +252,24 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 	if decoder.Decode(new(any)) != io.EOF {
 		return nil, fmt.Errorf("trailing manifest data")
 	}
-	if m.Version != Version || m.Units != "65536 DU per big point; 72 big points per inch" {
+	if (m.Version != 1 && m.Version != Version && m.Version != LineHeightVersion) || m.Units != "65536 DU per big point; 72 big points per inch" {
 		return nil, fmt.Errorf("unsupported manifest version or units")
+	}
+	if (m.Version == LineHeightVersion) != (m.Input.LineLayout != nil) {
+		return nil, fmt.Errorf("version 3 requires line-height values; versions 1/2 must omit them")
+	}
+	if (m.Version == LineHeightVersion) != (m.Evidence.Layout != nil) {
+		return nil, fmt.Errorf("version 3 requires placement evidence; versions 1/2 must omit it")
+	}
+	if m.Version == 1 {
+		if m.Input.PaintPolicy != "" {
+			return nil, fmt.Errorf("version 1 cannot specify a paint policy")
+		}
+		m.Input.PaintPolicy = typography.LegacyStyleBoundary
+	} else if m.Version == Version && m.Input.PaintPolicy != typography.GlyphBoundary {
+		return nil, fmt.Errorf("version 2 requires glyph-boundary paint policy")
+	} else if m.Version == LineHeightVersion && m.Input.PaintPolicy != typography.GlyphBoundary && m.Input.PaintPolicy != typography.LegacyStyleBoundary {
+		return nil, fmt.Errorf("version 3 requires an explicit paint policy")
 	}
 	if m.Input.Fonts != nil {
 		return nil, fmt.Errorf("manifest contains unpinned font settings")
@@ -246,7 +277,7 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 	if m.Input.Source != nil && m.Input.Source.OriginalHTML != "" && digest([]byte(m.Input.Source.OriginalHTML)) != m.Input.Source.DocumentID {
 		return nil, fmt.Errorf("HTML source hash mismatch")
 	}
-	resources := map[string]*fontbackend.Resource{}
+	resources := map[string]*fontresource.Resource{}
 	for _, entry := range m.Fonts {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -264,29 +295,30 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 		if int64(len(data)) != entry.Bytes || digest(data) != entry.Info.SHA256 {
 			return nil, fmt.Errorf("font %s hash/size mismatch", entry.Info.SHA256)
 		}
-		resource, err := fontbackend.ReadResource(bytes.NewReader(data), entry.Info.Origin)
+		resource, err := fontresource.Read(bytes.NewReader(data), entry.Info.Origin.native())
 		if err != nil {
 			return nil, err
 		}
-		face, err := fontbackend.LoadResource(resource)
+		loaded, err := (otadapter.Services{}).Load(ctx, "", resource)
+		info := loaded.Info
 		if err != nil {
 			return nil, err
 		}
-		if face.Info().ResourceID != entry.Info.ResourceID || face.Info().Family != entry.Info.Family || face.Info().Subfamily != entry.Info.Subfamily || face.Info().Path != entry.Info.Path {
+		if info.ResourceID != entry.Info.ResourceID || info.Family != entry.Info.Family || info.Subfamily != entry.Info.Subfamily || info.Path != entry.Info.Path {
 			return nil, fmt.Errorf("font identity mismatch for %s", entry.Info.SHA256)
 		}
 		resources[entry.Info.ResourceID] = resource
 	}
 	if m.Selection != nil {
 		sel := m.Selection
-		get := func(id string) (*fontbackend.Resource, error) {
+		get := func(id string) (*fontresource.Resource, error) {
 			r, ok := resources[id]
 			if !ok {
 				return nil, fmt.Errorf("unresolved font reference %q", id)
 			}
 			return r, nil
 		}
-		s := &fontbackend.Settings{DiscoveryPolicy: sel.Policy.Clone(), Size: dimen.DU(sel.Size), DescriptorInput: sel.Descriptors.Clone(), ResolutionDiagnostics: append([]fontbackend.FontDiagnostic(nil), sel.Diagnostics...)}
+		s := &fontdiscovery.Resolution{Settings: typography.Settings{Size: dimen.DU(sel.Size)}, DiscoveryPolicy: sel.Policy.Clone(), DescriptorInput: sel.Descriptors.Clone(), ResolutionDiagnostics: diagnosticsNative(sel.Diagnostics)}
 		s.DefaultResource, err = get(sel.Default)
 		if err != nil {
 			return nil, err
@@ -296,7 +328,7 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 			if err != nil {
 				return nil, err
 			}
-			s.Rules = append(s.Rules, fontbackend.Rule{Family: rule.Family, Weight: rule.Weight, Slant: rule.Slant, Resource: r})
+			s.Rules = append(s.Rules, typography.Rule{Family: rule.Family, Weight: rule.Weight, Slant: rule.Slant, Resource: r})
 		}
 		for _, id := range sel.Fallbacks {
 			r, err := get(id)
@@ -313,7 +345,7 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 	if err != nil {
 		return nil, err
 	}
-	if result.ParagraphText != m.ParagraphText || !reflect.DeepEqual(result.BreakPositions, m.BreakPositions) || !reflect.DeepEqual(result.FontBindings, m.Bindings) {
+	if result.ParagraphText != m.ParagraphText || !reflect.DeepEqual(result.BreakPositions, m.BreakPositions) || !reflect.DeepEqual(bindingsWire(result.FontBindings), m.Bindings) {
 		return nil, fmt.Errorf("replay differs from recorded paragraph, breaks, or font bindings")
 	}
 	actual, err := evidence(result)
@@ -324,4 +356,10 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 		return nil, fmt.Errorf("replay differs from recorded frozen layout or glyph proof")
 	}
 	return result, nil
+}
+
+func readFontSource(source typography.FontSource) ([]byte, error) {
+	reader := source.Open()
+	defer reader.Close()
+	return readBounded(reader)
 }
