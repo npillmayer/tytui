@@ -182,18 +182,18 @@ sequenceDiagram
     loop G1 at 240px, G2 at 120px, G3 at 240px
         F->>X: LayoutInline(group, available content width)
         X->>X: Collect normalized text, styles, bidi and source map
-        X->>X: Retain paint separately; convert width to paragraph units
+        X->>X: Retain paint separately, then convert width to paragraph units
         X->>P: Prepared styled.Text + width + policy + injected services
         P->>P: Shape, break, freeze, assemble local lines
         P-->>X: Boxed vlist: extent, baselines, frozen content
-        X->>X: Retain group-to-result association; convert line summaries
+        X->>X: Retain group-to-result association, then convert line summaries
         X-->>F: Line boxes + retained paragraph references
-        F->>F: Position group; advance by its returned extent
+        F->>F: Position group, then advance by its returned extent
     end
     F-->>W: Positioned box geometry
     W->>R: Snapshot geometry, paragraph associations and separate paint
-    R->>R: Compose parent transforms once; draw retained glyphs
-    Note over F,P: Outer flow positions the vlist; it does not stack its lines again.
+    R->>R: Compose parent transforms once, then draw retained glyphs
+    Note over F,P: Outer flow positions the vlist and does not stack its lines again.
     Note over W,R: This document path is proposed. Existing paragraph results remain the control.
 ```
 
