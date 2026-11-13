@@ -32,9 +32,11 @@ Flow layout: position blocks; request inline layout at an available width
     │   typography/paragraph: shape → break → freeze → boxed vlist
     │       │ retained paragraph-local line geometry and glyphs
     │       ▼
-    └── Line-box summaries + retained paragraph reference
+    └── Overall layout extent only (return to block flow)
     ▼
-Document result: box geometry + paragraph placements + source references
+Document result: box geometry + typed group-to-paragraph table
+    │ group BoxID → owner BoxID + retained paragraph result
+    │ source correspondence and paint retained separately
     │
     ▼
 Diagnostic tree / document proof renderer
@@ -50,6 +52,51 @@ normalization, not simply each HTML p element. A div containing text, a nested
 block, then more text can produce multiple groups. Conversely, nested inline spans
 belong to one group and must not become independent shaping requests.
 
+## Agreed boundary: extent return and typed retention
+
+Decision agreed with css-box-layout: block flow needs the overall layout extent
+of a paragraph vlist, not individual line summaries or an opaque paragraph payload.
+The adapter returns that extent in box-layout units. For the present normal-flow
+experiment, the essential returned dimension is consumed height; available content
+width is already supplied. Layout extent includes agreed trailing spacing and is
+not merely glyph ink bounds. Exact Go return types remain to be specified.
+
+The document integration layer owns a typed table scoped to one layout invocation:
+
+```text
+group BoxID -> owner BoxID + concrete paragraph result
+```
+
+Use P's concrete retained result type (or a typed reference to it); do not introduce
+`any`, runtime type assertions, or a dependency on P's internal types into
+css-box-layout. Exact value/pointer storage and field names are implementation
+choices, not frozen by this notation. Paragraph-local lines, baselines and precise
+glyph geometry remain inside the retained paragraph result for rendering and
+inspection; they do not travel through the block-flow return value.
+
+The inline group B and owner A already have BoxIDs from tree construction. The
+vlist does not create another core box or receive BoxIDs for its internal boxes.
+Its extent sets A's content height; rendering derives B's origin from A's content
+geometry and composes ancestor transforms once. Preserve the group-to-owner
+association explicitly, including anonymous owners.
+
+The adapter records P's result in invocation-local state during LayoutInline.
+This side effect is explicit integration bookkeeping, not a global registry.
+Publish the typed table, box geometry, source correspondence and separate paint
+as one complete document snapshot only after layout succeeds. A failed or later
+run must not alter the previous snapshot; retained objects and backing storage
+must remain valid and immutable for that snapshot's lifetime.
+
+The first experiment assumes one accepted result per group per invocation.
+Before speculative sizing or repeated group requests are introduced, specify how
+the accepted result is selected; blindly overwriting the table is insufficient.
+
+This is an agreed integration direction, not implemented wiring. The current
+upstream API still returns `[]LineBox` and derives height from line extents.
+Upstream contract/signature changes must follow this decision; no dummy line or
+inflated last-line height should be used to simulate the new boundary. The earlier
+core-owned opaque-payload proposal is superseded for this experiment.
+
 ## What exists today
 
 Inspected the sibling sources and their design notes; these are observations, not
@@ -61,7 +108,7 @@ claims that the full document pipeline has been validated.
 | Render input → box tree | BuildLayoutTree implements anonymous wrapping and split/hoist machinery. | Constructors currently omit style transport; text leaves use source 0 and node-local byte ranges. Identity/style plumbing must precede meaningful document integration. |
 | Box tree → used dimensions | ResolveUsedValues accepts containing-block and font-size context. | Establish a supported computed-value subset, including unresolved percentages versus definite lengths. |
 | Block flow → paragraph request | InlineLayouter.LayoutInline receives an anonymous inline root, float32 maxWidth, and AtomicSizer. | Adapt the complete ordered group, preserve source correspondence, and specify units and errors. |
-| Paragraph result → block flow | InlineLayouter returns LineBox records with Frame, Baseline and opaque Payload; flow derives content height from line extents. | Preserve vlist height, reference baselines and retained payloads exactly once. |
+| Paragraph result → block flow | InlineLayouter returns LineBox records with Frame, Baseline and opaque Payload; flow derives content height from line extents. | Change to extent-only return; keep typed paragraph results and their baselines in the integration layer, per the agreed boundary above. |
 | Flow → document output | LayoutResult has geometry and line tables; geometry is also written to nodes. | Clarify coordinate ownership, immutable snapshots and retention for every paragraph group. |
 
 The sibling's authoritative design is
@@ -97,7 +144,7 @@ explicitly supported widths, and additive margins only where the upstream contra
 supports them. No pagination, floats, positioned elements, flex/grid, margin
 collapse, inline-blocks, images or intrinsic sizing in this first experiment.
 
-Use deterministic fake inline results first: known height/baselines at two known
+Use deterministic fake inline results first: known layout extents at two known
 widths. This isolates document structure and positioning from typography. Then
 replace the fake with the existing synthetic paragraph backend, followed by one
 real-font example. Existing paragraph spacing can remain an explicitly named
@@ -130,11 +177,11 @@ Resolve coordinate conventions with owning regressions: the contract says parent
 content-relative coordinates, while current flow adds content offsets and mutates
 geometry mirrors. This is a review target, not yet a confirmed defect.
 
-Check empty block normalization and line retention for anonymous blocks. Current
-flow stores line tables only for non-anonymous owners; document rendering still
-needs access to results for anonymous inline groups. Agree an upstream result
-contract or an explicit adapter-owned result table keyed by group BoxID. Do not
-lose paragraphs that happen not to have a named block owner.
+Check empty block normalization and typed retention for every inline group.
+Current flow stores line tables only for non-anonymous owners; the agreed
+adapter-owned table retains all groups independently of that policy. Implement
+the upstream extent-only result contract and preserve group-to-owner identities.
+Do not lose paragraphs that happen not to have a named block owner.
 
 ### 3. Meet the paragraph input API
 
@@ -145,11 +192,11 @@ paragraph boundaries. Preserve inline font/style changes and zero-byte bidi mark
 keep paint separate. Prepare text through M and call paragraph.Run at the width
 supplied by box flow.
 
-Define a small retained association: inline-group BoxID → paragraph result plus
-source mapping and rendering data. Return line summaries with references to that
-result. Declare baseline convention explicitly and preserve total vlist extent,
-including any compatibility-policy trailing gap. Avoid encoding the vlist height
-as an extra visible line or applying line spacing twice.
+Implement the agreed typed group-to-paragraph table and return only overall
+layout extent to block flow. Preserve paragraph-local baseline conventions inside
+the retained result and total vlist extent, including compatibility-policy trailing
+spacing. No baseline translation is needed for the block-flow return. Avoid dummy
+lines, inflated last-line heights, and applying line spacing twice.
 
 Unit bridge: box used values are currently pixels/float32; paragraph geometry is
 fractional big points/float64 with DU inputs. Specify conversion and checked
@@ -159,7 +206,9 @@ float64 design discrepancy before treating either as permanent.
 
 ### 4. Retain and inspect a complete document result
 
-Snapshot the geometry and paragraph associations needed by a diagnostic renderer.
+Publish geometry, typed paragraph associations, source correspondence and paint
+together after a successful invocation. Test anonymous groups, empty results,
+trailing extent, resize, and failed runs without changing earlier snapshots.
 Compose parent transforms once to place each paragraph's local output. Render
 block frames and paragraph bounds first, then reuse frozen glyph outlines and
 separate paint. Keep document rendering out of the paragraph engine.
@@ -188,7 +237,8 @@ the first experiment merely because callback types already exist.
 | What do we inspect first? | Box-tree structure and width/height handoffs with fake paragraphs, before real glyph rendering. |
 | What remains deliberately parked? | Paragraph refinements, full CSS line-height extraction and new font discovery features unless required by this path. |
 
-These are proposals for discussion, not frozen upstream decisions. Decisions about
+The extent-only return and invocation-scoped typed retention are agreed above;
+the remaining questions in this table are working proposals. Decisions about
 css-box-layout's core contracts should be reconciled with its existing roadmap,
 not maintained as a competing specification here. Update this document as our
 understanding changes, distinguishing observed behavior from agreed choices.

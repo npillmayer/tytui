@@ -73,6 +73,7 @@ existing synthetic path over a universal font framework.
 | A — OpenType adapter | `github.com/npillmayer` `/typography/adapter/opentype` | Extracted. |
 | X — DOM/content adapter | `tytui/htmlinput` | Still in tytui; standalone extraction deferred. |
 | M — typography resolver and style projection | `github.com/npillmayer` `/typography` | Extracted; shared style definitions live in `typography/style`. |
+| P — paragraph layout engine | `github.com/npillmayer` `/typography/paragraph` | Extracted; consumes prepared styled text and produces frozen content and a boxed vlist. |
 
 - `htmlinput` computes DOM-specific values, whitespace, bidi markup and source maps;
   it uses `typography/style.Style` and `Span` directly, without aliases.
