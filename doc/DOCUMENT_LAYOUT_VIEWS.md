@@ -3,9 +3,7 @@
 Planning diagrams, 2026-11-12. Read alongside
 [the document-layout exploration](DOCUMENT_LAYOUT_EXPLORATION.md).
 They explain the intended integration and distinguish it from what runs today.
-Tytui is the laboratory in which we will exercise these boundaries. The
-[extent-only return and typed retention decision](DOCUMENT_LAYOUT_EXPLORATION.md#agreed-boundary-extent-return-and-typed-retention)
-is agreed; the diagrams show its intended wiring, which remains unimplemented.
+Tytui is the laboratory in which we will exercise these boundaries.
 
 **Status legend:** **Implemented** means available for the current supported
 paragraph subset, not complete CSS or typography conformance. **Partial** means
@@ -58,8 +56,7 @@ flowchart TD
     V["Implemented: P<br/>assemble frozen lines into boxed vlist"]
     A["Implemented: A — adapter/opentype<br/>font loading, shaping, metrics"]
     CU["Implemented: cords + uax<br/>styled text and bidi services"]
-    Store["Proposed: invocation-local typed table<br/>group BoxID to owner + paragraph result"]
-    Result["Proposed: document snapshot<br/>geometry + typed paragraphs + paint/source data"]
+    Result["Proposed: retained document result<br/>positioned boxes + paragraph references"]
     Render["Proposed: document proof renderer<br/>reuse implemented paragraph glyph proofs"]
 
     Source --> DOM --> Doc --> Box --> Flow
@@ -71,19 +68,17 @@ flowchart TD
     CU -.-> P
     CU -.-> K
     P --> K --> V
-    V -->|"typed vlist result"| X
-    X -->|"converted overall layout extent only"| Flow
-    X -->|"retain typed result and group-owner association"| Store
-    Store --> Result
+    V -->|"line summaries + extent + retained content"| Flow
     Flow --> Result --> Render
-    X -->|"separate paint + source correspondence"| Result
+    X -->|"separate paint + source correspondence"| Render
+    V -->|"frozen glyphs and local placements"| Render
 
     classDef implemented fill:#e5f4e8,stroke:#28783b,color:#153d20;
     classDef partial fill:#fff2d6,stroke:#9b6b00,color:#523900;
     classDef proposed fill:#e6efff,stroke:#3567a8,color:#193b68;
     class DOM,M,P,K,V,A,CU implemented;
     class Box,Flow,X partial;
-    class Doc,Store,Result,Render proposed;
+    class Doc,Result,Render proposed;
 ```
 
 Font discovery is optional input preparation and is omitted here for clarity.
@@ -191,15 +186,12 @@ sequenceDiagram
         X->>P: Prepared styled.Text + width + policy + injected services
         P->>P: Shape, break, freeze, assemble local lines
         P-->>X: Boxed vlist: extent, baselines, frozen content
-        X->>X: Store typed result by group BoxID with owner BoxID
-        X->>X: Convert overall layout extent to box units
-        X-->>F: Overall layout extent only
+        X->>X: Retain group-to-result association, then convert line summaries
+        X-->>F: Line boxes + retained paragraph references
         F->>F: Position group, then advance by its returned extent
     end
     F-->>W: Positioned box geometry
-    W->>X: Take completed invocation-local typed table and paint/source data
-    X-->>W: Typed group results + owner associations + paint/source data
-    W->>R: Publish successful snapshot: geometry + typed table + paint/source data
+    W->>R: Snapshot geometry, paragraph associations and separate paint
     R->>R: Compose parent transforms once, then draw retained glyphs
     Note over F,P: Outer flow positions the vlist and does not stack its lines again.
     Note over W,R: This document path is proposed. Existing paragraph results remain the control.
@@ -207,14 +199,10 @@ sequenceDiagram
 
 The callback receives the content width after the relevant box edges have been
 resolved. Paragraph output remains in local coordinates. The adapter translates
-between box-layout pixel/float32 extents and paragraph DU/fractional-big-point
+between box-layout pixel/float32 summaries and paragraph DU/fractional-big-point
 geometry; exact conversion and rounding belong in the integration contract.
 Preserve precise retained glyph geometry and the vlist's full extent, including
-compatibility-policy trailing spacing. Line summaries, baselines and glyphs remain
-in the typed paragraph result; they are not returned to block flow. The adapter
-keeps one table per invocation, including anonymous groups, and publishes it with
-geometry only on success. Failed runs leave the previous snapshot intact. The
-existing upstream line-return API still needs adaptation.
+compatibility-policy trailing spacing.
 
 For a resize experiment, change note's width from 120px to 90px. The next layout
 must call P with the new width. If its returned height changes from H2 to H2', G3
