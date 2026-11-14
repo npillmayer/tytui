@@ -21,8 +21,9 @@ khipu services. M prepares typography before P; DOM source maps and rendering
 colors stay with the application. CSS-inspired baseline line-height is now an
 explicit engine opt-in through Params.LineLayout, separately from shaping styles.
 Default font/size supplies the strut; typed factor/length/normal values and byte
-ranges govern line boxes after freezing. The DOM line-height adapter and CSS box
-bridge remain future work. See
+ranges govern line boxes after freezing. The fixed-width CSS box bridge and retained document proof are now implemented
+in [documentlayout](../documentlayout/README.md); broader DOM line-height policy
+remains future work. See
 [the extraction plan](TYPOGRAPHY_EXTRACTION_PLAN.md) and
 [final extraction contracts](TYPOGRAPHY_API_CONTRACTS.md#implemented-step-7-api).
 The [paragraph-engine plan](PARAGRAPH_ENGINE_PLAN.md) records the extraction review
@@ -31,8 +32,8 @@ and incremental work toward boxed vlist output, starting from frozen lines.
 The eventual layout core will assemble horizontal and vertical material in bounded
 rectangular space, for UIs, browsers, and typesetters. Input is structured content,
 often HTML/CSS; output is a box layout containing glyphs and non-discardable items
-such as images. The developing `css-box-layout` module will supply CSS box-layout
-behavior, but is not yet ready for integration.
+such as images. The `css-box-layout` module supplies the normalized tree, used box dimensions
+and fixed-width flow used by the current document experiment.
 
 The immediate scope is narrower: a **paragraph layout engine** that consumes
 `styled.Text`, depends on khipu, and produces a **boxed vertical list of lines**.
@@ -98,11 +99,12 @@ Interline spacing, padding, and margins are not interchangeable:
   It belongs in `css-box-layout`, which translates the resolved spacing into
   vertical material. A generic vlist assembler does not implement CSS collapse.
 
-The future CSS layout engine supplies paragraph constraints and places returned
-boxes among other material. Page/column fragmentation and bounded-height packing
-remain future work. Opaque inline boxes, including images and other non-discardable
-items, will also require a later extension; reserve an architectural place for
-such material without claiming it is supported by the initial paragraph API.
+CSS layout supplies paragraph constraints and completed atomic border boxes;
+paragraph.Prepare/Layout consumes marker attachments and caller-owned dimensions.
+The document callback returns overall extent and ID-mapped atomic border origins,
+while retaining concrete paragraphs for rendering. Fixed-width inline-blocks are
+supported. Intrinsic measurement, auto sizing, replaced images, page/column
+fragmentation and bounded-height packing remain future work.
 
 ## DOM-to-styled.Text boundary
 

@@ -7,7 +7,11 @@ are parked unless a concrete document-layout experiment requires them.
 
 Tytui remains an experimental integration laboratory. The immediate outcome is a
 small, inspectable document-layout example and evidence about the participating
-modules—not a browser, page compositor, or end-user document editor.
+modules. The fixed-width experiment is implemented in
+[documentlayout](../documentlayout/README.md), with a
+[retained real-font proof](../documentlayout/testdata/nested-firstfit.svg) and
+independent geometry/glyph tests (pipeline integration stages 3D–3F). Intrinsic
+measurement, auto-sized atomics, page composition and document replay remain deferred.
 
 ## Working picture
 
@@ -32,7 +36,7 @@ Flow layout: position blocks; request inline layout at an available width
     │   typography/paragraph: shape → break → freeze → boxed vlist
     │       │ retained paragraph-local line geometry and glyphs
     │       ▼
-    └── Overall layout extent only (return to block flow)
+    └── Overall extent + atomic border origins (return to block flow)
     ▼
 Document result: box geometry + typed group-to-paragraph table
     │ group BoxID → owner BoxID + retained paragraph result
@@ -59,7 +63,8 @@ of a paragraph vlist, not individual line summaries or an opaque paragraph paylo
 The adapter returns that extent in box-layout units. For the present normal-flow
 experiment, the essential returned dimension is consumed height; available content
 width is already supplied. Layout extent includes agreed trailing spacing and is
-not merely glyph ink bounds. Exact Go return types remain to be specified.
+not merely glyph ink bounds. The concrete return is InlineResult{Extent, Atomics}: atomic border origins are
+relative to the owner content origin, with IDs for core-owned prepared boxes.
 
 The document integration layer owns a typed table scoped to one layout invocation:
 
@@ -69,8 +74,8 @@ group BoxID -> owner BoxID + concrete paragraph result
 
 Use P's concrete retained result type (or a typed reference to it); do not introduce
 `any`, runtime type assertions, or a dependency on P's internal types into
-css-box-layout. Exact value/pointer storage and field names are implementation
-choices, not frozen by this notation. Paragraph-local lines, baselines and precise
+css-box-layout. The implementation is Result.Group(BoxID), returning a detached GroupResult
+with Input InlineGroup and Paragraph paragraph.Result. Paragraph-local lines, baselines and precise
 glyph geometry remain inside the retained paragraph result for rendering and
 inspection; they do not travel through the block-flow return value.
 
@@ -91,25 +96,24 @@ The first experiment assumes one accepted result per group per invocation.
 Before speculative sizing or repeated group requests are introduced, specify how
 the accepted result is selected; blindly overwriting the table is insufficient.
 
-This is an agreed integration direction, not implemented wiring. The current
-upstream API still returns `[]LineBox` and derives height from line extents.
-Upstream contract/signature changes must follow this decision; no dummy line or
-inflated last-line height should be used to simulate the new boundary. The earlier
-core-owned opaque-payload proposal is superseded for this experiment.
+This is implemented wiring. CSS core owns recursive nested atomic preparation;
+callbacks receive read-only PreparedAtomicsView and UsedValuesView. No external
+AtomicSizer, []LineBox return, opaque paragraph payload or mutable node geometry
+mirror is used. Speculative/repeated group callbacks are explicitly rejected.
 
 ## What exists today
 
-Inspected the sibling sources and their design notes; these are observations, not
-claims that the full document pipeline has been validated.
+Current implemented boundaries (2026-11-14):
 
-| Boundary | Current surface | Integration question |
+| Boundary | Current surface | Ownership |
 | --- | --- | --- |
-| Styled document → render input | w3c-dom provides styled nodes and property services. css-box-layout defines StyNodeView, but BuildLayoutTree currently accepts concrete RenderNode. | Which minimal adapter is actually needed? Do not mistake inherited property strings for fully computed CSS values. |
-| Render input → box tree | BuildLayoutTree implements anonymous wrapping and split/hoist machinery. | Constructors currently omit style transport; text leaves use source 0 and node-local byte ranges. Identity/style plumbing must precede meaningful document integration. |
-| Box tree → used dimensions | ResolveUsedValues accepts containing-block and font-size context. | Establish a supported computed-value subset, including unresolved percentages versus definite lengths. |
-| Block flow → paragraph request | InlineLayouter.LayoutInline receives an anonymous inline root, float32 maxWidth, and AtomicSizer. | Adapt the complete ordered group, preserve source correspondence, and specify units and errors. |
-| Paragraph result → block flow | InlineLayouter returns LineBox records with Frame, Baseline and opaque Payload; flow derives content height from line extents. | Change to extent-only return; keep typed paragraph results and their baselines in the integration layer, per the agreed boundary above. |
-| Flow → document output | LayoutResult has geometry and line tables; geometry is also written to nodes. | Clarify coordinate ownership, immutable snapshots and retention for every paragraph group. |
+| Styled document → render input | documentlayout.Build supplies typed styles and stable text source references to RenderNode. | DOM policy and source tables stay in tytui; no glyph coverage policy is added. |
+| Render input → box tree | BuildLayoutTree normalizes anonymous groups and split/hoisted inlines. | CSS core retains NodeID/BoxID distinctions and transported styles. |
+| Box tree → used dimensions | ResolveUsedValues supplies finite fixed-width dimensions and margins. | CSS core owns used widths and recursive atomic preparation. |
+| Block flow → paragraph request | LayoutInline(InlineRequest) receives Group, OwnerID, ContentWidth, Used and Atomics. | The adapter extracts one group, itemizes, prepares and lays out it; no atomic-interior recursion. |
+| Paragraph result → block flow | InlineResult returns Extent plus BoxID-mapped atomic border origins. | Paragraph lines/glyphs/source/paint stay in typed GroupResult records. |
+| Flow → document output | Result publishes detached geometry accessors and typed retained groups after whole-flow success. | Geometry uses explicit RelativeTo content parents; old snapshots survive resize/failure. |
+| Document → proof | BuildProof/WriteSVG compose each owner-content transform once around retained glyph/line placements. | Generic paragraph walking lives in typography/render; CSS/DOM associations stay in tytui. |
 
 The sibling's authoritative design is
 [CSS-Algo-Overview.md](../../css-box-layout/doc/CSS-Algo-Overview.md); its
@@ -155,7 +159,12 @@ paragraph request, returned vlist and final placement, with independently specif
 coordinates. A narrower parent must trigger a fresh paragraph layout and update
 following block positions. Prior document results must remain inspectable.
 
-## Proposed sequence, open for revision
+## Original exploration sequence (historical)
+
+The steps below record the initial review, before the current upstream contracts.
+Its implementation concerns are resolved by the boundaries above and the staged
+[khipu integration plan](../../khipu/doc/PIPELINE_INTEGRATION.md). The original
+proposals are retained as context, not as descriptions of the current API.
 
 ### 1. Establish the document/box boundary
 
@@ -227,7 +236,7 @@ intrinsic-measurement API; a very-wide paragraph run is not automatically a corr
 intrinsic width. Images require non-text inline material. Do not pull either into
 the first experiment merely because callback types already exist.
 
-## Questions for our next discussion
+## Original discussion questions (historical)
 
 | Question | Working proposal |
 | --- | --- |

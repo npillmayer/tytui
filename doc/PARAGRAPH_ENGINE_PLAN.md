@@ -6,8 +6,9 @@ the review findings and implementation sequence. Steps 1–3 and step 4's
 line-height policies are implemented:
 `typography/paragraph.Run` consumes prepared styled text and produces a boxed vlist;
 tytui retains its placements for rendering. `Assemble` remains available for frozen
-input. CSS-inspired baseline line boxes are an explicit opt-in. The CSS adapter
-and box-engine bridge remain future work. Existing replay formats are unchanged;
+input. CSS-inspired baseline line boxes are an explicit opt-in. The fixed-width CSS bridge and diagnostic document proof are implemented in
+[documentlayout](../documentlayout/README.md); broader DOM line-height policies
+remain separate. Existing replay formats are unchanged;
 new line-height cases use an explicit version-3 extension.
 
 The first deliverable is **frozen lines → boxed vlist**. Once that is independently
@@ -567,12 +568,14 @@ If new policy selection must be persisted, define a versioned wire extension wit
 an explicit migration path; existing versions retain their old meaning. No new
 manifest version is needed merely to complete steps 1–3.
 
-The current css-box-layout InlineLayouter expects line boxes with frames and
-baselines. A later adapter should translate constraints, units and source/payload
-references to that interface. Recheck its evolving API before implementing the
-bridge. Keep css-box-layout out of P's dependencies; its float32 geometry is not
-a reason to reduce paragraph-engine precision. Atomic inline items and intrinsic
-measurement require separate scope rather than fabricated results.
+The implemented css-box-layout InlineLayouter takes InlineRequest with the group,
+OwnerID, content width, used values and completed atomic border boxes. It returns
+InlineResult{Extent, Atomics}; line boxes and paragraph payloads remain typed in
+tytui/documentlayout. CSS core prepares nested atomics before invoking the adapter.
+The adapter preserves float64 paragraph geometry and converts only CSS summaries.
+Fixed-width inline-blocks are supported through paragraph.Prepare/Layout; intrinsic
+measurement and auto-sized atomics remain deferred. See the existing
+[CSS integration roadmap](../../css-box-layout/doc/Document-Layout-Integration.md).
 
 Padding belongs to the surrounding box; CSS margin collapse requires neighboring
 block/ancestor context and remains with CSS layout. Generic vertical packing,
@@ -582,8 +585,9 @@ annotation API stays deferred.
 ## Rollout and verification
 
 Steps 1–3 and step 4's line-height policies are complete, with owning tests in
-typography and focused tytui DOM, rendering and replay integration. Next is a
-DOM line-height adapter when needed, followed by an explicit css-box-layout bridge.
+typography and focused tytui DOM, rendering and replay integration. The fixed-width css-box-layout bridge and retained document proof now have
+typed/synthetic, HTML/CSS and real-font integration evidence. Broader DOM
+line-height policy remains future work.
 Preserve the old compatibility checkpoint and the explicit new-policy opt-in.
 Each stage leaves the workbench usable and retains the existing
 source/paint/replay guarantees. Do not regenerate independent fixtures from the

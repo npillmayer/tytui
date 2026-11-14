@@ -27,6 +27,17 @@ func initialStyle() typestyle.Style {
 	return typestyle.Style{Family: "serif", EmSize: 12 * dimen.BP, Weight: 400, Slant: "normal", Color: "black", Language: "und", WhiteSpace: "normal", UnicodeBidi: "normal"}
 }
 
+// ResolvedStyles returns detached computed typography for a selected subtree and
+// its ancestors, without applying single-paragraph eligibility. Document layout
+// uses the same inheritance, relative-size and lang/dir rules as Extract. The
+// document must remain stable during this call; no font services are consulted.
+func (d *Document) ResolvedStyles(selected int) (map[int]typestyle.Style, error) {
+	if d == nil || selected < 0 || selected >= len(d.Nodes) {
+		return nil, fmt.Errorf("unknown DOM node %d", selected)
+	}
+	return d.resolvedStyles(selected)
+}
+
 func (d *Document) resolvedStyles(selected int) (map[int]typestyle.Style, error) {
 	result := make(map[int]typestyle.Style, len(d.Nodes))
 	rootSize := initialStyle().EmSize

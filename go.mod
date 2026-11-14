@@ -8,6 +8,8 @@ replace github.com/npillmayer/fontfind => ../fontfind
 
 replace github.com/npillmayer/cords => ../cords
 
+replace github.com/npillmayer/css-box-layout => ../css-box-layout
+
 replace github.com/npillmayer/khipu => ../khipu
 
 replace github.com/npillmayer/uax => ../uax
@@ -29,6 +31,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.6
 	github.com/npillmayer/fontfind v0.0.0
 	github.com/npillmayer/cords v0.1.2-alpha.3
+	github.com/npillmayer/css-box-layout v0.0.0
 	github.com/npillmayer/khipu v0.0.0
 	github.com/npillmayer/opentype v0.0.0
 	github.com/npillmayer/typography v0.0.0

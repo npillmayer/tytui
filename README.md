@@ -1,5 +1,13 @@
 # tytui
 
+The headless [documentlayout package](documentlayout/README.md) connects
+CSS-normalized inline groups to prepared paragraph layout, including fixed-width
+atomic boxes and retained source/paint correspondence (pipeline integration
+stages 3D–3F). `Document.Layout` publishes CSS geometry and typed paragraph results
+together after success. A [retained document proof](documentlayout/testdata/nested-firstfit.svg)
+shows nested boxes, baselines and real glyphs without remeasurement.
+TUI and replay behavior are unchanged.
+
 An experimental typography integration laboratory, with an interactive paragraph
 workbench built with [Bubble Tea](https://charm.land/). Tytui is a practical example
 of progress in combining typographic functionality from other modules. Its purpose
@@ -210,6 +218,7 @@ paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 1.5}}`.
 The policy uses a font/size strut, half-leading and natural stacking without a
 trailing gap. Normal and resolved-length values are also supported; optional
 byte ranges override line-height without splitting shaping or carrying paint.
-TUI defaults remain unchanged. CSS declaration extraction and the CSS box-engine
-bridge remain future work. Explicit line-height cases use replay version 3 with
+TUI defaults remain unchanged. The separate `documentlayout` CSS box-engine bridge
+currently supports normal line height; other CSS line-height declarations remain
+unsupported there. Explicit single-paragraph line-height cases use replay version 3 with
 placement evidence; compatibility layouts continue to save as version 1 or 2.
