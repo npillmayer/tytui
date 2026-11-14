@@ -222,4 +222,70 @@ No new glyph coverage validation is introduced; relocation of existing itemizer
 checks remains deferred. Auto-width tests cover intrinsic bounds, signed margins,
 primitive rounding, shrink-to-fit below/inside/above the intrinsic interval,
 preparation reuse, late measurement failure/cancellation and unchanged fixed-width
-flow. Broader nested-auto-sizing and lifetime evidence remains stage 5.
+flow.
+
+Stage 5A adds nested scheduling evidence through the actual paragraph engine with
+both breakers. The test observer retains callback value snapshots, checks that
+all required measurements precede final layout and all used values are definite,
+and verifies completed atomic interiors before parent delegation. Fixtures cover
+nested auto/fixed boundaries, auto descendants behind fixed boundaries, siblings,
+block/anonymous descendants, and empty/object-only groups. Actual `Shape` calls
+are counted separately from stream factories, including a group with three shaping
+runs. Measured preparations keep their identity and do not reshape during final
+layout; fixed boundaries supply equal intrinsic border bounds without measuring
+their interiors solely for those bounds. An entirely fixed tree still makes no
+intrinsic callbacks. This requires no production API or algorithm changes.
+
+Stage 5B adds independent nested geometry oracles in `nested_geometry_test.go`.
+Typed CSS input and equivalent HTML exercise public `Document.Layout` with both
+breakers at zero, narrow, intermediate and wide widths. Hand-calculated expectations
+cover nested shrink-to-fit, signed margins, border/content rectangles, paragraph
+targets and advances, retained baselines, and absolute atomic/glyph transforms.
+Empty interiors preserve the normal strut; a mixed fixed/auto fixture checks text
+neighbors, block stacking and anonymous owners. Line choices may differ by breaker.
+
+The fractional fixture preserves an inner 4.5 DU CSS border while independently
+rounded border/margins give `5 - 1 + 2 = 6 DU`; the outer advance is
+`9 + 2 + 2 = 13 DU`. CSS dimensions stay unquantized, paragraph geometry stays
+float64, and each CSS narrowing/composition has an explicit half-ULP error budget.
+Positive overflow remains accepted; negative completed lines return an error and
+no document. Synthetic proof services check numeric transforms without adding
+real-font fixtures or production changes.
+
+Stage 5C adds nested resize/failure lifetime sequences in `lifetime_test.go`.
+Both breakers run wide success -> narrow success -> failed/cancelled invocation
+-> wide success. Immutable value snapshots check all earlier results after each
+later operation: CSS geometry, source/style/paint, frozen glyphs/clusters and
+source bytes, diagnostics, vlist geometry and atomic identities/placements. The
+repeated wide result reproduces the first result, while stream and actual shaping
+counts establish fresh preparation per independent document invocation.
+
+Deterministic errors/cancellation occur during later intrinsic preparation and
+parent assembly after a child completes; publication cancellation occurs only
+after every paragraph exists privately. Failures preserve their causes and return
+no public document. A failed final attempt still rejects a repeated callback.
+Fault services use a separate resolver so earlier results keep stable services.
+Accessor mutation and destruction of the original HTML input envelope leave
+retained results intact; their normalized document remains available for fresh
+layout. Frozen/vlist objects and the normalized tree remain read-only. No production
+changes, concurrent-use guarantee or cross-invocation preparation cache are added.
+
+Stage 5D adds [nested-auto proof fixtures](testdata/README.md) at containing widths
+420/100 CSS px under both breakers, using the existing generator and explicit
+Gentium Plus/Noto Sans Hebrew test fonts. The fixture combines nested auto/fixed
+items, empty material, signed margins, anonymous/block owners, ligatures, multibyte
+text, pointed Hebrew and paint. The four SVGs display retained geometry, including
+positive overflow; they are diagnostics, while stage 5B supplies sizing oracles.
+
+`auto_proof_test.go` verifies decoded source anchors, paint, atomic ownership and
+exact transport of retained lines and placements through ancestor transforms.
+For both breakers, older wide/narrow proofs and SVG bytes remain identical after
+later successful and failed/cancelled layouts, destruction of the original HTML
+input and mutation of detached accessors. Fresh wide layout reproduces the first
+proof. Test-only guards reject preparation services and line-metric queries during
+rendering while observing retained outlines, identity and scale conversion. The
+existing frozen/vlist walker needs no prepared owner or breaker configuration.
+No production API changes, new coverage validation, font copies or replay changes
+were needed; the fixed-width proof remains unchanged.
+
+Final cross-module documentation alignment and validation remain stage 5E.

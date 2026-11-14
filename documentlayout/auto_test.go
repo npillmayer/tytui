@@ -3,7 +3,9 @@ package documentlayout
 import (
 	"context"
 	"errors"
+	"maps"
 	"reflect"
+	"sync/atomic"
 	"testing"
 
 	box "github.com/npillmayer/css-box-layout/layout"
@@ -13,24 +15,181 @@ import (
 	"github.com/npillmayer/typography/paragraph"
 )
 
+// flowEvent retains values only, never a CSS request, lookup view or tree node.
+// The event is appended at callback entry and completed after real delegation.
+type flowEvent struct {
+	phase            string
+	group, owner     box.BoxID
+	width            float32
+	bounds           box.IntrinsicWidths
+	intrinsic        map[box.BoxID]box.IntrinsicAtomic
+	atomics          map[box.BoxID]box.PreparedAtomic
+	edges            map[box.BoxID]box.BoxEdges
+	used             box.UsedValuesTable
+	shapes           int
+	runs             int32
+	reused, complete bool
+}
+
 // Observe the real callback boundary without adding counters to production.
 type observedFlow struct {
 	*invocation
-	measures, layouts map[box.BoxID]int
-	widths            map[box.BoxID]box.IntrinsicWidths
+	t                   *testing.T
+	calls               *preparationCalls
+	runs                *atomic.Int32
+	measures, layouts   map[box.BoxID]int
+	widths              map[box.BoxID]box.IntrinsicWidths
+	events              []flowEvent
+	measuredPreparation map[box.BoxID]*preparedGroup // private identity witnesses, not request views
+}
+
+func newObservedFlow(t *testing.T, i *invocation, calls *preparationCalls) *observedFlow {
+	o := &observedFlow{invocation: i, t: t, calls: calls, runs: new(atomic.Int32), measures: map[box.BoxID]int{}, layouts: map[box.BoxID]int{}, widths: map[box.BoxID]box.IntrinsicWidths{}, measuredPreparation: map[box.BoxID]*preparedGroup{}}
+	factory := i.config.NewShaper
+	i.config.NewShaper = func() (contracts.StreamingShaper, error) {
+		s, err := factory()
+		if err != nil {
+			return nil, err
+		}
+		return observedShapeRuns{StreamingShaper: s, runs: o.runs}, nil
+	}
+	return o
+}
+
+// A preparation creates a stream even for empty/object-only input. Count
+// actual Shape calls separately, across the producer goroutine's run boundaries.
+type observedShapeRuns struct {
+	contracts.StreamingShaper
+	runs *atomic.Int32
+}
+
+func (s observedShapeRuns) Shape(ctx context.Context, p contracts.ShapeParams, r contracts.RuneReader, opts contracts.ShapeBufferOptions) error {
+	s.runs.Add(1)
+	return s.StreamingShaper.Shape(ctx, p, r, opts)
+}
+
+// Only the current group's atomic leaves belong in its request; interiors have
+// independent callbacks. This test walk does not extract, prepare or size them.
+func observedAtomicLeaves(group *box.LayoutNode) []*box.LayoutNode {
+	var atoms []*box.LayoutNode
+	var walk func(*box.LayoutNode)
+	walk = func(n *box.LayoutNode) {
+		if n.Box == box.BoxInlineBlock {
+			atoms = append(atoms, n)
+			return
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	walk(group)
+	return atoms
+}
+
+func (o *observedFlow) checkIdentity(group *box.LayoutNode, owner box.BoxID) {
+	o.t.Helper()
+	entry, ok := o.document.groups[group.BoxID]
+	if !ok || entry.node != group || entry.OwnerID != owner || group.Box != box.BoxAnonymousInline {
+		o.t.Fatal("callback has wrong group/owner", group.BoxID, owner)
+	}
 }
 
 func (o *observedFlow) MeasureInline(r box.InlineMeasureRequest) (box.IntrinsicWidths, error) {
+	o.checkIdentity(r.Group, r.OwnerID)
+	if len(o.layouts) != 0 || len(o.started) != 0 || len(o.groups) != 0 {
+		o.t.Fatal("measurement after final layout began")
+	}
+	started := maps.Clone(o.started)
+	before := o.prepared[r.Group.BoxID]
+	shapes, runs := o.calls.shape, o.runs.Load()
+	e := flowEvent{phase: "measure", group: r.Group.BoxID, owner: r.OwnerID, intrinsic: map[box.BoxID]box.IntrinsicAtomic{}, edges: map[box.BoxID]box.BoxEdges{}}
+	for _, n := range observedAtomicLeaves(r.Group) {
+		a, ok := r.Atomics.Lookup(n.BoxID)
+		if !ok || a.BoxID != n.BoxID {
+			o.t.Fatal("missing intrinsic leaf", n.BoxID)
+		}
+		edge, ok := r.Edges.Lookup(n.BoxID)
+		if !ok {
+			o.t.Fatal("missing intrinsic edges", n.BoxID)
+		}
+		e.intrinsic[n.BoxID], e.edges[n.BoxID] = a, edge
+	}
+	edge, ok := r.Edges.Lookup(r.OwnerID)
+	if !ok {
+		o.t.Fatal("missing owner measurement edges")
+	}
+	e.edges[r.OwnerID] = edge
+	index := len(o.events)
+	o.events = append(o.events, e)
 	o.measures[r.Group.BoxID]++
 	w, err := o.invocation.MeasureInline(r)
+	if !maps.Equal(started, o.started) || len(o.groups) != 0 {
+		o.t.Fatal("measurement accepted a paragraph or final attempt")
+	}
+	e.bounds, e.shapes, e.complete = w, o.calls.shape-shapes, err == nil
+	e.runs = o.runs.Load() - runs
+	e.reused = before != nil && o.prepared[r.Group.BoxID] == before
 	if err == nil {
 		o.widths[r.Group.BoxID] = w
+		o.measuredPreparation[r.Group.BoxID] = o.prepared[r.Group.BoxID]
 	}
+	o.events[index] = e
 	return w, err
 }
+
 func (o *observedFlow) LayoutInline(r box.InlineRequest) (box.InlineResult, error) {
+	o.checkIdentity(r.Group, r.OwnerID)
+	e := flowEvent{phase: "layout", group: r.Group.BoxID, owner: r.OwnerID, width: r.ContentWidth, atomics: map[box.BoxID]box.PreparedAtomic{}, used: box.UsedValuesTable{}}
+	// All descendants, including those outside this immediate group, must have
+	// final used values before the first final callback can observe the table.
+	var resolved func(*box.LayoutNode)
+	resolved = func(n *box.LayoutNode) {
+		u, ok := r.Used.Lookup(n.BoxID)
+		if !ok || u.WidthPending || u.EdgesPending {
+			o.t.Fatal("provisional/missing used values at final layout", n.BoxID, u)
+		}
+		e.used[n.BoxID] = u
+		for _, c := range n.Children {
+			resolved(c)
+		}
+	}
+	resolved(o.document.root)
+	if e.used[r.OwnerID].ContentWidth != r.ContentWidth {
+		o.t.Fatal("wrong final containing width")
+	}
+	for _, n := range observedAtomicLeaves(r.Group) {
+		a, ok := r.Atomics.Lookup(n.BoxID)
+		if !ok || a.BoxID != n.BoxID {
+			o.t.Fatal("missing prepared leaf", n.BoxID)
+		}
+		e.atomics[n.BoxID] = a
+		var completed func(*box.LayoutNode)
+		completed = func(child *box.LayoutNode) {
+			if child.Box == box.BoxAnonymousInline {
+				if _, ok := o.groups[child.BoxID]; !ok {
+					o.t.Fatal("parent called before atomic interior completed", r.Group.BoxID, child.BoxID)
+				}
+			}
+			for _, c := range child.Children {
+				completed(c)
+			}
+		}
+		completed(n)
+	}
+	before := o.prepared[r.Group.BoxID]
+	if measured, ok := o.measuredPreparation[r.Group.BoxID]; ok && (measured == nil || before != measured) {
+		o.t.Fatal("measured preparation replaced before final layout", r.Group.BoxID)
+	}
+	shapes, runs := o.calls.shape, o.runs.Load()
+	index := len(o.events)
+	o.events = append(o.events, e)
 	o.layouts[r.Group.BoxID]++
-	return o.invocation.LayoutInline(r)
+	result, err := o.invocation.LayoutInline(r)
+	e.shapes, e.complete = o.calls.shape-shapes, err == nil
+	e.runs = o.runs.Load() - runs
+	e.reused = before != nil && o.prepared[r.Group.BoxID] == before
+	o.events[index] = e
+	return result, err
 }
 
 func TestAutoAtomicShrinkToFitAndPreparationReuse(t *testing.T) {
@@ -42,7 +201,7 @@ func TestAutoAtomicShrinkToFitAndPreparationReuse(t *testing.T) {
 			i := boundaryInvocation(t, `<div id="root" style="font-size:20px"><span style="display:inline-block;width:auto;padding:2px;border-width:1px;border-style:solid;margin-left:-2px;margin-right:5px">aa bbbb</span></div>`)
 			i.request = LayoutRequest{Width: tc.available, Breaker: breaker}
 			calls := countPreparation(t, i)
-			observer := &observedFlow{invocation: i, measures: map[box.BoxID]int{}, layouts: map[box.BoxID]int{}, widths: map[box.BoxID]box.IntrinsicWidths{}}
+			observer := newObservedFlow(t, i, calls)
 			containing := box.Rect{W: tc.available}
 			used, err := box.ResolveUsedValues(i.document.root, box.ResolveContext{ContainingBlock: containing})
 			if err != nil {
@@ -99,7 +258,7 @@ func TestAutoAtomicShrinkToFitAndPreparationReuse(t *testing.T) {
 func TestFixedFlowNeedsNoIntrinsicCallbacks(t *testing.T) {
 	i := boundaryInvocation(t, `<div id="root">a<span style="display:inline-block;width:20px">bc</span>z</div>`)
 	calls := countPreparation(t, i)
-	o := &observedFlow{invocation: i, measures: map[box.BoxID]int{}, layouts: map[box.BoxID]int{}, widths: map[box.BoxID]box.IntrinsicWidths{}}
+	o := newObservedFlow(t, i, calls)
 	containing := box.Rect{W: 100}
 	used, err := box.ResolveUsedValues(i.document.root, box.ResolveContext{ContainingBlock: containing})
 	if err != nil {
