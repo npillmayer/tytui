@@ -1,6 +1,6 @@
 # Document flow and normalized input
 
-`documentlayout` implements pipeline integration stages 3D–3F. It builds typed CSS
+`documentlayout` implements pipeline integration stages 3D–3F and 4C–4D. It builds typed CSS
 render input from a selected styled block, lets `css-box-layout` normalize the
 structure, extracts its anonymous inline groups, and connects `FlowLayout` to
 typography's prepared paragraph engine. CSS core schedules and sizes nested atomic
@@ -52,9 +52,42 @@ Keep the tree and font/scale services stable, and serialize layouts sharing a
 resolver. Context is checked at callback entry/completion and document publication;
 synchronous CSS flow, bidi and breaking retain their cancellation limits.
 
+Stage 4C separates three invocation-local tables: completed group preparations,
+accepted final paragraphs, and final-callback attempts. A private helper validates
+both the normalized group node's identity and OwnerID before extracting,
+itemizing and preparing it once. Cache hits perform the same identity check.
+The retained extraction supplies the same anchors, source maps, paint, isolates
+and inherited owner context to measurement and final layout. Markup is consumed
+during preparation; CSS request views and measurement answers are not retained.
+
+Repeated measurement with different atomic ranges recomputes widths through the
+same prepared paragraph, without accepting a final callback. Final callbacks still
+allow only one attempt per group, including failed attempts. Failed preparations
+are not inserted and can be retried; completed preparations may survive another
+callback's failure until the invocation is discarded. No private preparation is
+published. Independent `Document.Layout` calls prepare afresh; there is no cache
+on `Document` and no cross-invocation resize reuse. Operations sharing an invocation
+or prepared handle remain serialized under stable tree/service lifetimes.
+
+Stage 4D connects the invocation as both `InlineLayouter` and `IntrinsicMeasurer`.
+`MeasureInline` gets each atomic occurrence's intrinsic border bounds and resolved
+horizontal margins from CSS views. It converts each primitive independently to DU,
+checks completed signed sums, and delegates to the cached prepared paragraph.
+Border bounds already contain padding/borders; neither those edges nor owner edges
+are added again. Only the final nonnegative intrinsic summary is converted back
+to CSS pixels, with finite-domain and float32-narrowing checks.
+
+CSS core recursively measures atomic interiors, selects shrink-to-fit widths and
+resolves descendants before final callbacks. Tytui does not recurse or choose
+widths inside its callbacks. Fixed-width flow makes no intrinsic callbacks and
+still prepares on demand. Failed measurement publishes no document; completed
+private preparations are discarded with the failed invocation. Intrinsic widths
+describe natural break opportunities, not breaker fit guarantees: the existing
+zero-skip Knuth–Plass policy can select overfull output even at min-content width.
+
 The callback uses normal `CSSLineHeight`, the explicit owner's typography for the
 strut, `NoHyphenation`, `AlignBottomMarginEdge` and zero horizontal side skips for
-both breakers. There is no intrinsic measurer or automatic atomic sizing. Positive
+both breakers. Fixed-pixel and auto-width inline-blocks are supported. Positive
 overfull output is valid; unsupported negative completed line widths are errors.
 Empty atomic interiors currently reserve their normal paragraph strut.
 
@@ -108,8 +141,8 @@ Initial policy is bounded:
 - Select a supported `display:block` element. Descendants may be supported block,
   inline or inline-block elements. Hidden content, explicit breaks, replaced
   elements, tables, list-item and other display modes are rejected.
-- Inline-block widths must be definite nonnegative px. Block widths may also be
-  auto. Box margins, padding and visible border widths use px (unitless zero is
+- Inline-block and block widths may be definite nonnegative px or auto.
+  Box margins, padding and visible border widths use px (unitless zero is
   accepted); margins may be signed/auto. Font sizing retains htmlinput's existing
   relative and absolute-unit support. CSS geometry remains in CSS pixels; the
   callback performs checked px/DU conversion at the paragraph boundary.
@@ -186,4 +219,7 @@ independent synthetic ancestor/multiline/bidi coordinates, both breakers, the re
 nested HTML/CSS fixture, retained source/paint after DOM removal and resize, and
 Latin ligature/pointed Hebrew glyphs against existing independent HarfBuzz captures.
 No new glyph coverage validation is introduced; relocation of existing itemizer
-checks remains deferred. Intrinsic measurement and auto-sized atomics are later work.
+checks remains deferred. Auto-width tests cover intrinsic bounds, signed margins,
+primitive rounding, shrink-to-fit below/inside/above the intrinsic interval,
+preparation reuse, late measurement failure/cancellation and unchanged fixed-width
+flow. Broader nested-auto-sizing and lifetime evidence remains stage 5.

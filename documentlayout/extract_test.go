@@ -338,7 +338,7 @@ func TestDocumentExtractionOwnershipAndTypedStyles(t *testing.T) {
 
 func TestUnsupportedDocumentPolicies(t *testing.T) {
 	for _, content := range []string{
-		`<span style="display:inline-block">x</span>`,
+		`<span style="display:inline-block;width:20em">x</span>`,
 		`<span style="display:inline-block;width:20%">x</span>`,
 		`<span style="padding:1px">x</span>`,
 		`<span style="font-size:30px"></span>`,

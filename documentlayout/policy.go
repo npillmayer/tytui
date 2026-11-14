@@ -98,9 +98,6 @@ func boxStyle(d *htmlinput.Document, id int, display string, s typestyle.Style) 
 	if err != nil {
 		return result, err
 	}
-	if display == "inline-block" && result.Width.Kind != box.LenPx {
-		return result, unsupported(d.Nodes[id].Path + ": auto-width atomic")
-	}
 	for _, side := range []struct {
 		name                    string
 		margin, padding, border *box.Length

@@ -126,9 +126,13 @@ func (boundaryLoader) Load(ctx context.Context, path string, r *fontresource.Res
 	return typography.FaceEntry{Face: helpers.NewSyntheticFont(), Resource: r, Info: typography.Info{ResourceID: r.ID(), SHA256: r.SHA256(), Origin: r.Origin(), Path: r.Origin().Location}}, nil
 }
 
-func boundaryInvocation(t *testing.T) *invocation {
+func boundaryInvocation(t *testing.T, source ...string) *invocation {
 	t.Helper()
-	input, err := htmlinput.Parse("boundary.html", strings.NewReader(`<div id="root" style="font-size:20px"><span style="display:inline-block;width:10px"></span></div>`))
+	html := `<div id="root" style="font-size:20px"><span style="display:inline-block;width:10px"></span></div>`
+	if len(source) > 0 {
+		html = source[0]
+	}
+	input, err := htmlinput.Parse("boundary.html", strings.NewReader(html))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +152,7 @@ func boundaryInvocation(t *testing.T) *invocation {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &invocation{ctx: t.Context(), document: d, request: LayoutRequest{Width: 100, Breaker: paragraph.FirstFit}, config: Config{Resolver: r, NewShaper: func() (contracts.StreamingShaper, error) { return helpers.NewSyntheticStreamingShaper(8) }}, started: map[box.BoxID]bool{}, groups: map[box.BoxID]GroupResult{}}
+	return &invocation{ctx: t.Context(), document: d, request: LayoutRequest{Width: 100, Breaker: paragraph.FirstFit}, config: Config{Resolver: r, NewShaper: func() (contracts.StreamingShaper, error) { return helpers.NewSyntheticStreamingShaper(8) }}, prepared: map[box.BoxID]*preparedGroup{}, started: map[box.BoxID]bool{}, groups: map[box.BoxID]GroupResult{}}
 }
 
 func TestInlineCallbackIdentityAndRepetition(t *testing.T) {

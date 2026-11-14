@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	box "github.com/npillmayer/css-box-layout/layout"
-	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/typography"
@@ -30,10 +29,10 @@ type Config struct {
 	BufferOptions contracts.ShapeBufferOptions
 }
 
-// Layout resolves CSS used values and runs fixed-width document flow. CSS core
-// prepares nested atomics; each callback itemizes/prepares/layouts just one group.
+// Layout resolves CSS used values and runs document flow with fixed or auto atomic widths. CSS core
+// prepares nested atomics; callbacks reuse invocation-local group preparation.
 // Initial policy is normal CSS line height, bottom-margin-edge atomic alignment,
-// no hyphenation and explicit zero side skips. There is no intrinsic measurer.
+// no hyphenation and explicit zero side skips. CSS core owns shrink-to-fit sizing.
 //
 // Only successful whole-document completion publishes a Result. Errors return
 // nil and leave all previous snapshots intact. There is no mutable current result
@@ -57,7 +56,8 @@ func (d *Document) Layout(ctx context.Context, request LayoutRequest, config Con
 		return nil, invalid("unknown line breaker")
 	}
 	i := &invocation{ctx: ctx, document: d, request: request, config: config,
-		started: make(map[box.BoxID]bool), groups: make(map[box.BoxID]GroupResult)}
+		prepared: make(map[box.BoxID]*preparedGroup),
+		started:  make(map[box.BoxID]bool), groups: make(map[box.BoxID]GroupResult)}
 	return i.run()
 }
 
@@ -66,11 +66,13 @@ type invocation struct {
 	document *Document
 	request  LayoutRequest
 	config   Config
-	started  map[box.BoxID]bool
-	groups   map[box.BoxID]GroupResult
+	prepared map[box.BoxID]*preparedGroup // completed horizontal preparation, never published
+	started  map[box.BoxID]bool           // final callback attempts, including failed attempts
+	groups   map[box.BoxID]GroupResult    // accepted final paragraphs only
 }
 
 var _ box.InlineLayouter = (*invocation)(nil)
+var _ box.IntrinsicMeasurer = (*invocation)(nil)
 
 func (i *invocation) run() (*Result, error) {
 	containing := box.Rect{W: i.request.Width}
@@ -81,7 +83,7 @@ func (i *invocation) run() (*Result, error) {
 	if err := i.ctx.Err(); err != nil {
 		return nil, err
 	}
-	flow, err := box.FlowLayout(i.document.root, used, i, nil, box.LayoutContext{ContainingBlock: containing}, box.LayoutOptions{})
+	flow, err := box.FlowLayout(i.document.root, used, i, i, box.LayoutContext{ContainingBlock: containing}, box.LayoutOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +93,8 @@ func (i *invocation) run() (*Result, error) {
 	if len(i.groups) != len(i.document.groups) {
 		return nil, invalid("CSS flow did not complete every inline group")
 	}
-	// Transfer both invocation-local tables together; neither is reused or exposed.
+	// Publish accepted paragraphs and CSS geometry together. The preparation and
+	// callback-tracking tables remain private and die with this invocation.
 	return &Result{document: i.document, geometry: flow.Geometry, groups: i.groups}, nil
 }
 
@@ -104,9 +107,8 @@ func (i *invocation) LayoutInline(request box.InlineRequest) (box.InlineResult, 
 		return fail(invalid("incomplete inline request"))
 	}
 	id := request.Group.BoxID
-	entry, ok := i.document.groups[id]
-	if !ok || request.Group != entry.node || request.OwnerID != entry.OwnerID {
-		return fail(invalid("unknown inline group or mismatched owner"))
+	if err := i.validateGroup(request.Group, request.OwnerID); err != nil {
+		return fail(err)
 	}
 	if i.started[id] {
 		return fail(unsupported("repeated inline-group callback"))
@@ -116,36 +118,16 @@ func (i *invocation) LayoutInline(request box.InlineRequest) (box.InlineResult, 
 	if err != nil {
 		return fail(err)
 	}
-	g, err := i.document.Extract(i.ctx, id)
+	prepared, err := i.prepareGroup(request.Group, request.OwnerID)
 	if err != nil {
 		return fail(err)
 	}
+	g := &prepared.input
 	atoms, err := atomicBoxes(g, request)
 	if err != nil {
 		return fail(err)
 	}
-	r := i.config.Resolver
-	text, _, err := r.ItemizeInline(i.ctx, g.Text, g.Styles, g.Anchors, typography.GlyphBoundary)
-	if err != nil {
-		return fail(err)
-	}
-	// The strut is the owner's inherited typography, not the first glyph/atomic.
-	defaults, err := r.ResolveStyle(g.Paragraph.Style, r.Defaults())
-	if err != nil {
-		return fail(err)
-	}
-	markup, err := g.BidiMarkup()
-	if err != nil {
-		return fail(err)
-	}
-	prepared, err := paragraph.Prepare(i.ctx, paragraph.Input{Text: text, Direction: g.Paragraph.Style.Direction, Markup: markup, Atomics: g.Anchors},
-		khipu.PrepareOptions{Hyphenation: khipu.NoHyphenation}, khipu.Config{Streaming: &khipu.StreamingConfig{
-			Resolver: r, Defaults: defaults, NewShaper: i.config.NewShaper, BufferOptions: i.config.BufferOptions,
-		}})
-	if err != nil {
-		return fail(err)
-	}
-	result, err := prepared.Layout(i.ctx, paragraph.LayoutRequest{Params: paragraph.Params{
+	result, err := prepared.paragraph.Layout(i.ctx, paragraph.LayoutRequest{Params: paragraph.Params{
 		Constraints: paragraph.Constraints{Width: width}, Breaker: i.request.Breaker,
 		Assembly: paragraph.Options{Policy: paragraph.CSSLineHeight}, LineLayout: &g.LineLayout,
 	}, Horizontal: &paragraph.HorizontalLayout{}, Atomics: atoms})

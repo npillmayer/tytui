@@ -73,7 +73,7 @@ func (d *Document) TextSource(id boxtext.TextSourceID) (TextSource, bool) {
 // input, then delegates split/hoist and anonymous groups to CSS core. Inputs must
 // be read-only during this call. Errors/cancellation return no partial document.
 // The initial subset is normal whitespace, normal line height, horizontal flow,
-// fixed-pixel atomic widths and zero ordinary-inline edges. No font coverage is
+// fixed-pixel or auto atomic widths and zero ordinary-inline edges. No font coverage is
 // checked and no atomic interior is flattened into its enclosing paragraph.
 func Build(ctx context.Context, input *htmlinput.Document, selected int) (*Document, error) {
 	if ctx == nil {

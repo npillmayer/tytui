@@ -1,9 +1,10 @@
 # tytui
 
 The headless [documentlayout package](documentlayout/README.md) connects
-CSS-normalized inline groups to prepared paragraph layout, including fixed-width
+CSS-normalized inline groups to prepared paragraph layout, including fixed and auto-width
 atomic boxes and retained source/paint correspondence (pipeline integration
-stages 3D–3F). `Document.Layout` publishes CSS geometry and typed paragraph results
+stages 3D–3F and 4C–4D). Intrinsic callbacks reuse preparation while CSS core selects
+auto widths. `Document.Layout` publishes CSS geometry and typed paragraph results
 together after success. A [retained document proof](documentlayout/testdata/nested-firstfit.svg)
 shows nested boxes, baselines and real glyphs without remeasurement.
 TUI and replay behavior are unchanged.
