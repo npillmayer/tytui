@@ -8,11 +8,10 @@ import (
 
 	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
 	otadapter "github.com/npillmayer/typography/adapter/opentype"
-	fontdiscovery "github.com/npillmayer/typography/discovery"
 	"github.com/npillmayer/uax/bidi"
 
+	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
@@ -21,12 +20,12 @@ func TestFallbackPreservesSoftHyphenBreaks(t *testing.T) {
 		for _, width := range []dimen.DU{20 * dimen.BP, 100 * dimen.BP} {
 			t.Run(string(breaker)+"/"+width.String(), func(t *testing.T) {
 				source := "אב\u00adגד"
-				input := pipeline.Input{Text: source, Direction: bidi.RightToLeft, Width: width, Breaker: breaker, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: hebrew, Size: 12 * dimen.BP}}}
+				input := pipeline.Input{Text: source, Direction: bidi.RightToLeft, Width: width, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: hebrew, Size: 12 * dimen.BP}})}
 				direct, err := pipeline.Run(context.Background(), input)
 				if err != nil {
 					t.Fatal(err)
 				}
-				input.Fonts = &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: gentium, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}}
+				input.Fonts = selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}})
 				fallback, err := pipeline.Run(context.Background(), input)
 				if err != nil {
 					t.Fatal(err)

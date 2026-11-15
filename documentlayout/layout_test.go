@@ -15,11 +15,12 @@ import (
 	"github.com/npillmayer/typography/paragraph"
 
 	"tytui/documentlayout"
+	"tytui/fontselection"
 )
 
 func layoutConfig(t *testing.T) documentlayout.Config {
 	t.Helper()
-	r, err := typography.LoadSettings(t.Context(), typography.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, typography.Services{
+	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{
 		Loader: syntheticLoader{}, Coverage: typography.CoverageFunc(func(_ contracts.FontFace, c rune) (uint32, error) {
 			if c == '\uFFFC' {
 				t.Error("queried coverage of an atomic marker")

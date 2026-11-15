@@ -15,10 +15,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	fontdiscovery "github.com/npillmayer/typography/discovery"
 
 	"tytui/documentlayout"
+	"tytui/fontselection"
 	"tytui/htmlinput"
 	"tytui/pipeline"
 )
@@ -280,7 +279,7 @@ func TestDocumentSchedulerCancellationAndCrossModeQueue(t *testing.T) {
 		cancelledOnEntry = ctx.Err()
 		return nil, errors.New("stale backend failure")
 	}
-	m.fontSettings = &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: uiFont, Size: 12 * dimen.BP, Fallbacks: []string{"original"}}}
+	m.fontSettings = &fontselection.Request{Settings: fontselection.Settings{DefaultPath: uiFont, Size: 12 * dimen.BP, Fallbacks: []string{"original"}}}
 	m, first := updateModel(m, runKey())
 	oldID := m.activeID
 	m.fontSettings.Fallbacks[0] = "changed"

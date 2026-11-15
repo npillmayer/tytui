@@ -1,5 +1,9 @@
 # Typography extraction: proposed API contracts
 
+Current font-input guidance is in [Current selected-font API](#current-selected-font-api).
+Earlier sections record the extraction milestones; their loader/discovery APIs
+were superseded by the FONT_INTF migration.
+
 Step 1 of [the extraction plan](TYPOGRAPHY_EXTRACTION_PLAN.md), 2026-11-11.
 Steps 1–7 are implemented. The original sketches and milestone sections below
 record the migration history; the final step-7 contract supersedes temporary
@@ -589,78 +593,54 @@ Validation: full `go test ./... -count=1`, `go test -race ./... -count=1`,
 replay fixtures were not modified.
 
 
-## Implemented step-7 API
+## Current selected-font API
 
-Runtime compatibility facades are removed. This intentionally changes Go import
-paths and composite literals; it does not change glyph output or replay semantics.
+Typography accepts a closed set of preloaded faces. Root `NewResolver(ctx,
+SelectedFonts, Coverage)` replaces LoadSettings and the root loading-service
+bundle. SelectedFonts carries Faces, Default, Rules, Fallbacks and Size; every
+reference is a resource ID. Entries pair contracts.FontFace with Info and an
+immutable resource. NewResolver checks identity metadata and role references,
+requires usable coverage, and performs no parsing, I/O or coverage preflight.
 
-| Former workbench API | Current owner/API |
-| --- | --- |
-| `htmlinput.Style`, `StyleSpan` | `typography/style.Style`, `Span` |
-| `fontbackend.Settings` at `pipeline.Input.Fonts` | `*discovery.Resolution`, embedding `typography.Settings` and discovery metadata |
-| Resolver, Rule, Info, Binding | Root `typography` package |
-| Resource, Origin, bounded reading | `fontresource.Resource`, `Origin`, `Read` |
-| LoadFile, LoadResource, Loader, Face, Scale, Stream | `typography/adapter/opentype` |
-| Discovery policy/session/request values | `typography/discovery` |
-| Controlled provider adaptation | `typography/adapter/fontfind` |
+Exactly one table entry is required per referenced identity, including unused
+configured roles; duplicate, missing and unreferenced entries fail. Rule and
+fallback order, including repetitions, is preserved. Infos/Snapshot canonicalize
+table order to default, rules, then fallbacks, deduplicating by resource ID.
+Snapshots detach mutable metadata and share stable face/resource handles.
+Only explicit fallback references are eligible during grapheme itemization.
 
-Application composition installs services explicitly (here `otadapter` is the
-OpenType adapter import):
+OpenType Services.Load remains an application entry point; Services supplies
+Coverage, IdentityProvider and render.Backend. Parsing, retained bytes, locks,
+scales, streams, outlines and visual ordering remain adapter-owned. No parsed-font
+accessor or application face wrapper is introduced. Khipu's loader contract remains.
 
-```go
-resolver, err := typography.LoadSettings(ctx, selection.Settings, typography.Services{
-    Loader: otadapter.Services{},
-    Coverage: otadapter.Services{},
-})
-```
+Tytui/fontselection owns Settings/Rule, editable Request values, controlled offline
+providers, generic policy, successful-resource caching and detached diagnostics.
+New(providers, generics) uses fontfind directly. ResolveSettings produces pinned
+resource requests; Prepare loads a Selection before layout. F5 previews and each
+new layout prepare independently, preserving editable-path behavior and cancellation.
+Read/parse errors terminate; substitution needs explicit permission and evidence.
+Typography/discovery and typography/adapter/fontfind are removed.
 
-`otadapter.Services` implements FaceLoader and Coverage, as well as IdentityProvider
-and render.Backend. It validates exactly one file/resource source and rejects
-foreign coverage faces. It owns all concrete face assertions; generic M and the
-layout core use khipu contracts. Its loading method honors cancellation before and
-after synchronous parsing. The application composes controlled provider search with
-`findadapter.New` and `discovery.New(searcher, otadapter.Services{}, generics)`.
-Neither neutral resolver nor discovery silently installs a parser or provider.
+`pipeline.Input.Fonts` is *fontselection.Selection or nil for synthetic. Selection
+contains SelectedFonts and separate Provenance. Result.FontSnapshot retains all
+roles; Result.FontProvenance() returns a detached copy independent of Input.
+Document workers use the same preparation boundary before constructing a resolver.
+Root style mapping, source coordinates, grapheme/script coverage policy, both paint
+policies, private scalar feature domains and paragraph orchestration are unchanged.
 
-`pipeline.Input.Fonts` is nil for synthetic shaping or a detached Resolution.
-File-only callers fill its embedded Settings; request callers use ResolveSettings.
-`Result.FontSnapshot` is `*typography.Settings`, pinning all selected resources.
-Original descriptor input, discovery policy and resolution diagnostics remain in
-`Result.Input.Fonts`; displayed diagnostics are detached separately. Generic
-paragraph orchestration has subsequently moved to `typography/paragraph.Run`:
-prepared styled.Text, direction and optional zero-byte markup enter P with explicit
-width/breaker/assembly parameters and khipu.Config services. It returns frozen
-content, a boxed vlist and neutral diagnostics. The local internal/layout package
-is removed. See [paragraph-engine step 3](PARAGRAPH_ENGINE_PLAN.md#step-3--expose-styled-paragraph--boxed-vlist).
+Replay owns input/policy/request/descriptor/font DTOs in wire.go. Save uses retained
+bytes, keeps canonical font ordering and repeats in role lists, and reparses for
+identity validation. Load validates every stored entry, includes only referenced
+faces in the selected table, and never executes requested paths/descriptors.
+Preserve Fonts:null, numeric provenance codes (including unknown codes), nil/empty
+normalization, and existing requested-path removal on load/resave. Version 1 keeps
+legacy paint; version 2 keeps glyph-boundary paint; version 3 keeps explicit
+line-height and numeric placement evidence. Static fixtures are unchanged.
 
-The rendering bypass is unchanged: `ProjectStyles` owns color-free typesetter
-projection, and the renderer reads the separate retained paint snapshot. Document
-styles retain color only for inspection, source correspondence and replay input.
-No capsule style, general annotation API or version-3 manifest is introduced.
-
-`replay/wire.go` freezes font identity, origin, binding and diagnostic records at
-the serialization boundary. Neutral provenance codes convert explicitly to the
-existing numeric JSON values, including unknown codes. These records are values,
-not runtime service wrappers. Version 1 retains legacy style boundaries; version 2
-retains glyph-boundary colors. Existing pre-step-5/pre-step-6 fixtures are unchanged.
-
-Test ownership is now explicit:
-
-- Typography owns resources/identities, parser/stream behavior, resolver policy and
-  discovery adaptation. `adapter/opentype/loading_test.go` covers direct injected
-  loading/coverage and the original feature-coordinate/nonzero-cluster baseline.
-- `pipeline/dom_font_mapping_test.go` retains DOM plus real-font marker/mapping
-  regressions; `pipeline/grapheme_mapping_test.go` retains real coverage integration.
-  Existing both-breaker freezing, independent HarfBuzz, rendering bypass and replay
-  tests stay in tytui. Duplicate facade-only tests have been removed.
-- Typography's `boundaries_test.go` audits transitive dependencies of M, style,
-  fontresource and render. Tytui's `boundary_test.go` audits the generic layout core
-  and forbids backend facade imports. These checks inspect package dependencies,
-  not module-wide requirements.
-- `replay/wire_test.go` fixes JSON field names/numeric provenance and tests detached
-  diagnostics. Static replay cases protect earlier layout and color behavior.
-
-Validation (2026-11-12): full `go test ./... -count=1`,
-`go test -race ./... -count=1`, `go build ./...` and `go vet ./...` pass in both
-local modules. Local replacements remain required; no package publication or
-boxed-vlist implementation is implied.
+Typography owns constructor/mapping/resource/parser/stream/render regressions;
+tytui/fontselection owns provider, policy/cache, cancellation and prepare tests.
+Tytui retains DOM, prepared paragraph/document, both-breaker glyph and TUI/replay
+integration coverage. Dependency audits keep generic typography packages free of
+concrete backends and every typography production package free of fontfind/tytui.
+Run ordinary/race suites, build and vet in both modules after boundary changes.

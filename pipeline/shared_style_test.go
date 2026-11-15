@@ -6,10 +6,9 @@ import (
 	"testing"
 
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	fontdiscovery "github.com/npillmayer/typography/discovery"
 	typestyle "github.com/npillmayer/typography/style"
 
+	"tytui/fontselection"
 	"tytui/htmlinput"
 	"tytui/pipeline"
 )
@@ -24,7 +23,7 @@ func TestSharedStylesWithoutDOM(t *testing.T) {
 				spans[1].Style.Color = "blue"
 				in := pipeline.Input{Text: "\néa\n", Styles: spans, Width: 100 * dimen.BP, Breaker: breaker}
 				if real {
-					in.Fonts = &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: gentium, Size: 10 * dimen.BP}}
+					in.Fonts = selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 10 * dimen.BP}})
 				}
 				r, err := pipeline.Run(context.Background(), in)
 				if err != nil {

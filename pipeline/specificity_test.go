@@ -5,9 +5,8 @@ import (
 	"testing"
 
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	fontdiscovery "github.com/npillmayer/typography/discovery"
 
+	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
@@ -30,7 +29,7 @@ func TestCSSSpecificityThroughFrozenProof(t *testing.T) {
 			}
 			r, err := pipeline.Run(context.Background(), pipeline.Input{
 				Text: e.Text, Source: e, Width: 200 * dimen.BP, Breaker: breaker,
-				Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}},
+				Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}),
 			})
 			if err != nil {
 				t.Fatal(err)

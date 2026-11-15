@@ -6,16 +6,16 @@ import (
 	"testing"
 
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
 	otadapter "github.com/npillmayer/typography/adapter/opentype"
 
+	"tytui/fontselection"
 	"tytui/htmlinput"
 )
 
 func TestSoftHyphenFaceContext(t *testing.T) {
 	const latin = "../../opentype/testdata/fonts/GentiumPlus-R.ttf"
 	const hebrew = "../../opentype/testdata/fonts/NotoSansHebrew-Regular.ttf"
-	resolver, err := typography.LoadSettings(context.Background(), typography.Settings{DefaultPath: latin, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}, Rules: []typography.Rule{{Weight: 700, Path: "../../opentype/testdata/fonts/ShaperTestProgress.ttf"}}}, typography.Services{Loader: otadapter.Services{}, Coverage: otadapter.Services{}})
+	resolver, err := loadResolver(context.Background(), fontselection.Settings{DefaultPath: latin, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}, Rules: []fontselection.Rule{{Weight: 700, Path: "../../opentype/testdata/fonts/ShaperTestProgress.ttf"}}}, testServices{Loader: otadapter.Services{}, Coverage: otadapter.Services{}})
 	if err != nil {
 		t.Fatal(err)
 	}

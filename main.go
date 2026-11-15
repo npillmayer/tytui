@@ -17,8 +17,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/npillmayer/khipu/dimen"
-	fontdiscovery "github.com/npillmayer/typography/discovery"
 
+	"tytui/fontselection"
 	"tytui/htmlinput"
 	"tytui/pipeline"
 )
@@ -32,6 +32,7 @@ const (
 )
 
 type job struct {
+	fonts    *fontselection.Request
 	input    pipeline.Input
 	document *documentJob
 	revision uint64
@@ -49,7 +50,7 @@ type model struct {
 	documentMode               bool
 	document                   documentWorkbench
 	fontEditor                 fontEditor
-	fontSettings               *fontdiscovery.Resolution
+	fontSettings               *fontselection.Request
 	browser                    htmlBrowser
 	source                     *htmlinput.Extraction
 	width, height              int
@@ -140,6 +141,11 @@ func (m *model) launch(j job) tea.Cmd {
 	}
 	return func() tea.Msg {
 		defer cancel()
+		fonts, err := fontselection.Prepare(ctx, j.fonts)
+		if err != nil {
+			return layoutMsg{id: id, revision: j.revision, err: &pipeline.StageError{Stage: pipeline.StageFonts, Err: err}}
+		}
+		j.input.Fonts = fonts
 		result, err := run(ctx, j.input)
 		return layoutMsg{id: id, revision: j.revision, result: result, err: err}
 	}
@@ -154,7 +160,7 @@ func (m *model) requestRun() tea.Cmd {
 		m.status = err.Error()
 		return nil
 	}
-	j := job{input: pipeline.Input{Text: m.textarea.Value(), Width: width, Breaker: m.breaker, Source: m.source.Clone(), Fonts: m.fontSettings.Clone()}, revision: m.revision}
+	j := job{input: pipeline.Input{Text: m.textarea.Value(), Width: width, Breaker: m.breaker, Source: m.source.Clone()}, fonts: m.fontSettings.Clone(), revision: m.revision}
 	m.result = nil
 	m.viewport.SetContent("Waiting for layout…")
 	m.viewport.GotoTop()

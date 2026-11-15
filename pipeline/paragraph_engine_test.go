@@ -11,11 +11,11 @@ import (
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/typography"
 	otadapter "github.com/npillmayer/typography/adapter/opentype"
-	"github.com/npillmayer/typography/discovery"
 	"github.com/npillmayer/typography/paragraph"
 	"github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
 
+	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
@@ -52,7 +52,7 @@ func TestPublicParagraphEngineMatchesDOMWorkbench(t *testing.T) {
 		}
 		return 0
 	}
-	settings := typography.Settings{DefaultPath: gentium, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}
+	settings := fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
 		for _, paint := range []typography.PaintPolicy{typography.GlyphBoundary, typography.LegacyStyleBoundary} {
 			for _, width := range []dimen.DU{20 * dimen.BP, 200 * dimen.BP} {
@@ -60,11 +60,11 @@ func TestPublicParagraphEngineMatchesDOMWorkbench(t *testing.T) {
 				if e.Text != content {
 					t.Fatal("fixture content mismatch")
 				}
-				workbench, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: width, Breaker: breaker, PaintPolicy: paint, Fonts: &discovery.Resolution{Settings: settings}})
+				workbench, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: width, Breaker: breaker, PaintPolicy: paint, Fonts: selectFonts(t, &fontselection.Request{Settings: settings})})
 				if err != nil {
 					t.Fatal(err)
 				}
-				resolver, err := typography.LoadSettings(t.Context(), settings, typography.Services{Loader: otadapter.Services{}, Coverage: otadapter.Services{}})
+				resolver, err := loadResolver(t.Context(), settings, testServices{Loader: otadapter.Services{}, Coverage: otadapter.Services{}})
 				if err != nil {
 					t.Fatal(err)
 				}

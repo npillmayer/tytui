@@ -14,12 +14,12 @@ import (
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/typography"
 	ot "github.com/npillmayer/typography/adapter/opentype"
-	fontdiscovery "github.com/npillmayer/typography/discovery"
 	"github.com/npillmayer/typography/paragraph"
 	"github.com/npillmayer/typography/render"
 	"golang.org/x/net/html"
 
 	"tytui/documentlayout"
+	"tytui/fontselection"
 	"tytui/htmlinput"
 	"tytui/pipeline"
 )
@@ -31,7 +31,7 @@ type documentJob struct {
 	selected int
 	width    float32
 	breaker  pipeline.Breaker
-	fonts    *fontdiscovery.Resolution
+	fonts    *fontselection.Request
 }
 
 // Only complete results escape the command. Rendering retains the services and
@@ -45,8 +45,8 @@ type documentSnapshot struct {
 	width                  float32
 	breaker                pipeline.Breaker
 	fonts                  []typography.Info
-	fontSnapshot           *typography.Settings
-	diagnostics            []fontdiscovery.FontDiagnostic
+	fontSnapshot           *typography.SelectedFonts
+	diagnostics            []fontselection.FontDiagnostic
 	warnings               []string
 }
 
@@ -90,7 +90,11 @@ func runDocumentExperiment(ctx context.Context, input documentJob) (*documentSna
 		return nil, fmt.Errorf("document proofs require OpenType fonts: use F5 to select a default face and any needed fallbacks; F6 synthetic remains available in paragraph mode")
 	}
 	services := ot.Services{}
-	resolver, err := typography.LoadSettings(ctx, input.fonts.Settings, typography.Services{Loader: services, Coverage: services})
+	selection, err := fontselection.Prepare(ctx, input.fonts)
+	if err != nil {
+		return nil, fmt.Errorf("document fonts: %w", err)
+	}
+	resolver, err := typography.NewResolver(ctx, selection.Fonts, services)
 	if err != nil {
 		return nil, fmt.Errorf("document fonts: %w", err)
 	}

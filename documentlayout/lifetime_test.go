@@ -19,6 +19,7 @@ import (
 	"github.com/npillmayer/typography/fontresource"
 	"github.com/npillmayer/typography/paragraph"
 
+	"tytui/fontselection"
 	"tytui/htmlinput"
 )
 
@@ -292,7 +293,7 @@ func TestNestedResizeFailureRecoveryAndLifetime(t *testing.T) {
 						return helpers.NewSyntheticStreamingShaper(8)
 					}
 				case strings.HasPrefix(fault, "assembly"):
-					resolver, err := typography.LoadSettings(t.Context(), typography.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, typography.Services{
+					resolver, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{
 						Loader: lifetimeFaultLoader{metrics: func() error {
 							if len(i.groups) == 1 {
 								hits++

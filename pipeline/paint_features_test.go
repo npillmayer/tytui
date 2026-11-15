@@ -14,10 +14,12 @@ import (
 	layout "github.com/npillmayer/typography/paragraph"
 	"github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
+
+	"tytui/fontselection"
 )
 
 func TestPaintCoalescingPreservesRelativeFeatureDomains(t *testing.T) {
-	r, err := typography.LoadSettings(context.Background(), typography.Settings{DefaultPath: "../../opentype/testdata/fonts/ShaperTestProgress.ttf", Size: 12 * dimen.BP}, typography.Services{Loader: otadapter.Services{}, Coverage: otadapter.Services{}})
+	r, err := loadResolver(context.Background(), fontselection.Settings{DefaultPath: "../../opentype/testdata/fonts/ShaperTestProgress.ttf", Size: 12 * dimen.BP}, testServices{Loader: otadapter.Services{}, Coverage: otadapter.Services{}})
 	if err != nil {
 		t.Fatal(err)
 	}

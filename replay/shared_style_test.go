@@ -8,16 +8,15 @@ import (
 	"testing"
 
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	fontdiscovery "github.com/npillmayer/typography/discovery"
 	typestyle "github.com/npillmayer/typography/style"
 
+	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
 func TestSharedStylesOfflineReplay(t *testing.T) {
 	s := typestyle.Style{Family: "serif", EmSize: 12 * dimen.BP, Weight: 400, Slant: "normal", Color: "red", Language: "en", WhiteSpace: "normal", UnicodeBidi: "normal"}
-	original, err := pipeline.Run(context.Background(), pipeline.Input{Text: "éa", Width: 100 * dimen.BP, Styles: []typestyle.Span{{Start: 0, End: 3, Style: s}}, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: latin, Size: 10 * dimen.BP}}})
+	original, err := pipeline.Run(context.Background(), pipeline.Input{Text: "éa", Width: 100 * dimen.BP, Styles: []typestyle.Span{{Start: 0, End: 3, Style: s}}, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: latin, Size: 10 * dimen.BP}})})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -11,11 +11,9 @@ import (
 	"github.com/npillmayer/fontfind"
 	"github.com/npillmayer/fontfind/locate/fallbackfont"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	findadapter "github.com/npillmayer/typography/adapter/fontfind"
-	fontdiscovery "github.com/npillmayer/typography/discovery"
 	"github.com/npillmayer/typography/fontresource"
 
+	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
@@ -27,19 +25,19 @@ func TestOfflineResourceProof(t *testing.T) {
 	fsys := fstest.MapFS{"same.ttf": &fstest.MapFile{Data: data}}
 	sf := fontfind.ScalableFont{Name: "Gentium"}
 	sf.SetFS(fsys, "same.ttf")
-	resource, err := findadapter.ReadResource(sf, "fixture", findadapter.Request(fontfind.Descriptor{Pattern: "Gentium"}))
+	resource, err := fontselection.ReadResource(sf, "fixture", fontselection.ResourceRequest(fontfind.Descriptor{Pattern: "Gentium"}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Removing the resource filesystem entry cannot affect its immutable snapshot.
 	delete(fsys, "same.ttf")
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-		input := pipeline.Input{Text: "office café", Width: 100 * dimen.BP, Breaker: breaker, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}}
+		input := pipeline.Input{Text: "office café", Width: 100 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})}
 		file, err := pipeline.Run(context.Background(), input)
 		if err != nil {
 			t.Fatal(err)
 		}
-		input.Fonts = &fontdiscovery.Resolution{Settings: typography.Settings{DefaultResource: resource, Size: 12 * dimen.BP}}
+		input.Fonts = selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultResource: resource, Size: 12 * dimen.BP}})
 		resolved, err := pipeline.Run(context.Background(), input)
 		if err != nil {
 			t.Fatal(err)
@@ -85,7 +83,7 @@ func TestResourceMappingAndFallback(t *testing.T) {
 	latin, hebrewResource := load(gentium), load(hebrew)
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
 		e := styledInput(t, `<p dir="rtl">אב<span style="font-weight:bold">ab</span></p>`)
-		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultResource: latin, Size: 12 * dimen.BP, FallbackResources: []*fontresource.Resource{hebrewResource}, Rules: []typography.Rule{{Weight: 700, Resource: latin}}}}})
+		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultResource: latin, Size: 12 * dimen.BP, FallbackResources: []*fontresource.Resource{hebrewResource}, Rules: []fontselection.Rule{{Weight: 700, Resource: latin}}}})})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -107,11 +105,11 @@ func TestPackagedFontResource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resource, err := findadapter.ReadResource(sf, "embedded", findadapter.Request(fontfind.Descriptor{Pattern: "Gentium"}))
+	resource, err := fontselection.ReadResource(sf, "embedded", fontselection.ResourceRequest(fontfind.Descriptor{Pattern: "Gentium"}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "office", Width: 100 * dimen.BP, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultResource: resource, Size: 12 * dimen.BP}}})
+	r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "office", Width: 100 * dimen.BP, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultResource: resource, Size: 12 * dimen.BP}})})
 	if err != nil {
 		t.Fatal(err)
 	}

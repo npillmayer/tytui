@@ -9,16 +9,17 @@ import (
 
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/typography"
-	"github.com/npillmayer/typography/discovery"
 	"github.com/npillmayer/typography/paragraph"
+
+	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
 func TestLineHeightReplayVersion3(t *testing.T) {
-	for _, fonts := range []*discovery.Resolution{nil, {Settings: typography.Settings{DefaultPath: latin, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}}} {
+	for _, fonts := range []*fontselection.Request{nil, {Settings: fontselection.Settings{DefaultPath: latin, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}}} {
 		for _, b := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
 			for _, paint := range []typography.PaintPolicy{typography.GlyphBoundary, typography.LegacyStyleBoundary} {
-				in := pipeline.Input{Text: "fi ab\u00adcd שָׁלוֹם", Width: 80 * dimen.BP, Breaker: b, PaintPolicy: paint, Fonts: fonts, LineLayout: &paragraph.LineLayout{Default: paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 1.5}, Runs: []paragraph.LineHeightSpan{{Start: 1, End: 2, Height: paragraph.LineHeight{Kind: paragraph.LengthHeight, Length: 30 * dimen.BP}}}}}
+				in := pipeline.Input{Text: "fi ab\u00adcd שָׁלוֹם", Width: 80 * dimen.BP, Breaker: b, PaintPolicy: paint, Fonts: selectFonts(t, fonts), LineLayout: &paragraph.LineLayout{Default: paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 1.5}, Runs: []paragraph.LineHeightSpan{{Start: 1, End: 2, Height: paragraph.LineHeight{Kind: paragraph.LengthHeight, Length: 30 * dimen.BP}}}}}
 				out, err := pipeline.Run(t.Context(), in)
 				if err != nil {
 					t.Fatal(err)

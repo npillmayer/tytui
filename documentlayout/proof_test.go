@@ -22,7 +22,9 @@ import (
 	"github.com/npillmayer/typography/paragraph"
 	"github.com/npillmayer/typography/render"
 	xbidi "golang.org/x/text/unicode/bidi"
+
 	"tytui/documentlayout"
+	"tytui/fontselection"
 )
 
 type cellProof struct{ fail error }
@@ -151,7 +153,7 @@ func TestDocumentProofRetainedMultilineBaselines(t *testing.T) {
 func realConfig(t *testing.T) documentlayout.Config {
 	t.Helper()
 	s := ot.Services{}
-	r, err := typography.LoadSettings(t.Context(), typography.Settings{DefaultPath: "../../opentype/testdata/fonts/GentiumPlus-R.ttf", Fallbacks: []string{"../../opentype/testdata/fonts/NotoSansHebrew-Regular.ttf"}, Size: 15 * dimen.BP}, typography.Services{Loader: s, Coverage: s})
+	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "../../opentype/testdata/fonts/GentiumPlus-R.ttf", Fallbacks: []string{"../../opentype/testdata/fonts/NotoSansHebrew-Regular.ttf"}, Size: 15 * dimen.BP}, testServices{Loader: s, Coverage: s})
 	if err != nil {
 		t.Fatal(err)
 	}

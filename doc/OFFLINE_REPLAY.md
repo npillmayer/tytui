@@ -1,5 +1,10 @@
 # Font manifests and offline paragraph replay
 
+The proposed [replay simplification plan](REPLAY_SIMPLIFICATION_PLAN.md) replaces
+multi-version compatibility with one current experimental format and retires
+legacy shaping/color policies. It is not implemented yet; the behavior below
+describes the current versions 1–3.
+
 The headless `tytui/replay` package reads versions 1–3 and uses a separate local
 font content store. Compatibility layouts save as version 1 or 2; explicit
 line-height layouts save as version 3. It supports OpenType and synthetic results.

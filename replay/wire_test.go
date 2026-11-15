@@ -6,8 +6,9 @@ import (
 	"testing"
 
 	"github.com/npillmayer/typography"
-	"github.com/npillmayer/typography/discovery"
 	"github.com/npillmayer/typography/fontresource"
+
+	"tytui/fontselection"
 )
 
 func TestWireProvenanceCodesAndFieldNames(t *testing.T) {
@@ -33,7 +34,7 @@ func TestWireProvenanceCodesAndFieldNames(t *testing.T) {
 			t.Fatal("unknown provenance codes lost")
 		}
 	}
-	diagnostics := []discovery.FontDiagnostic{{Stage: "resolved", Request: fontresource.Request{Pattern: "A", Style: fontresource.Italic, Weight: fontresource.Bold}, Substituted: true}}
+	diagnostics := []fontselection.FontDiagnostic{{Stage: "resolved", Request: fontresource.Request{Pattern: "A", Style: fontresource.Italic, Weight: fontresource.Bold}, Substituted: true}}
 	if !reflect.DeepEqual(diagnosticsNative(diagnosticsWire(diagnostics)), diagnostics) {
 		t.Fatal("diagnostics changed")
 	}

@@ -12,6 +12,8 @@ import (
 	"github.com/npillmayer/typography"
 	"github.com/npillmayer/typography/fontresource"
 	"github.com/npillmayer/typography/paragraph"
+
+	"tytui/fontselection"
 )
 
 type syntheticLoader struct{}
@@ -33,7 +35,7 @@ func (syntheticLoader) Load(ctx context.Context, path string, r *fontresource.Re
 func TestExtractedGroupsFeedPreparedParagraphs(t *testing.T) {
 	d, _, _ := build(t, `<div id="root" style="font-size:20px"><span style="display:inline-block;width:20px;font-size:30px">éאב</span></div>`)
 	var markerQueries int
-	r, err := typography.LoadSettings(t.Context(), typography.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, typography.Services{Loader: syntheticLoader{}, Coverage: typography.CoverageFunc(func(_ contracts.FontFace, c rune) (uint32, error) {
+	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{Loader: syntheticLoader{}, Coverage: typography.CoverageFunc(func(_ contracts.FontFace, c rune) (uint32, error) {
 		if c == '\uFFFC' {
 			markerQueries++
 		}

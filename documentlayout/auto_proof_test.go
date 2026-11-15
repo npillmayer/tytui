@@ -20,7 +20,9 @@ import (
 	"github.com/npillmayer/typography/paragraph"
 	"github.com/npillmayer/typography/render"
 	xbidi "golang.org/x/text/unicode/bidi"
+
 	"tytui/documentlayout"
+	"tytui/fontselection"
 	"tytui/htmlinput"
 )
 
@@ -126,7 +128,7 @@ func (s proofGuardStream) Shape(ctx context.Context, p contracts.ShapeParams, te
 func guardedRealProofConfig(t *testing.T) (documentlayout.Config, *proofServiceGuard) {
 	t.Helper()
 	g := new(proofServiceGuard)
-	r, err := typography.LoadSettings(t.Context(), typography.Settings{DefaultPath: "../../opentype/testdata/fonts/GentiumPlus-R.ttf", Fallbacks: []string{"../../opentype/testdata/fonts/NotoSansHebrew-Regular.ttf"}, Size: 15 * dimen.BP}, typography.Services{Loader: g, Coverage: g})
+	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "../../opentype/testdata/fonts/GentiumPlus-R.ttf", Fallbacks: []string{"../../opentype/testdata/fonts/NotoSansHebrew-Regular.ttf"}, Size: 15 * dimen.BP}, testServices{Loader: g, Coverage: g})
 	if err != nil {
 		t.Fatal(err)
 	}

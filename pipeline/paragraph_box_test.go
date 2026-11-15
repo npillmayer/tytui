@@ -8,8 +8,8 @@ import (
 	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/typography"
-	"github.com/npillmayer/typography/discovery"
 
+	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
@@ -20,9 +20,9 @@ func TestBoxedVListPreservesProofGeometry(t *testing.T) {
 		for _, policy := range []typography.PaintPolicy{typography.GlyphBoundary, typography.LegacyStyleBoundary} {
 			for _, width := range []dimen.DU{90 * dimen.BP, 600 * dimen.BP} {
 				e := styledInput(t, `<p dir="rtl" lang="he" style="font-size:13.3pt;color:navy">שָׁלוֹם אב&shy;גד <span lang="en" style="font-size:24pt;color:red">office café</span> עולם hello שָׁלוֹם</p>`)
-				r, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: width, Breaker: breaker, PaintPolicy: policy, Fonts: &discovery.Resolution{Settings: typography.Settings{
+				r, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: width, Breaker: breaker, PaintPolicy: policy, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{
 					DefaultPath: "../../opentype/testdata/fonts/GentiumPlus-R.ttf", Size: 12 * dimen.BP, Fallbacks: []string{hebrew},
-				}}})
+				}})})
 				if err != nil {
 					t.Fatal(err)
 				}

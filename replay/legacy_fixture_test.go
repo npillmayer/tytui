@@ -26,7 +26,7 @@ func TestPreStep5VersionOneFixtures(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if result.Input.Fonts.DescriptorInput.Default.Families[0] != "serif" || result.Input.Fonts.DiscoveryPolicy.Providers[0] != "fixture" {
+			if result.Input.Fonts.Provenance.DescriptorInput.Default.Families[0] != "serif" || result.Input.Fonts.Provenance.DiscoveryPolicy.Providers[0] != "fixture" {
 				t.Fatal("legacy policy lost")
 			}
 			if result.Identity == nil || result.Renderer == nil {

@@ -13,6 +13,8 @@ import (
 	"github.com/npillmayer/khipu/helpers"
 	"github.com/npillmayer/typography"
 	"github.com/npillmayer/typography/paragraph"
+
+	"tytui/fontselection"
 )
 
 type preparationCalls struct{ shape, coverage int }
@@ -20,7 +22,7 @@ type preparationCalls struct{ shape, coverage int }
 func countPreparation(t *testing.T, i *invocation) *preparationCalls {
 	t.Helper()
 	calls := new(preparationCalls)
-	r, err := typography.LoadSettings(t.Context(), typography.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, typography.Services{
+	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{
 		Loader: boundaryLoader{}, Coverage: typography.CoverageFunc(func(contracts.FontFace, rune) (uint32, error) {
 			calls.coverage++
 			return 1, nil

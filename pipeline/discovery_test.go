@@ -10,11 +10,9 @@ import (
 	"github.com/npillmayer/fontfind"
 	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/khipu/dimen"
-	findadapter "github.com/npillmayer/typography/adapter/fontfind"
-	otadapter "github.com/npillmayer/typography/adapter/opentype"
-	fontdiscovery "github.com/npillmayer/typography/discovery"
 	"github.com/npillmayer/uax/bidi"
 
+	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
@@ -29,28 +27,24 @@ func TestDescriptorCoverageThroughFreezing(t *testing.T) {
 		sf.SetFS(fstest.MapFS{"font.ttf": &fstest.MapFile{Data: data}}, "font.ttf")
 		catalog[name] = sf
 	}
-	search, err := findadapter.New([]findadapter.OfflineProvider{{Name: "offline", Find: func(_ context.Context, d fontfind.Descriptor) (findadapter.Match, error) {
+	session, err := fontselection.New([]fontselection.OfflineProvider{{Name: "offline", Find: func(_ context.Context, d fontfind.Descriptor) (fontselection.Match, error) {
 		sf, ok := catalog[d.Pattern]
 		if !ok {
-			return findadapter.Match{Font: catalog["Latin"], Reason: "explicit catalog default"}, fmt.Errorf("missing %s", d.Pattern)
+			return fontselection.Match{Font: catalog["Latin"], Reason: "explicit catalog default"}, fmt.Errorf("missing %s", d.Pattern)
 		}
-		return findadapter.Match{Font: sf, Exact: true}, nil
-	}}})
+		return fontselection.Match{Font: sf, Exact: true}, nil
+	}}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, err := fontdiscovery.New(search, otadapter.Services{}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	settings, diagnostics, err := session.ResolveSettings(context.Background(), fontdiscovery.DescriptorSettings{Default: fontdiscovery.FontRequest{Families: []string{"Absent"}, AllowSubstitution: true}, Fallbacks: []fontdiscovery.FontRequest{{Families: []string{"Hebrew"}}}, Rules: []fontdiscovery.DescriptorRule{{Weight: 700, Request: fontdiscovery.FontRequest{Families: []string{"Latin"}}}}, Size: 12 * dimen.BP})
+	settings, diagnostics, err := session.ResolveSettings(context.Background(), fontselection.DescriptorSettings{Default: fontselection.FontRequest{Families: []string{"Absent"}, AllowSubstitution: true}, Fallbacks: []fontselection.FontRequest{{Families: []string{"Hebrew"}}}, Rules: []fontselection.DescriptorRule{{Weight: 700, Request: fontselection.FontRequest{Families: []string{"Latin"}}}}, Size: 12 * dimen.BP})
 	if err != nil {
 		t.Fatal(err)
 	}
 	diagnostics[0].Message = "caller mutation"
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
 		for _, width := range []dimen.DU{20 * dimen.BP, 100 * dimen.BP} {
-			r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "אב\u00adגד", Direction: bidi.RightToLeft, Width: width, Breaker: breaker, Fonts: settings})
+			r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "אב\u00adגד", Direction: bidi.RightToLeft, Width: width, Breaker: breaker, Fonts: selectFonts(t, settings)})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -80,7 +74,7 @@ func TestDescriptorCoverageThroughFreezing(t *testing.T) {
 			if _, err := pipeline.BuildGlyphProof(r); err != nil {
 				t.Fatal(err)
 			}
-			r.Input.Fonts.ResolutionDiagnostics[0].Message = "input mutation"
+			r.Input.Fonts.Provenance.ResolutionDiagnostics[0].Message = "input mutation"
 			if r.FontDiagnostics[0].Message == "input mutation" || settings.ResolutionDiagnostics[0].Message == "input mutation" {
 				t.Fatal("aliased retained diagnostics")
 			}

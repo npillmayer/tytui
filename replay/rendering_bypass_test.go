@@ -8,9 +8,9 @@ import (
 
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/typography"
-	fontdiscovery "github.com/npillmayer/typography/discovery"
 	"github.com/npillmayer/typography/style"
 
+	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
@@ -23,7 +23,7 @@ func TestRenderingBypassReplayKeepsWireColorsAndPolicies(t *testing.T) {
 				blue.Color = "blue"
 				in := pipeline.Input{Text: "\nfi\n", Width: 100 * dimen.BP, Breaker: breaker, PaintPolicy: policy,
 					Styles: []style.Span{{Start: 0, End: 1, Style: red}, {Start: 1, End: 2, Style: blue}},
-					Fonts:  &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: latin, Size: 12 * dimen.BP}}}
+					Fonts:  selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: latin, Size: 12 * dimen.BP}})}
 				original, err := pipeline.Run(context.Background(), in)
 				if err != nil {
 					t.Fatal(err)

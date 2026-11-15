@@ -16,6 +16,7 @@ import (
 	"github.com/npillmayer/typography/fontresource"
 	"github.com/npillmayer/typography/paragraph"
 
+	"tytui/fontselection"
 	"tytui/htmlinput"
 )
 
@@ -148,7 +149,7 @@ func boundaryInvocation(t *testing.T, source ...string) *invocation {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := typography.LoadSettings(t.Context(), typography.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, typography.Services{Loader: boundaryLoader{}, Coverage: typography.CoverageFunc(func(contracts.FontFace, rune) (uint32, error) { return 1, nil })})
+	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{Loader: boundaryLoader{}, Coverage: typography.CoverageFunc(func(contracts.FontFace, rune) (uint32, error) { return 1, nil })})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,6 +1,8 @@
 package documentlayout
 
 import (
+	"testing"
+
 	box "github.com/npillmayer/css-box-layout/layout"
 	boxtext "github.com/npillmayer/css-box-layout/text"
 	"github.com/npillmayer/khipu/contracts"
@@ -11,7 +13,8 @@ import (
 	"github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
 	"golang.org/x/net/html"
-	"testing"
+
+	"tytui/fontselection"
 )
 
 // Typed normalization/flow fixture: no HTML/CSS parser supplies expected widths
@@ -57,7 +60,7 @@ func TestTypedNestedFixedSizeIntegration(t *testing.T) {
 		}
 	}
 	index(root, nil)
-	r, err := typography.LoadSettings(t.Context(), typography.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, typography.Services{Loader: boundaryLoader{}, Coverage: typography.CoverageFunc(func(contracts.FontFace, rune) (uint32, error) { return 1, nil })})
+	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{Loader: boundaryLoader{}, Coverage: typography.CoverageFunc(func(contracts.FontFace, rune) (uint32, error) { return 1, nil })})
 	if err != nil {
 		t.Fatal(err)
 	}

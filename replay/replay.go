@@ -18,9 +18,9 @@ import (
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/typography"
 	otadapter "github.com/npillmayer/typography/adapter/opentype"
-	fontdiscovery "github.com/npillmayer/typography/discovery"
 	"github.com/npillmayer/typography/fontresource"
 
+	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
@@ -48,12 +48,12 @@ type Rule struct {
 	Slant, ResourceID, RequestedPath string
 }
 type Selection struct {
-	Policy                 *fontdiscovery.DiscoveryPolicy
+	Policy                 *wirePolicy
 	Default, RequestedPath string
 	Rules                  []Rule
 	Fallbacks              []string
 	RequestedFallbackPaths []string
-	Descriptors            *fontdiscovery.DescriptorSettings
+	Descriptors            *wireDescriptors
 	Size                   int32
 	Diagnostics            []wireDiagnostic
 }
@@ -62,7 +62,7 @@ type Manifest struct {
 	Evidence       Evidence
 	Version        int
 	Units          string
-	Input          pipeline.Input // Fonts is always nil; Selection contains pinned references.
+	Input          wireInput // Fonts is always nil; Selection contains pinned references.
 	Fonts          []Font
 	Selection      *Selection
 	Bindings       []wireBinding
@@ -101,7 +101,7 @@ func Save(ctx context.Context, result *pipeline.Result, manifestPath, store stri
 	if len(revisions) == 0 {
 		return fmt.Errorf("source revisions required; use CaptureRevisions at layout time")
 	}
-	m := Manifest{GoVersion: runtime.Version(), Version: Version, Units: "65536 DU per big point; 72 big points per inch", Input: result.Input, Bindings: bindingsWire(result.FontBindings), Revisions: append([]Revision(nil), revisions...), Diagnostics: append([]pipeline.Diagnostic(nil), result.Diagnostics...), ParagraphText: result.ParagraphText, BreakPositions: append([]uint64(nil), result.BreakPositions...)}
+	m := Manifest{GoVersion: runtime.Version(), Version: Version, Units: "65536 DU per big point; 72 big points per inch", Input: inputWire(result.Input), Bindings: bindingsWire(result.FontBindings), Revisions: append([]Revision(nil), revisions...), Diagnostics: append([]pipeline.Diagnostic(nil), result.Diagnostics...), ParagraphText: result.ParagraphText, BreakPositions: append([]uint64(nil), result.BreakPositions...)}
 	m.Input.LineLayout = result.LineLayout()
 	if m.Input.LineLayout != nil {
 		m.Version = LineHeightVersion
@@ -121,7 +121,13 @@ func Save(ctx context.Context, result *pipeline.Result, manifestPath, store stri
 			return fmt.Errorf("result lacks pinned fonts; rerun layout")
 		}
 		settings := result.FontSnapshot
-		sel := &Selection{Policy: result.Input.Fonts.DiscoveryPolicy.Clone(), Size: int32(settings.Size), RequestedPath: result.Input.Fonts.DefaultPath, RequestedFallbackPaths: append([]string(nil), result.Input.Fonts.Fallbacks...), Descriptors: result.Input.Fonts.DescriptorInput.Clone(), Diagnostics: diagnosticsWire(result.Input.Fonts.ResolutionDiagnostics)}
+		provenance := result.FontProvenance()
+		sel := &Selection{Policy: policyWire(provenance.DiscoveryPolicy), Size: int32(settings.Size), RequestedPath: provenance.RequestedPath, RequestedFallbackPaths: append([]string(nil), provenance.RequestedFallbackPaths...), Descriptors: descriptorsWire(provenance.DescriptorInput), Diagnostics: diagnosticsWire(provenance.ResolutionDiagnostics)}
+		resources := map[string]*fontresource.Resource{}
+		for _, face := range settings.Faces {
+			resources[face.Info.ResourceID] = face.Resource
+		}
+
 		m.Selection = sel
 		seen := map[string]bool{}
 		pin := func(r *fontresource.Resource) (string, error) {
@@ -154,19 +160,19 @@ func Save(ctx context.Context, result *pipeline.Result, manifestPath, store stri
 			return info.ResourceID, nil
 		}
 		var err error
-		sel.Default, err = pin(settings.DefaultResource)
+		sel.Default, err = pin(resources[settings.Default])
 		if err != nil {
 			return err
 		}
 		for i, rule := range settings.Rules {
-			id, err := pin(rule.Resource)
+			id, err := pin(resources[rule.ResourceID])
 			if err != nil {
 				return err
 			}
-			sel.Rules = append(sel.Rules, Rule{Family: rule.Family, Weight: rule.Weight, Slant: rule.Slant, ResourceID: id, RequestedPath: result.Input.Fonts.Rules[i].Path})
+			sel.Rules = append(sel.Rules, Rule{Family: rule.Family, Weight: rule.Weight, Slant: rule.Slant, ResourceID: id, RequestedPath: requestedRulePath(provenance, i)})
 		}
-		for _, resource := range settings.FallbackResources {
-			id, err := pin(resource)
+		for _, resource := range settings.Fallbacks {
+			id, err := pin(resources[resource])
 			if err != nil {
 				return err
 			}
@@ -271,13 +277,14 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 	} else if m.Version == LineHeightVersion && m.Input.PaintPolicy != typography.GlyphBoundary && m.Input.PaintPolicy != typography.LegacyStyleBoundary {
 		return nil, fmt.Errorf("version 3 requires an explicit paint policy")
 	}
-	if m.Input.Fonts != nil {
+	if m.Input.hasFonts() {
 		return nil, fmt.Errorf("manifest contains unpinned font settings")
 	}
 	if m.Input.Source != nil && m.Input.Source.OriginalHTML != "" && digest([]byte(m.Input.Source.OriginalHTML)) != m.Input.Source.DocumentID {
 		return nil, fmt.Errorf("HTML source hash mismatch")
 	}
-	resources := map[string]*fontresource.Resource{}
+	input := m.Input.native()
+	resources := map[string]typography.FaceEntry{}
 	for _, entry := range m.Fonts {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -307,41 +314,43 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 		if info.ResourceID != entry.Info.ResourceID || info.Family != entry.Info.Family || info.Subfamily != entry.Info.Subfamily || info.Path != entry.Info.Path {
 			return nil, fmt.Errorf("font identity mismatch for %s", entry.Info.SHA256)
 		}
-		resources[entry.Info.ResourceID] = resource
+		resources[entry.Info.ResourceID] = loaded
 	}
 	if m.Selection != nil {
 		sel := m.Selection
-		get := func(id string) (*fontresource.Resource, error) {
-			r, ok := resources[id]
+		s := &fontselection.Selection{Fonts: typography.SelectedFonts{Default: sel.Default, Size: dimen.DU(sel.Size)}, Provenance: fontselection.Provenance{DiscoveryPolicy: sel.Policy.native(), DescriptorInput: sel.Descriptors.native(), ResolutionDiagnostics: diagnosticsNative(sel.Diagnostics)}}
+		seen := map[string]bool{}
+		use := func(id string) error {
+			entry, ok := resources[id]
 			if !ok {
-				return nil, fmt.Errorf("unresolved font reference %q", id)
+				return fmt.Errorf("unresolved font reference %q", id)
 			}
-			return r, nil
+			if !seen[id] {
+				seen[id] = true
+				s.Fonts.Faces = append(s.Fonts.Faces, entry)
+			}
+			return nil
 		}
-		s := &fontdiscovery.Resolution{Settings: typography.Settings{Size: dimen.DU(sel.Size)}, DiscoveryPolicy: sel.Policy.Clone(), DescriptorInput: sel.Descriptors.Clone(), ResolutionDiagnostics: diagnosticsNative(sel.Diagnostics)}
-		s.DefaultResource, err = get(sel.Default)
-		if err != nil {
+		if err := use(sel.Default); err != nil {
 			return nil, err
 		}
 		for _, rule := range sel.Rules {
-			r, err := get(rule.ResourceID)
-			if err != nil {
+			if err := use(rule.ResourceID); err != nil {
 				return nil, err
 			}
-			s.Rules = append(s.Rules, typography.Rule{Family: rule.Family, Weight: rule.Weight, Slant: rule.Slant, Resource: r})
+			s.Fonts.Rules = append(s.Fonts.Rules, typography.SelectedRule{Family: rule.Family, Weight: rule.Weight, Slant: rule.Slant, ResourceID: rule.ResourceID})
 		}
 		for _, id := range sel.Fallbacks {
-			r, err := get(id)
-			if err != nil {
+			if err := use(id); err != nil {
 				return nil, err
 			}
-			s.FallbackResources = append(s.FallbackResources, r)
+			s.Fonts.Fallbacks = append(s.Fonts.Fallbacks, id)
 		}
-		m.Input.Fonts = s
+		input.Fonts = s
 	} else if len(m.Fonts) > 0 || len(m.Bindings) > 0 {
 		return nil, fmt.Errorf("fonts without selection")
 	}
-	result, err := pipeline.Run(ctx, m.Input)
+	result, err := pipeline.Run(ctx, input)
 	if err != nil {
 		return nil, err
 	}
@@ -362,4 +371,11 @@ func readFontSource(source typography.FontSource) ([]byte, error) {
 	reader := source.Open()
 	defer reader.Close()
 	return readBounded(reader)
+}
+
+func requestedRulePath(p fontselection.Provenance, i int) string {
+	if i < len(p.RequestedRulePaths) {
+		return p.RequestedRulePaths[i]
+	}
+	return ""
 }

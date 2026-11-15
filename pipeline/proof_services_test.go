@@ -7,9 +7,9 @@ import (
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/typography"
-	fontdiscovery "github.com/npillmayer/typography/discovery"
 	"github.com/npillmayer/typography/render"
 
+	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
@@ -35,7 +35,7 @@ func (s *proofOutlines) Outline(contracts.FontFace, uint32) (render.Outline, err
 	return render.Outline{Path: "M0 0 L1 1 ", Points: []render.Point{{X: 0, Y: 0}, {X: 1, Y: 1}}}, nil
 }
 func TestFrozenProofUsesInjectedServices(t *testing.T) {
-	r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "office", Width: 100 * dimen.BP, Fonts: &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}})
+	r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "office", Width: 100 * dimen.BP, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})})
 	if err != nil {
 		t.Fatal(err)
 	}

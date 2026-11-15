@@ -242,19 +242,35 @@ behavior are unchanged. The backend-independent paragraph engine is
 `typography/paragraph.Run`; pipeline.Run wires the selected backend and prepares
 its input. The former `pipeline/internal/layout` package is removed.
 
-The typography resolver is now extracted too: mapping, itemization, coverage policy
-and pinned snapshots live in the root `typography` package behind explicit loader
-and coverage services. Application wiring supplies `opentype.Services` explicitly.
-`pipeline.Input.Fonts` accepts `*discovery.Resolution`, embedding `typography.Settings`
-with request/policy diagnostics. `Result.FontSnapshot` retains pinned settings;
-request metadata remains in the detached input. No generic constructor selects a backend.
+The root `typography` resolver receives already loaded fonts: `SelectedFonts`
+contains a closed table of `FaceEntry` values plus default, style-rule and ordered
+fallback references. `NewResolver(ctx, fonts, coverage)` validates that table and
+performs no loading or discovery. OpenType parsing and retained rendering services
+remain in `typography/adapter/opentype`.
 
-Discovery is split between neutral `typography/discovery` session policy and the
-controlled `typography/adapter/fontfind` provider adapter. F5's offline catalog is
-unchanged. Frozen proof and replay consumers now use injected rendering/identity
-services; the OpenType adapter owns outlines and visual glyph ordering. Version-1
-and version-2 replay compatibility is verified against static pre-migration manifests.
-Explicit serialization records in `replay/wire.go` preserve the existing wire format.
+[`fontselection`](fontselection/README.md) owns application requests, controlled
+fontfind providers, generic mappings, substitution policy and session caches.
+`Prepare(ctx, request)` loads explicit selections before layout. `pipeline.Input.Fonts`
+accepts its `*Selection`; nil selects synthetic. `Result.FontSnapshot` contains
+`*typography.SelectedFonts`, and `FontProvenance()` returns detached application
+evidence. The TUI keeps editable requests and prepares fresh faces per run, so
+previewing a file does not pin that pathname forever.
+
+```go
+selected, err := fontselection.Prepare(ctx, &fontselection.Request{
+    Settings: fontselection.Settings{DefaultPath: path, Size: 12 * dimen.BP},
+})
+if err != nil { return err }
+result, err := pipeline.Run(ctx, pipeline.Input{
+    Text: "office", Width: 200 * dimen.BP, Fonts: selected,
+})
+```
+
+This replaces `discovery.Resolution` and root `LoadSettings`/`Settings`; typography's
+old discovery/fontfind packages are removed. Replay's explicit input, policy,
+descriptor and font records in `replay/wire.go` preserve versions 1, 2 and 3.
+Replay uses retained bytes and stored origins; requested paths and descriptors
+never trigger discovery. Static pre-migration fixtures remain unchanged.
 
 New layouts use glyph-boundary colors: paint changes preserve shaping, ligatures
 remain one color, and independently anchored marks may have their own color.

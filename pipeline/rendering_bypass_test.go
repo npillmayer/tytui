@@ -7,9 +7,9 @@ import (
 
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/typography"
-	fontdiscovery "github.com/npillmayer/typography/discovery"
 	"github.com/npillmayer/typography/style"
 
+	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
@@ -45,7 +45,7 @@ func TestRenderingBypassSeparatesPaintFromTypesetterAndInput(t *testing.T) {
 							in.Source, in.Styles, in.Text = nil, e.Styles, "\nfi \n"
 						}
 						if backend == "OpenType" {
-							in.Fonts = &fontdiscovery.Resolution{Settings: typography.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}
+							in.Fonts = selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})
 						}
 						r, err := pipeline.Run(context.Background(), in)
 						if err != nil {

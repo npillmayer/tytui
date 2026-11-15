@@ -13,13 +13,13 @@ import (
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/typography"
-	"github.com/npillmayer/typography/discovery"
 	"github.com/npillmayer/typography/paragraph"
 	"github.com/npillmayer/typography/render"
 	"github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
 	xbidi "golang.org/x/text/unicode/bidi"
 
+	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
@@ -138,8 +138,8 @@ func TestRetainedPlacementsSurviveInputMutationAndSourceRemoval(t *testing.T) {
 					t.Fatal(err)
 				}
 				e := styledInput(t, html)
-				fonts := &discovery.Resolution{Settings: typography.Settings{DefaultPath: path, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}}
-				r, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, PaintPolicy: policy, Fonts: fonts})
+				fonts := &fontselection.Request{Settings: fontselection.Settings{DefaultPath: path, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}}
+				r, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, PaintPolicy: policy, Fonts: selectFonts(t, fonts)})
 				if err != nil {
 					t.Fatal(err)
 				}

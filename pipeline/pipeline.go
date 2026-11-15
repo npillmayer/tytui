@@ -15,12 +15,12 @@ import (
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/typography"
 	otadapter "github.com/npillmayer/typography/adapter/opentype"
-	fontdiscovery "github.com/npillmayer/typography/discovery"
 	parlayout "github.com/npillmayer/typography/paragraph"
 	"github.com/npillmayer/typography/render"
 	typestyle "github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
 
+	"tytui/fontselection"
 	"tytui/htmlinput"
 	"tytui/paragraphtext"
 )
@@ -36,7 +36,7 @@ const (
 // Input describes one explicit paragraph. Plain input whitespace is collapsed
 // before shaping; results retain the original Input and a byte map. Width must
 // be a positive finite layout dimension, not terminal cells. Direction defaults
-// to left-to-right.
+// to left-to-right. Fonts must already be loaded; Run performs no discovery or I/O.
 type Input struct {
 	PaintPolicy typography.PaintPolicy `json:",omitempty"`
 	// LineLayout opts into CSS-inspired line boxes. Nil preserves proof geometry.
@@ -46,8 +46,8 @@ type Input struct {
 	// Styles optionally supplies complete byte spans in normalized paragraph text.
 	// Nil uses defaults. Mutually exclusive with Source. Direction is paragraph-wide;
 	// DOM isolates still enter through Source. Only normal whitespace is supported.
-	Styles    []typestyle.Span          `json:",omitempty"`
-	Fonts     *fontdiscovery.Resolution // Nil selects synthetic; nonnil always uses OpenType.
+	Styles    []typestyle.Span         `json:",omitempty"`
+	Fonts     *fontselection.Selection // Nil selects synthetic; nonnil always uses OpenType.
 	Text      string
 	Width     dimen.DU
 	Direction bidi.Direction
@@ -87,8 +87,9 @@ type Result struct {
 	paint           []typography.PaintSpan      // Detached rendering input; never passed to layout.
 	Identity        typography.IdentityProvider `json:"-"`
 	Renderer        render.Backend              `json:"-"`
-	FontSnapshot    *typography.Settings        // All configured fonts pinned at layout time.
-	FontDiagnostics []fontdiscovery.FontDiagnostic
+	fontProvenance  fontselection.Provenance
+	FontSnapshot    *typography.SelectedFonts // All configured fonts pinned at layout time.
+	FontDiagnostics []fontselection.FontDiagnostic
 	ParagraphText   string               // Processed text addressed by frozen ranges and glyph clusters.
 	TextSpans       []paragraphtext.Span // Plain input: processed bytes to Input.Text bytes; HTML uses Source.Spans.
 	Fonts           []typography.Info
@@ -145,7 +146,7 @@ func (e *StageError) Unwrap() error { return e.Err }
 
 // Run encodes with the selected backend (synthetic by default), breaks with
 // the selected breaker's default layout, freezes and assembles retained placements.
-// Each call owns fresh services and parsed fonts, so calls do not share an encoder.
+// Each call owns fresh encoding state; input faces are already loaded and retained.
 // Empty text is valid.
 //
 // Context must be nonnil. Cancellation is checked at stage boundaries and by
@@ -234,19 +235,21 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 	var identity typography.IdentityProvider
 	var renderer render.Backend
 	var fonts []typography.Info
-	var fontSnapshot *typography.Settings
-	var fontDiagnostics []fontdiscovery.FontDiagnostic
+	var fontSnapshot *typography.SelectedFonts
+	var fontProvenance fontselection.Provenance
+	var fontDiagnostics []fontselection.FontDiagnostic
 	var bindings []typography.Binding
 	if input.Fonts != nil {
 		input.Fonts = input.Fonts.Clone()
-		fontDiagnostics = append([]fontdiscovery.FontDiagnostic(nil), input.Fonts.ResolutionDiagnostics...)
-		resolver, err := typography.LoadSettings(ctx, input.Fonts.Settings, typography.Services{Loader: otadapter.Services{}, Coverage: otadapter.Services{}})
+		fontProvenance = input.Fonts.Provenance.Clone()
+		fontDiagnostics = append([]fontselection.FontDiagnostic(nil), input.Fonts.Provenance.ResolutionDiagnostics...)
+		resolver, err := typography.NewResolver(ctx, input.Fonts.Fonts, otadapter.Services{})
 		if err != nil {
 			return fail(StageFonts, err)
 		}
 		text, bindings, err = resolver.ItemizePolicy(ctx, paragraphText, spans, input.PaintPolicy)
 		if err != nil {
-			return fail(StageFonts, &fontdiscovery.ResolutionError{Stage: "coverage", Err: err})
+			return fail(StageFonts, &fontselection.ResolutionError{Stage: "coverage", Err: err})
 		}
 		fonts = resolver.Infos()
 		fontSnapshot = resolver.Snapshot()
@@ -292,7 +295,7 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 
 	return &Result{
 		vlist: completed.VList, lineLayout: lineLayout, paintPolicy: input.PaintPolicy,
-		paint: paint, Identity: identity, Renderer: renderer, FontSnapshot: fontSnapshot, FontDiagnostics: fontDiagnostics, ParagraphText: paragraphText, TextSpans: textSpans, Fonts: fonts, FontBindings: bindings, Input: input, Text: text, BreakPositions: completed.BreakPositions, Frozen: completed.Frozen, BidiRuns: completed.BidiRuns,
+		fontProvenance: fontProvenance, paint: paint, Identity: identity, Renderer: renderer, FontSnapshot: fontSnapshot, FontDiagnostics: fontDiagnostics, ParagraphText: paragraphText, TextSpans: textSpans, Fonts: fonts, FontBindings: bindings, Input: input, Text: text, BreakPositions: completed.BreakPositions, Frozen: completed.Frozen, BidiRuns: completed.BidiRuns,
 		Diagnostics: []Diagnostic{
 			// Preserve the successful stage transcript serialized by replay v1/v2.
 			// Assembly failures have their own StageAssemble error; no partial result
@@ -304,4 +307,12 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 			{StageFreeze, fmt.Sprintf("Froze %d lines", completed.Frozen.LineCount())},
 		},
 	}, nil
+}
+
+// FontProvenance returns detached application selection evidence used by replay.
+func (r *Result) FontProvenance() fontselection.Provenance {
+	if r == nil {
+		return fontselection.Provenance{}
+	}
+	return r.fontProvenance.Clone()
 }

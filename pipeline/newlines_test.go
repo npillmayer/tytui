@@ -8,17 +8,16 @@ import (
 
 	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	fontdiscovery "github.com/npillmayer/typography/discovery"
 
+	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
 func TestNewlinesAreWhitespaceBeforeShaping(t *testing.T) {
-	for _, fonts := range []*fontdiscovery.Resolution{nil, {Settings: typography.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}} {
+	for _, fonts := range []*fontselection.Request{nil, {Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}} {
 		for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
 			for _, tc := range []struct{ raw, want string }{{"\r\né\t a\r\n\r\nb\u2028c\u2029 \u00a0d\n", "é a b c \u00a0d"}, {"\r\n\n \t", ""}} {
-				r, err := pipeline.Run(context.Background(), pipeline.Input{Text: tc.raw, Width: 300 * dimen.BP, Fonts: fonts, Breaker: breaker})
+				r, err := pipeline.Run(context.Background(), pipeline.Input{Text: tc.raw, Width: 300 * dimen.BP, Fonts: selectFonts(t, fonts), Breaker: breaker})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -55,8 +54,8 @@ func TestHTMLNewlinesRetainDOMMapping(t *testing.T) {
 	if err := e.Validate(e.Text); err != nil {
 		t.Fatal(err)
 	}
-	for _, fonts := range []*fontdiscovery.Resolution{nil, {Settings: typography.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}} {
-		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Fonts: fonts, Width: 300 * dimen.BP})
+	for _, fonts := range []*fontselection.Request{nil, {Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}} {
+		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Fonts: selectFonts(t, fonts), Width: 300 * dimen.BP})
 		if err != nil {
 			t.Fatal(err)
 		}

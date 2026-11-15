@@ -53,28 +53,32 @@ structural output for synthetic results.
 request OpenType; a failure never switches backends:
 
 ```go
-result, err := pipeline.Run(ctx, pipeline.Input{
-    Text: "office", Width: 200 * dimen.BP,
-    Fonts: &discovery.Resolution{Settings: typography.Settings{
+selected, err := fontselection.Prepare(ctx, &fontselection.Request{
+    Settings: fontselection.Settings{
         DefaultPath: "../opentype/testdata/fonts/GentiumPlus-R.ttf",
         Size: 12 * dimen.BP,
-    }},
+    },
+})
+if err != nil { return err }
+result, err := pipeline.Run(ctx, pipeline.Input{
+    Text: "office", Width: 200 * dimen.BP, Fonts: selected,
 })
 ```
 
 For styled HTML, also pass the matching `Source` extraction and configure
 `Settings.Rules`. Its empty Family/Slant and zero Weight are wildcards.
 `Settings.Fallbacks` holds the ordered fallback font paths. Input
-settings and source slices are cloned in the result. Every run loads private font
-bytes and fresh parsed faces; subsequent file changes affect subsequent runs,
+settings and source slices are cloned in the result. Every Prepare loads private font
+bytes and fresh parsed faces; subsequent file changes affect later preparations,
 not saved glyph snapshots. Font hashes identify the actual bytes used at layout
 time, which may differ from an earlier panel validation. Files are local regular
 files, capped at 64 MiB. No fonts are fetched or discovered automatically.
 
 `typography/adapter/opentype` owns Loader, Face, Scale and Stream. The root
-`typography` package owns Resolver and accepts explicit loading/coverage services;
-application wiring supplies `opentype.Services`. No workbench forwarding package
-remains. `discovery.Resolution` embeds `typography.Settings` and discovery metadata.
+`typography` package owns Resolver and accepts SelectedFonts plus Coverage through
+NewResolver. Application setup loads through `opentype.Services` before entering
+layout. No workbench forwarding package remains. Fontselection.Selection separates
+loaded fonts from application Provenance.
 The adapter owns parser bytes, synchronization, streaming, scaling and outlines. Metrics preserve signed font units. Scaling caches the factor from
 `otquery.FontScale` and retains fractional DU until khipu rounds geometry. The
 bounded stream adapts the synchronous public OpenType shaper directly to a
@@ -143,7 +147,7 @@ Fallbacks retains its existing file ordering; FallbackResources follows those
 files in slice order. First-match style rules are unchanged.
 
 `fontresource.Read(reader, Origin)` copies at most 64 MiB plus one detection byte and
-returns a Resource with private immutable bytes. `findadapter.ReadResource(sf, provider,
+returns a Resource with private immutable bytes. `fontselection.ReadResource(sf, provider,
 request)` reads an already resolved `fontfind.ScalableFont` through ReadFontData,
 not by opening Path as an OS path. Its allocation is not bounded upstream before
 the size check: use it only for trusted offline resources; use the reader API for
@@ -175,10 +179,9 @@ source removal. Existing file, missing-glyph, and parser-warning tests remain ac
 
 ## Controlled offline descriptor resolution
 
-Application wiring calls `findadapter.New([]OfflineProvider)` and then
-`discovery.New(searcher, otadapter.Services{}, genericMappings)`.
+Application wiring calls `fontselection.New([]OfflineProvider, genericMappings)`.
 `Discovery.ResolveSettings(ctx, DescriptorSettings)` returns a resource-backed
-`discovery.Resolution` suitable for `pipeline.Run`; F5 uses this layer
+`fontselection.Request`; Prepare loads its Selection before pipeline.Run. F5 uses this layer
 for the request mode described below.
 There is no automatic system lookup, download, or implicit packaged default.
 
@@ -188,7 +191,7 @@ Pass family names separately, not an unsplit CSS declaration; names are not pars
 as comma-separated patterns. Generic families require explicit session mappings.
 Unsupported intermediate weights are rejected rather than silently rounded.
 DescriptorSettings supplies the default, mapping rules, coverage fallback requests,
-and size. Original requests are deep-copied into Resolution.DescriptorInput.
+and size. Original requests are deep-copied into Request.DescriptorInput.
 
 An OfflineProvider has a stable unique name and a context-aware Find function
 returning Match{Font, Exact, Reason}. Exact is a trust assertion by a controlled
@@ -223,7 +226,7 @@ candidates and records exact byte spans and resource IDs. Fontfind still does no
 provide general exact-match/provenance diagnostics, so unrestricted providers
 remain outside this integration's supported scope.
 
-Tests in typography/discovery and typography/adapter/fontfind cover descriptor
+Tests in tytui/fontselection cover descriptor
 translation, provider and
 family order, strict/substituted results, cached diagnostics, generic policy,
 read/parse failures, cancellation, and concurrent cache use. The pipeline discovery
@@ -274,9 +277,9 @@ and synthetic-switch tests remain active.
 Steps 1–7 of the typography extraction are complete. `typography/fontresource`
 owns bytes, neutral provenance and stable IDs; `typography/adapter/opentype` owns
 loading, coverage, shaping, identity and outlines. Root `typography` owns mapping,
-itemization and pinned settings through injected khipu-contract faces and services.
-`typography/discovery` owns request/session policy, and `adapter/fontfind` adapts
-controlled providers. Tytui directly composes these APIs; its former `fontbackend`
+itemization and SelectedFonts snapshots through preloaded khipu-contract faces
+and injected Coverage. Tytui/fontselection owns request/session policy and
+controlled provider use; typography has no discovery/fontfind package. Tytui directly composes these APIs; its former `fontbackend`
 package and htmlinput style aliases have been removed.
 
 Generic bidi/encode/break/freeze/assembly orchestration now lives in
@@ -286,8 +289,8 @@ package is removed.
 Proof and replay evidence use retained identity/rendering services; concrete face
 access and VisualOrder remain inside the adapter. Typesetter styles stay color-free;
 the application retains a separate renderer paint snapshot. Replay owns explicit
-font wire records for existing versions 1 and 2, with unchanged fixtures and IDs.
-See [the final API contracts](TYPOGRAPHY_API_CONTRACTS.md#implemented-step-7-api).
+input, policy, descriptor and font wire records for versions 1, 2 and 3, with unchanged fixtures and IDs.
+See [the final API contracts](TYPOGRAPHY_API_CONTRACTS.md#current-selected-font-api).
 
 Both modules pass ordinary/race tests, build and vet. Owning upstream tests use the
 sibling OpenType font fixtures; tytui retains DOM/TUI and both-breaker frozen proof

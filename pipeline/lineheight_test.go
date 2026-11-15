@@ -7,8 +7,9 @@ import (
 
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/typography"
-	"github.com/npillmayer/typography/discovery"
 	"github.com/npillmayer/typography/paragraph"
+
+	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
@@ -16,7 +17,7 @@ func TestLineHeightPreservesShapingPaintAndFallback(t *testing.T) {
 	for _, b := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
 		for _, paint := range []typography.PaintPolicy{typography.GlyphBoundary, typography.LegacyStyleBoundary} {
 			e := styledInput(t, `<p dir="rtl" style="font-size:12pt;color:navy">אב&shy;גד <span dir="ltr" lang="en" style="font-size:20pt;color:red">f<span style="color:blue">i café</span></span> שָׁלוֹם hello</p>`)
-			in := pipeline.Input{Text: e.Text, Source: e, Width: 80 * dimen.BP, Breaker: b, PaintPolicy: paint, Fonts: &discovery.Resolution{Settings: typography.Settings{DefaultPath: gentium, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}}}
+			in := pipeline.Input{Text: e.Text, Source: e, Width: 80 * dimen.BP, Breaker: b, PaintPolicy: paint, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}})}
 			before, err := pipeline.Run(t.Context(), in)
 			if err != nil {
 				t.Fatal(err)
@@ -95,7 +96,7 @@ func TestLineHeightInsideColoredLigature(t *testing.T) {
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
 		for _, policy := range []typography.PaintPolicy{typography.GlyphBoundary, typography.LegacyStyleBoundary} {
 			e := styledInput(t, `<p><span style="color:red">f</span><span style="color:blue">i</span></p>`)
-			r, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, PaintPolicy: policy, Fonts: &discovery.Resolution{Settings: typography.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}, LineLayout: &paragraph.LineLayout{Default: paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 1.5}, Runs: []paragraph.LineHeightSpan{{Start: 1, End: 2, Height: paragraph.LineHeight{Kind: paragraph.LengthHeight, Length: 60 * dimen.BP}}}}})
+			r, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, PaintPolicy: policy, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}), LineLayout: &paragraph.LineLayout{Default: paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 1.5}, Runs: []paragraph.LineHeightSpan{{Start: 1, End: 2, Height: paragraph.LineHeight{Kind: paragraph.LengthHeight, Length: 60 * dimen.BP}}}}})
 			if err != nil {
 				t.Fatal(err)
 			}

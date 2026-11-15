@@ -115,12 +115,12 @@ func renderDocumentResult(s *documentSnapshot) string {
 	}
 	b.WriteString("\n" + fontReport(s.fonts, s.diagnostics))
 	if fonts := s.fontSnapshot; fonts != nil {
-		fmt.Fprintf(&b, "\nRetained font mapping: default resource %s\n", fonts.DefaultResource.ID())
+		fmt.Fprintf(&b, "\nRetained font mapping: default resource %s\n", fonts.Default)
 		for i, rule := range fonts.Rules {
-			fmt.Fprintf(&b, "  rule %d: family %q weight %d slant %q → resource %s\n", i+1, rule.Family, rule.Weight, rule.Slant, rule.Resource.ID())
+			fmt.Fprintf(&b, "  rule %d: family %q weight %d slant %q → resource %s\n", i+1, rule.Family, rule.Weight, rule.Slant, rule.ResourceID)
 		}
-		for i, resource := range fonts.FallbackResources {
-			fmt.Fprintf(&b, "  fallback %d → resource %s\n", i+1, resource.ID())
+		for i, resource := range fonts.Fallbacks {
+			fmt.Fprintf(&b, "  fallback %d → resource %s\n", i+1, resource)
 		}
 		for _, info := range s.fonts {
 			fmt.Fprintf(&b, "  resource %s → %q · SHA-256 %s\n", info.ResourceID, info.Path, info.SHA256)
