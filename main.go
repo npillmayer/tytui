@@ -33,16 +33,21 @@ const (
 
 type job struct {
 	input    pipeline.Input
+	document *documentJob
 	revision uint64
 }
 type layoutMsg struct {
 	id, revision uint64
 	result       *pipeline.Result
+	document     *documentSnapshot
+	documentRun  bool
 	err          error
 }
 type pipelineRunner func(context.Context, pipeline.Input) (*pipeline.Result, error)
 
 type model struct {
+	documentMode               bool
+	document                   documentWorkbench
 	fontEditor                 fontEditor
 	fontSettings               *fontdiscovery.Resolution
 	browser                    htmlBrowser
@@ -84,7 +89,7 @@ func initialModel() model {
 	vp := viewport.New()
 	vp.SoftWrap = true
 	vp.SetContent("Run the layout to inspect lines and diagnostics.")
-	m := model{fontEditor: newFontEditor(), browser: newHTMLBrowser(), textarea: ta, widthInput: wi, viewport: vp, help: help.New(), run: pipeline.Run,
+	m := model{document: newDocumentWorkbench(), fontEditor: newFontEditor(), browser: newHTMLBrowser(), textarea: ta, widthInput: wi, viewport: vp, help: help.New(), run: pipeline.Run,
 		breaker: pipeline.FirstFit, historyIndex: -1,
 		export: func(r *pipeline.Result) (string, error) { return exportSVG(r, ".") },
 		status: "Ready · synthetic font · firstfit · LTR"}
@@ -104,11 +109,13 @@ func parseWidth(value string) (dimen.DU, error) {
 }
 
 func (m *model) invalidate() {
-	m.revision++
-	if m.cancel != nil {
-		m.cancel()
+	m.cancelLayout()
+	if m.documentMode {
+		m.document.lastError = ""
+		m.status = "Document input changed · ctrl+r to run · previous result retained"
+		m.refreshDocumentResult()
+		return
 	}
-	m.pending = nil
 	m.result = nil
 	m.status = "Input changed · press ctrl+r to run"
 	m.viewport.SetContent("No current layout. Run again after editing.")
@@ -122,6 +129,15 @@ func (m *model) launch(j job) tea.Cmd {
 	m.cancel = cancel
 	id, run := m.activeID, m.run
 	m.status = "Running layout…"
+	if j.document != nil {
+		documentRun := m.document.run
+		m.status = "Running document layout · previous result retained…"
+		return func() tea.Msg {
+			defer cancel()
+			result, err := documentRun(ctx, *j.document)
+			return layoutMsg{id: id, revision: j.revision, document: result, documentRun: true, err: err}
+		}
+	}
 	return func() tea.Msg {
 		defer cancel()
 		result, err := run(ctx, j.input)
@@ -130,6 +146,9 @@ func (m *model) launch(j job) tea.Cmd {
 }
 
 func (m *model) requestRun() tea.Cmd {
+	if m.documentMode {
+		return m.requestDocumentRun()
+	}
 	width, err := parseWidth(m.widthInput.Value())
 	if err != nil {
 		m.status = err.Error()
@@ -151,6 +170,17 @@ func (m *model) requestRun() tea.Cmd {
 func (m *model) setFocus(f focus) tea.Cmd {
 	m.textarea.Blur()
 	m.widthInput.Blur()
+	m.document.widthInput.Blur()
+	if m.documentMode {
+		if f == focusText {
+			f = focusWidth
+		}
+		m.focus = f
+		if f == focusWidth {
+			return m.document.widthInput.Focus()
+		}
+		return nil
+	}
 	m.focus = f
 	switch f {
 	case focusText:
@@ -201,7 +231,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				fmt.Fprintf(&report, "Warning: %s\n", warning)
 			}
 		}
-		m.viewport.SetContent(report.String())
+		if !m.documentMode {
+			m.viewport.SetContent(report.String())
+		}
 		cmd := m.toggleFonts()
 		return m, cmd
 	case htmlLoadedMsg:
@@ -221,6 +253,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.browser.top = 0
 		m.browser.collapsed = make(map[int]bool)
 		m.browser.status = fmt.Sprintf("Loaded %d DOM nodes · choose an inline-text subtree", len(msg.doc.Nodes))
+		if m.documentMode {
+			m.browser.status = fmt.Sprintf("Loaded %d DOM nodes · choose a block subtree", len(msg.doc.Nodes))
+		}
 		m.browser.inspectSelected()
 		cmd := m.browser.setFocus(treeFocus)
 		return m, cmd
@@ -249,6 +284,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.revision != m.revision {
 			return m, nil
 		}
+		if msg.documentRun {
+			if msg.err != nil {
+				m.documentFailure(msg.err)
+			} else if msg.document == nil {
+				m.documentFailure(fmt.Errorf("document runner returned no result"))
+			} else {
+				m.document.result = msg.document
+				m.document.history = append(m.document.history, msg.document)
+				m.document.historyIndex = len(m.document.history) - 1
+				m.document.lastError = ""
+				m.status = fmt.Sprintf("Document complete · %d groups · %s · %.2f CSS px", len(msg.document.result.Groups()), msg.document.breaker, msg.document.width)
+				m.refreshDocumentResult()
+			}
+			return m, nil
+		}
 		if msg.err != nil {
 			m.status = "Layout failed · see results"
 			m.viewport.SetContent(msg.err.Error())
@@ -272,11 +322,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.fontSettings = nil
 			m.invalidate()
 			m.status = "Synthetic backend selected"
+			if m.documentMode {
+				m.status = "Document runs require F5 OpenType fonts · previous proof retained"
+			}
 			m.fontEditor.status = m.status
 			return m, nil
 		}
 		if m.fontEditor.open && !key.Matches(msg, keys.Quit) {
 			return m.updateFonts(msg)
+		}
+		if msg.String() == "f7" {
+			cmd := m.toggleDocumentMode()
+			return m, cmd
 		}
 		if msg.String() == "f4" || msg.String() == "ctrl+o" {
 			cmd := m.toggleBrowser()
@@ -287,6 +344,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		switch {
 		case key.Matches(msg, keys.Breaker):
+			if m.documentMode {
+				if m.document.breaker == pipeline.FirstFit {
+					m.document.breaker = pipeline.KnuthPlass
+				} else {
+					m.document.breaker = pipeline.FirstFit
+				}
+				m.invalidate()
+				return m, nil
+			}
 			if m.breaker == pipeline.FirstFit {
 				m.breaker = pipeline.KnuthPlass
 			} else {
@@ -295,6 +361,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.invalidate()
 			return m, nil
 		case key.Matches(msg, keys.History):
+			if m.documentMode {
+				m.documentHistory()
+				return m, nil
+			}
 			if len(m.history) == 0 {
 				m.status = "No completed layouts yet"
 				return m, nil
@@ -312,6 +382,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.GotoTop()
 			return m, nil
 		case key.Matches(msg, keys.Export):
+			if m.documentMode {
+				cmd := m.requestDocumentExport()
+				return m, cmd
+			}
 			if m.result == nil {
 				m.status = "Run a layout or select a saved layout before exporting"
 				return m, nil
@@ -337,9 +411,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.resize(m.width, m.height)
 			return m, nil
 		case msg.String() == "tab":
+			if m.documentMode {
+				cmd := m.setFocus(focusWidth + (m.focus-focusWidth+1)%2)
+				return m, cmd
+			}
 			cmd := m.setFocus((m.focus + 1) % 3)
 			return m, cmd
 		case msg.String() == "shift+tab":
+			if m.documentMode {
+				cmd := m.setFocus(focusWidth + (m.focus-focusWidth+1)%2)
+				return m, cmd
+			}
 			cmd := m.setFocus((m.focus + 2) % 3)
 			return m, cmd
 		case msg.String() == "enter" && m.focus == focusWidth:
@@ -352,6 +434,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if m.browser.open {
 		return m.updateBrowser(msg)
+	}
+	if m.documentMode {
+		var cmd tea.Cmd
+		if m.focus == focusWidth {
+			before := m.document.widthInput.Value()
+			m.document.widthInput, cmd = m.document.widthInput.Update(msg)
+			if before != m.document.widthInput.Value() {
+				m.invalidate()
+			}
+		} else {
+			m.viewport, cmd = m.viewport.Update(msg)
+		}
+		return m, cmd
 	}
 	beforeText, beforeWidth := m.textarea.Value(), m.widthInput.Value()
 	var cmd tea.Cmd
@@ -386,6 +481,8 @@ func (m *model) resize(w, h int) {
 	m.textarea.SetHeight(max(1, min(6, h/4, h-7-helpHeight)))
 	m.widthInput.SetWidth(min(24, max(1, w-24)))
 	m.widthInput.SetCursor(m.widthInput.Position())
+	m.document.widthInput.SetWidth(min(24, max(1, w-30)))
+	m.document.widthInput.SetCursor(m.document.widthInput.Position())
 	m.viewport.SetWidth(w)
 	// Title, text label, width row, status, results label, and help.
 	m.viewport.SetHeight(max(1, h-m.textarea.Height()-5-helpHeight))
@@ -398,12 +495,23 @@ func (m *model) resize(w, h int) {
 
 func (m model) helpView() string {
 	if !m.help.ShowAll {
-		return "^R run · F4 HTML · F5 fonts · F1 help"
+		return "^R run · F4 HTML · F7 mode · F1 help"
+	}
+	if m.documentMode {
+		return strings.Join([]string{
+			"ctrl+r run · ctrl+s export SVG",
+			"f2 breaker · f3 saved documents",
+			"f5 fonts · f7 paragraph mode",
+			"tab/shift+tab focus · F4 block",
+			"enter from width runs document",
+			"↑/↓ pgup/pgdn scroll results",
+			"f1 close help · ctrl+c quit",
+		}, "\n")
 	}
 	return strings.Join([]string{
 		"ctrl+r run · ctrl+s export SVG",
 		"f2 breaker · f3 saved layouts",
-		"f5 fonts · f6 synthetic backend",
+		"f5 fonts · f6 synthetic · f7 mode",
 		"tab/shift+tab focus · F4 HTML",
 		"enter newline / run from width",
 		"↑/↓ pgup/pgdn scroll results",
@@ -424,6 +532,9 @@ func (m model) View() tea.View {
 	}
 	if m.browser.open {
 		return m.browserView()
+	}
+	if m.documentMode {
+		return m.documentView()
 	}
 	label := func(s string, f focus) string {
 		if m.focus == f {

@@ -3,6 +3,7 @@ package documentlayout
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 
 // WriteSVG writes a diagnostic of retained border/content boxes, baselines and
 // glyph outlines. Coordinates use big points; text/font binaries are not embedded.
+// Local images embed retained validated bytes as data URIs, without source I/O.
 // Proof construction completes before writing anything; writer failures can still
 // leave partial bytes at the destination. This is not a document replay format.
 func WriteSVG(ctx context.Context, w io.Writer, result *Result, services render.Services) error {
@@ -43,7 +45,21 @@ func WriteSVG(ctx context.Context, w io.Writer, result *Result, services render.
 	for _, g := range p.Glyphs {
 		fmt.Fprintf(&b, `<path data-group="%d" data-owner="%d" data-line="%d" data-knot="%d" data-gid="%d" data-cluster="%d" data-byte="%d" data-font="%s" fill="%s" transform="translate(%.6f %.6f) scale(%.9f)" d="%s"/>`, g.GroupID, g.OwnerID, g.Line, g.Knot, g.GlyphID, g.Cluster, g.SourceByte, escape(g.FaceSHA256), escape(g.Color), g.X, g.Y, g.Scale, escape(g.Path))
 	}
-	b.WriteString(`</g></svg>`)
+	b.WriteString(`</g>`)
+	if len(p.Leaves) > 0 {
+		b.WriteString(`<g id="leaves">`)
+		for _, leaf := range p.Leaves {
+			c := leaf.Content
+			if leaf.Image != nil {
+				info := leaf.Image.Info()
+				fmt.Fprintf(&b, `<image data-leaf="image" data-box="%d" data-node="%d" data-sha256="%s" x="%.6f" y="%.6f" width="%.6f" height="%.6f" preserveAspectRatio="none" href="data:%s;base64,%s"><title>%s</title></image>`, leaf.BoxID, leaf.Locator.NodeID, info.SHA256, c.X, c.Y, c.W, c.H, info.MIME, base64.StdEncoding.EncodeToString(leaf.Image.data), escape(leaf.Label))
+				continue
+			}
+			fmt.Fprintf(&b, `<rect data-leaf="rectangle" data-box="%d" data-node="%d" x="%.6f" y="%.6f" width="%.6f" height="%.6f" fill="#f59e0b"><title>%s</title></rect>`, leaf.BoxID, leaf.Locator.NodeID, c.X, c.Y, c.W, c.H, escape(leaf.Label))
+		}
+		b.WriteString(`</g>`)
+	}
+	b.WriteString(`</svg>`)
 	if err := ctx.Err(); err != nil {
 		return err
 	}

@@ -9,7 +9,8 @@ together after success. [Retained fixed/auto document proofs](documentlayout/tes
 show nested boxes, baselines and real glyphs without remeasurement. Independent
 geometry, resize/failure recovery and result lifetime are verified under both
 breakers; broader CSS policies remain explicitly deferred.
-TUI and replay behavior are unchanged.
+The TUI exposes this path through **F7 document mode**, alongside the existing
+paragraph workbench. Paragraph replay formats and fixtures remain unchanged.
 See the [2026-11-15 integration review](doc/INTEGRATION_REVIEW_2026-11-15.md)
 for the current boundaries, confirmed gaps and proposed next document experiments.
 
@@ -43,6 +44,8 @@ replacement. Cords can run `go test -race ./styled/... -count=1` directly.
 - Edit the paragraph, then press **Ctrl+R** to run layout.
 - **F4** (or Ctrl+O) opens the HTML / DOM explorer. Enter a local filename and
   press Enter to load it. Try `testdata/html/paragraphs.html`.
+- **F7** switches between paragraph mode and the document experiment described
+  below, including selection mode inside the DOM explorer.
 - **F2** switches the breaker for the next run. The title shows that selection;
   each result identifies the breaker actually used.
 - **F3** cycles backward through completed layouts retained for this session.
@@ -59,7 +62,7 @@ replacement. Cords can run `go test -race ./styled/... -count=1` directly.
 - With results focused, use arrows or Page Up / Page Down to scroll.
 - **F1** toggles help; **Ctrl+C** quits. A terminal of at least 40 × 14 is needed.
 
-Editing clears the displayed layout and cancels active work; completed layouts
+In paragraph mode, editing clears the displayed layout and cancels active work; completed layouts
 remain available through F3. Run requests are serialized;
 if a run is still stopping, only the latest requested input is queued. Completed
 results for older input are discarded. Layout work runs outside the TUI update
@@ -82,6 +85,64 @@ embedded. Existing
 files are never overwritten; failed exports remove their incomplete output.
 History is held in memory for the session; export any proofs you want to keep.
 
+## Document experiment
+
+Press **F7** for document mode. Its width, breaker, selection and result history
+are separate from paragraph controls. The F5 font selection is shared; each
+completed result retains its own faces and rendering services. This first document
+TUI experiment requires OpenType fonts; F6 keeps its existing synthetic behavior
+in paragraph mode. No synthetic substitution is made for document failures.
+
+To reproduce the nested auto-width experiment:
+
+1. Open **F5**. Set the default file to
+   `../opentype/testdata/fonts/GentiumPlus-R.ttf` and add the mapping row
+   `fallback | * | * | ../opentype/testdata/fonts/NotoSansHebrew-Regular.ttf`.
+   Press Ctrl+S to validate and apply. The controlled offline request/resource
+   mode also works, subject to the selected fonts' coverage.
+2. Open **F4**, load `documentlayout/testdata/nested-auto.html`, select the
+   `div` with `id="root"`, then press Enter. This selects a read-only block subtree,
+   including nested blocks and inline-blocks. Ctrl+R performs full profile
+   validation and layout asynchronously; the browser only checks root candidacy.
+3. Run with **420 CSS px**, then **100 CSS px**. Enter from the width field also
+   runs. CSS pixels differ from paragraph mode's big points; zero is permitted.
+   Terminal resizing only changes the viewport, not the layout constraint.
+4. Use **F2** to change breaker and **F3** to browse completed document results.
+   The inspector identifies each snapshot's width/breaker independently of the
+   current controls. Tab switches between width and results; arrows/page keys
+   scroll the retained DOM → BoxID → group/owner → line/atomic associations.
+5. **Ctrl+S** exports the displayed snapshot to a unique `document-*.svg`.
+   The export captures its result and font services at request time. It does not
+   reopen sources/fonts, shape, measure or lay out again.
+
+Document edits, reruns and failures retain the previous completed result for
+inspection/export. Failures appear above that result. Runs in both modes share
+one serialized scheduler with only the latest pending request; edits, selection,
+font/breaker changes and mode switches cancel stale work. F7 restores paragraph
+text, source mapping, width, breaker and retained paragraph results. Reloaded DOMs
+become input only after selecting a node again.
+
+The inspector shows the bounded profile, box geometry in CSS pixels, paragraph
+placements in big points, overfull/underfull diagnostics, decoded byte mappings,
+separate paint, retained HTML, font identities and ordered mapping configuration.
+The profile remains normal line-height, NoHyphenation, bottom-margin-edge atomic
+alignment and zero side skips. Authored soft hyphens under CSS manual are rejected;
+`hyphens:none` explicitly disables them. See the
+[document subset](documentlayout/README.md) for the other limits.
+
+Try `documentlayout/testdata/rectangle.html` for explicitly sized non-text leaves.
+Marked diagnostic images become rectangles through the existing atomic boundary;
+local PNG/JPEG images use `data-tytui-leaf="image" src="images/photo.png"` with
+explicit CSS width/height. Relative paths use the HTML file directory. Image bytes
+are retained and embedded in SVG, so deleting a file cannot change earlier proofs.
+See the document subset for format, size and sizing limits.
+
+These are diagnostic document proofs, not pagination or full CSS painting.
+Document replay remains deferred; Ctrl+S exports SVG, and the existing headless
+paragraph replay v1/v2/v3 contracts are unchanged. The
+[TUI integration tests](document_workbench_test.go) reproduce all four existing
+[nested-auto proofs](documentlayout/testdata/README.md) byte-for-byte.
+
 ## HTML and DOM selection
 
 In the explorer, Tab / Shift+Tab cycles between the filename, DOM tree, and
@@ -90,7 +151,8 @@ a node or moves to its parent; Right expands a node or enters its first child.
 Home, End, and Page Up / Page Down navigate longer trees. With the inspector
 focused, arrows and page keys scroll attributes, decoded text previews, library
 property values, selection eligibility, and source spans. F4 or Escape returns
-to the paragraph workbench without changing its input.
+to the current workbench without changing its input. F7 switches the selection
+mode; the following paragraph-specific rules apply in paragraph mode.
 
 Press Enter on an eligible tree node to use its text as paragraph input, then
 Ctrl+R to lay it out. File loading is asynchronous; an unsuccessful load keeps

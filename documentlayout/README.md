@@ -8,6 +8,15 @@ typography's prepared paragraph engine. CSS core schedules and sizes nested atom
 interiors. Geometry, retained paragraphs, sources and paint are published together
 after whole-document success. No glyph coverage validation or font discovery is added.
 
+The TUI's F7 document experiment now drives this API with F5 OpenType services;
+see the [walkthrough](../README.md#document-experiment). It keeps block selection,
+CSS-pixel width, breaker and history separate from paragraph mode. Build/layout
+run outside Update on the shared serialized scheduler; the UI retains the last
+complete result across edits and failed runs. Its inspector reads the retained
+box/source/group/placement associations and its `document-*.svg` export delegates
+to `WriteSVG` with captured rendering services. The TUI adds no box sizing,
+paragraph algorithms or document replay format.
+
 ```go
 document, err := documentlayout.Build(ctx, htmlDocument, selectedNodeID)
 // Handle err before using document.
@@ -92,6 +101,20 @@ both breakers. Fixed-pixel and auto-width inline-blocks are supported. Positive
 overfull output is valid; unsupported negative completed line widths are errors.
 Empty atomic interiors currently reserve their normal paragraph strut.
 
+The document hyphenation policy is fixed, not inferred per run. `Build` accepts
+default/`hyphens:manual` text without U+00AD, but rejects authored soft hyphens
+under effective manual with `khipu.ErrUnsupportedPolicy`. The error identifies
+the `NoHyphenation` profile, DOM text-node path and zero-based byte offset in the
+decoded text, before whitespace normalization. It rejects independent of width,
+including inside nested inline-blocks. Effective `hyphens:none` explicitly
+disables discretionary breaks and permits U+00AD: source bytes remain intact,
+the marker stays invisible, and ordinary wrapping remains enabled. Values come
+from w3c-dom's cascade/inheritance, including ancestors outside the selected root;
+unselected sibling text is not validated. `hyphens:auto` remains unsupported.
+For example, `<div style="hyphens:none">ab&shy;cd</div>` can be built; the same
+content with manual/default cannot. Measurement and final layout share the same
+prepared policy; the independent paragraph pipeline and replay are unchanged.
+
 Convert each CSS border dimension and margin separately with
 `round(px * 49152)` (ties away from zero), checking the finite DU domain before
 casting. Derive advances only after conversion. `dimen.PX` is not a CSS-pixel unit.
@@ -141,10 +164,13 @@ Initial policy is bounded:
 
 - Select a supported `display:block` element. Descendants may be supported block,
   inline or inline-block elements. Hidden content, explicit breaks, replaced
-  elements, tables, list-item and other display modes are rejected.
+  elements (except the explicit diagnostic leaf below), tables, list-item and other display modes are rejected.
 - Inline-block and block widths may be definite nonnegative px or auto.
   Box margins, padding and visible border widths use px (unitless zero is
-  accepted); margins may be signed/auto. Font sizing retains htmlinput's existing
+  accepted); margins may be signed/auto. CSS core distributes normal blocks'
+  horizontal auto margins after widths, padding and borders are resolved. It
+  keeps inline-block and vertical auto margins zero and resolves overflow using
+  the LTR right-margin rule. Font sizing retains htmlinput's existing
   relative and absolute-unit support. CSS geometry remains in CSS pixels; the
   callback performs checked px/DU conversion at the paragraph boundary.
 - Normal whitespace, normal line-height, normal/isolate bidi, static flow and
@@ -178,7 +204,8 @@ owner/ancestor transforms, zero-sized prepared boxes, zero available width,
 overfull output, signed margins, unquantized CSS border sizes, conversion limits
 and rounding budgets. Late backend failure, late cancellation, publication-time
 cancellation, repeated callbacks, detached accessors and resize exercise the
-transactional ownership contract. TUI and replay paths are unchanged.
+transactional ownership contract. Paragraph mode and replay remain controls;
+`../document_workbench_test.go` now covers the document TUI wiring.
 
 ## Retained document proof
 
@@ -299,9 +326,93 @@ were needed for stage 5 verification. See the
 
 Completion applies to the bounded profile above. Cross-invocation/global caches,
 speculative or repeated final callbacks, percentage/relative-length expansion,
-horizontal auto-margin distribution, full baseline/inline-fragment policies,
-outer RTL/vertical writing, full CSS painting, pagination, TUI integration and
-document replay remain separate work. The generic khipu/typography explicit
+full baseline/inline-fragment policies,
+outer RTL/vertical writing, full CSS painting, pagination and document replay
+remain separate work. The generic khipu/typography explicit
 measurement API does not enable CSS hyphenation here; automatic intrinsic
 hyphenation and successive textbox splitting remain deferred. Glyph coverage
 stays caller-owned; relocating existing itemizer checks is still a future task.
+
+Horizontal block auto margins were added upstream after stage 5 (2026-11-15).
+`auto_margin_test.go` verifies independent positions, parent content coordinates,
+paragraph widths, paint/provenance and retained resize results under both breakers.
+It also centers a fixed-width block inside a measured auto-width inline-block;
+CSS core finalizes those margins only after choosing the containing width.
+No margin computation is duplicated in the adapter. The root remains at (0,0),
+while child blocks are positioned using their resolved left margins.
+
+`hyphenation_test.go` covers the document policy guard, inherited/initial/unset
+and priority values, source-located errors, selected-subtree scope and the
+separate paragraph extractor. Both breakers verify disabled soft hyphens through
+fixed-width and measured auto-width layout, freezing and glyph proofs, including
+invisible markers, original bytes, source anchors and bypass colors.
+Follow-up verification (2026-11-15): the full tytui ordinary and race suites,
+build and vet passed, including existing paragraph/replay and proof controls.
+
+## Explicit diagnostic leaf
+
+Try `testdata/rectangle.html` in the F7 document experiment. An
+`<img data-tytui-leaf="rectangle" alt="label" style="width:36px;height:18px">`
+emits one attached atomic occurrence, with no text or paragraph interior.
+Only inline/inline-block display and explicit nonnegative CSS-pixel width/height
+are supported (zero is valid). Padding, borders and signed margins use the existing
+CSS rules. Unmarked images, `src`/`srcset`, HTML width/height attributes and auto
+leaf dimensions are rejected; no resources are fetched. Local images use the separate opt-in image marker below; failures are never
+replaced by rectangles.
+
+CSS core snapshots `RenderNode.Replaced` and owns intrinsic/final border sizing.
+Tytui keeps the immutable alt label separately; `RectangleLabel` and `Proof.Leaves`
+expose diagnostic payload/source identity. SVG renders the content rectangle from
+retained absolute geometry. Empty inline-blocks retain their existing strut policy;
+a replaced leaf has no strut, including at zero size. Existing paragraph mode,
+rendering bypass and replay are unchanged.
+
+Explicit-leaf validation (2026-11-15): full ordinary/race suites, build and vet
+passed in tytui and css-box-layout; paragraph replay and previous SVG fixtures
+remain unchanged.
+
+
+## Explicit local image payloads
+
+```html
+<img data-tytui-leaf="image" src="images/photo.png" alt="Local proof image"
+     style="width:36px;height:18px;padding:2px">
+```
+
+The same explicit leaf sizing/display contract applies. PNG and JPEG regular files
+are supported; format is detected from bytes, not the extension. `Build` resolves
+relative src paths against the directory of `htmlinput.Document.Name`, made
+absolute at build time. Headless `Parse` callers should supply the source filename
+(or an absolute synthetic filename defining the resource directory). Absolute
+local paths are also accepted; percent-encoded filenames are decoded. URL schemes,
+network hosts, queries/fragments, data URLs, srcset, SVG/GIF and automatic/aspect-ratio
+sizing are rejected. `htmlinput` itself still fetches no linked resources.
+
+Build accepts at most 8 MiB per image and accepts at most 16,777,216 pixels. It checks
+headers and decodes the complete file before publication, with cancellation checks
+around reading/decoding. Failed reads or decoding return a source-located error
+and no document. A zero-sized image still requires a valid payload. Repeated
+normalized paths share one byte snapshot within that build; a new build reloads
+files and can fail without changing a previous result.
+
+`ImageResource` privately owns the exact bytes; `Info` returns path, MIME, pixel
+size and SHA-256, while `Bytes` returns a copy. `Document.Leaf` and `ProofLeaf.Image`
+share this immutable resource. Pixel size never supplies layout dimensions.
+CSS core, khipu and P remain unaware of image formats, I/O and rendering payloads.
+
+SVG embeds the retained bytes in a data URI and uses `preserveAspectRatio="none"`:
+the raster stretches to the explicit CSS content rectangle. Padding/borders and
+atomic placement use the existing CSS geometry. Export never reopens the file,
+decodes it again or reflows the document. TUI inspection shows retained image
+identity, and a failed reload leaves the previous proof exportable. Proof order
+remains diagnostic rather than full CSS paint order. Paragraph mode and replay
+v1/v2/v3 remain unchanged; this is not a document/image replay format.
+
+`image_test.go` covers both formats, directions and breakers, auto containers,
+zero dimensions, copied accessors, source identity, deleted files, damaged/large
+payloads, rejected URLs/codecs and retained SVG embedding. The TUI lifetime test
+exports a captured result after deleting its file and failing a subsequent run.
+
+Local-image validation (2026-11-15): full tytui ordinary/race suites, build and
+vet pass, including paragraph/replay and existing nested-document proof controls.
+No upstream API or replay format changed for this extension.

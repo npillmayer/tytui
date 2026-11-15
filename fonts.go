@@ -124,6 +124,7 @@ func (m *model) toggleFonts() tea.Cmd {
 	m.browser.open = false
 	m.textarea.Blur()
 	m.widthInput.Blur()
+	m.document.widthInput.Blur()
 	return m.fontEditor.setFocus(0)
 }
 func (m model) updateFonts(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -172,7 +173,9 @@ func (m model) updateFonts(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.fontSettings = f.pending.Clone()
 				m.invalidate()
 				m.status = "OpenType enabled · ctrl+r to run"
-				m.viewport.SetContent(f.preview)
+				if !m.documentMode {
+					m.viewport.SetContent(f.preview)
+				}
 				cmd := m.toggleFonts()
 				return m, cmd
 			}

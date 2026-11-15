@@ -153,7 +153,11 @@ func Parse(name string, r io.Reader) (*Document, error) {
 	sheets = func(n *html.Node) error {
 		for _, a := range n.Attr {
 			if a.Key == "style" {
-				declarations, err := parser.ParseDeclarations(a.Val + "\n;")
+				// Douceur needs a delimiter to retain the final declaration value.
+				// A block end handles both an omitted and an existing semicolon,
+				// including empty lists and trailing comments. Style the original
+				// attribute below; these braces are only for subset validation.
+				declarations, err := parser.ParseDeclarations("{\n" + a.Val + "\n}")
 				if err != nil {
 					return fmt.Errorf("inline CSS: %w", err)
 				}

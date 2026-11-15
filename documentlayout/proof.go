@@ -35,11 +35,20 @@ type ProofAtomic struct {
 	X, Y float64 // precise paragraph border origin, before CSS summary narrowing
 }
 
-// Proof is a detached diagnostic, not a CSS painting/stacking-context model.
-// Boxes preserve core dimensions; glyphs and atomics preserve paragraph precision.
-// All coordinates are absolute big points. Source locators address decoded DOM
-// text, not HTML markup bytes. No font binaries or engine handles are embedded.
+// ProofLeaf carries renderer-owned diagnostic payload and absolute content geometry.
+type ProofLeaf struct {
+	BoxID   box.BoxID
+	Locator Locator
+	Content ProofRect
+	Label   string
+	Kind    string
+	Image   *ImageResource
+}
+
+// Proof is a detached diagnostic with shared immutable image resources.
+// Coordinates are absolute big points; source locators address decoded DOM bytes.
 type Proof struct {
+	Leaves                 []ProofLeaf
 	Boxes                  []ProofBox
 	Lines                  []ProofLine
 	Glyphs                 []ProofGlyph
@@ -121,6 +130,21 @@ func BuildProof(ctx context.Context, result *Result, services render.Services) (
 		}
 		p.Boxes = append(p.Boxes, b)
 	}
+	var leaves func(*box.LayoutNode)
+	leaves = func(n *box.LayoutNode) {
+		if payload, ok := result.document.leaves[n.NodeID]; ok {
+			for _, b := range p.Boxes {
+				if b.BoxID == n.BoxID {
+					source, _ := result.document.NodeSource(n.NodeID)
+					p.Leaves = append(p.Leaves, ProofLeaf{BoxID: n.BoxID, Locator: source.Locator, Content: b.Content, Label: payload.Label, Kind: payload.Kind, Image: payload.Image})
+				}
+			}
+		}
+		for _, child := range n.Children {
+			leaves(child)
+		}
+	}
+	leaves(result.document.root)
 	for _, group := range result.document.order {
 		g, ok := result.groups[group.GroupID]
 		if !ok {

@@ -1,4 +1,4 @@
-# Integration review TODO — updated 2026-11-12
+# Integration review TODO — updated 2026-11-15
 
 For the newer document/atomic integration, see the
 [2026-11-15 review](INTEGRATION_REVIEW_2026-11-15.md), including confirmed input
@@ -115,9 +115,46 @@ from observations; unchecked items remain open.
   importance, specificity, source order, and shorthand/longhand competition.
   `htmlinput/cascade_test.go` covers inline/stylesheet precedence and quoted
   punctuation; `pipeline/priority_test.go` verifies inherited sizes and proof
-  colors under both breakers. Inline validation adds a terminator to avoid
-  douceur truncating a final multi-token value; styling sees the original
-  attribute. Unsupported properties, selectors, and at-rules remain rejected.
+  colors under both breakers. Inline validation uses a temporary declaration
+  block to retain final values with or without a semicolon; styling sees the
+  original attribute. Unsupported properties, selectors, and at-rules remain rejected.
+- [x] Fix inline CSS trailing-semicolon validation (document review finding 1).
+  Replacing the unconditional extra semicolon with a declaration-block boundary
+  also permits empty attributes and trailing whitespace/comments. Focused
+  `htmlinput/inline_validation_test.go` regressions protect final multi-token
+  values, quoted punctuation, cascade priority, source retention and rejection
+  of malformed/unsupported input. `documentlayout/inline_css_test.go` verifies
+  nested styles, geometry, frozen font size, paint and provenance with both
+  breakers. The fix is local to tytui; upstream styling receives unchanged input.
+- [x] Fix horizontal auto-margin distribution (document review finding 2) in
+  css-box-layout's used-value pass. LTR normal/anonymous blocks distribute free
+  space, preserve auto-width behavior and resolve overflow through the right
+  margin; inline-block and vertical auto margins stay zero. Margins depending
+  on an unresolved auto containing width remain pending until private final
+  resolution. Upstream `layout/auto_margins_test.go` covers widths/edges, signed
+  and zero/overflow cases, rounding and late sizing; tytui's
+  `documentlayout/auto_margin_test.go` checks both breakers, positions, retained
+  source/paint and resize. No application layout workaround was added.
+- [x] Make the document hyphenation policy explicit (document review finding 3).
+  `Build` rejects authored U+00AD under effective `hyphens:manual`, including the
+  CSS default, with an unsupported-policy error naming the NoHyphenation profile,
+  DOM path and decoded text byte offset. Effective `hyphens:none` permits the
+  marker while disabling discretionary breaks; default/manual without a marker
+  remains accepted and automatic hyphenation remains unsupported. DOM property
+  resolution owns inheritance/cascade. `documentlayout/hyphenation_test.go` covers
+  rejection, selected-subtree scope, fixed/auto widths under both breakers,
+  frozen source/paint and the unchanged paragraph extractor. Intrinsic and final
+  layout keep the same preparation policy; paragraph replay is unchanged.
+- [x] Expose the document experiment in the TUI (document review step 2).
+  F7 selects document mode with separate CSS-pixel width, breaker and history;
+  F4 selects a block subtree and F5 supplies OpenType file/resource settings.
+  Build/layout run on the existing serialized scheduler. Edits and failures keep
+  the previous document inspectable/exportable; captured services render unique
+  `document-*.svg` files without reflow. `document_workbench_test.go` reproduces
+  all four nested-auto proofs and checks failure, cancellation, mode switches,
+  retained export, offline fonts and terminal sizing. Full ordinary/race suites,
+  build and vet pass. Paragraph controls/history and replay v1/v2/v3 are preserved;
+  document replay and synthetic document UI proofs remain outside this slice.
 - [x] Delegate absolute-unit parsing and HTML display defaults. Font sizes in
   px/pt/in/mm/cm use w3c-dom's checked `dimen.ParseAbsolute`, with explicit
   conversion to khipu DU and positive/finite checks. Descendant display checks
@@ -426,3 +463,13 @@ explicit line-height cases use v3 with numeric placement evidence. Remaining wor
 DOM line-height computation/extraction, a css-box-layout bridge when ready, and
 separately scoped vertical alignment, atomic inline content and packing. The general
 annotation API remains deferred. See [the engine plan](PARAGRAPH_ENGINE_PLAN.md).
+
+
+- [x] Add an explicitly sized diagnostic non-text leaf (document review step 3,
+  first slice). CSS core owns childless atomic sizing; document extraction retains
+  source identity and the renderer owns the rectangle label/payload. LTR/RTL,
+  both breakers, zero size, auto-container measurement and retained proofs are
+  covered. Local PNG/JPEG resources are now supported through the same boundary,
+  with bounded loading, immutable bytes, identity inspection and SVG embedding.
+  Tests cover deleted/corrupt/oversized files, formats/paths, both breakers and
+  TUI failure/export lifetime. Paragraph replay and earlier proof fixtures are unchanged.

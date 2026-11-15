@@ -26,6 +26,7 @@ const (
 )
 
 type htmlBrowser struct {
+	documentMode               bool
 	open                       bool
 	path                       textinput.Model
 	doc                        *htmlinput.Document
@@ -101,7 +102,7 @@ func (b *htmlBrowser) inspectSelected() {
 		fmt.Fprintf(&out, "%q = %q\n", a.Key, a.Val)
 	}
 	fmt.Fprintf(&out, "\nText preview (decoded, raw whitespace)\n%q\n\nLibrary property values (not browser computed CSS)\n", b.doc.Preview(n.ID, 1000))
-	for _, key := range []string{"display", "visibility", "color", "font-family", "font-size", "font-weight", "font-style", "white-space", "direction", "line-height"} {
+	for _, key := range []string{"display", "visibility", "color", "font-family", "font-size", "font-weight", "font-style", "white-space", "direction", "line-height", "hyphens"} {
 		value, err := b.doc.Property(n.ID, key)
 		if err != nil {
 			fmt.Fprintf(&out, "%s: unavailable (%s)\n", key, err)
@@ -109,8 +110,13 @@ func (b *htmlBrowser) inspectSelected() {
 			fmt.Fprintf(&out, "%s: %q\n", key, value)
 		}
 	}
-	e, err := b.doc.Extract(n.ID)
-	if err != nil {
+	if b.documentMode {
+		if err := documentCandidate(b.doc, n.ID); err != nil {
+			fmt.Fprintf(&out, "\nDocument selection unavailable: %s\n", err)
+		} else {
+			out.WriteString("\nDocument block candidate: Enter selects; Ctrl+R validates the supported profile and lays out nested groups.\nNoHyphenation · normal line-height · bottom-margin-edge atomics · zero side skips.\n")
+		}
+	} else if e, err := b.doc.Extract(n.ID); err != nil {
 		fmt.Fprintf(&out, "\nSelection unavailable: %s\n", err)
 	} else {
 		fmt.Fprintf(&out, "\nSelectable: %d bytes, %d source spans\nEnter in tree to use this paragraph.\n", len(e.Text), len(e.Spans))
@@ -125,7 +131,11 @@ func (b *htmlBrowser) inspectSelected() {
 	for _, w := range b.doc.Warnings {
 		fmt.Fprintf(&out, "\nNote: %s", w)
 	}
-	out.WriteString("\nF5 configures fonts and style mappings; synthetic shaping uses size/language. OpenType proofs use supported CSS colors.")
+	if b.documentMode {
+		out.WriteString("\nF5 supplies OpenType fonts and mappings for document proofs. F7 returns to paragraph selection.")
+	} else {
+		out.WriteString("\nF5 configures fonts and style mappings; synthetic shaping uses size/language. OpenType proofs use supported CSS colors.")
+	}
 	b.inspect.SetContent(out.String())
 	b.inspect.GotoTop()
 }
@@ -135,6 +145,7 @@ func (m *model) toggleBrowser() tea.Cmd {
 	if m.browser.open {
 		m.textarea.Blur()
 		m.widthInput.Blur()
+		m.document.widthInput.Blur()
 		return m.browser.setFocus(m.browser.focus)
 	}
 	m.browser.path.Blur()
@@ -174,6 +185,10 @@ func (m *model) updateBrowser(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case treeFocus:
 				if b.doc == nil {
 					return *m, nil
+				}
+				if m.documentMode {
+					cmd := m.selectDocument()
+					return *m, cmd
 				}
 				extracted, err := b.doc.Extract(b.selected)
 				if err != nil {
@@ -262,7 +277,11 @@ func (m model) browserView() tea.View {
 	width := max(1, m.width)
 	treeRows := max(1, (m.height-6)/2)
 	var lines []string
-	lines = append(lines, "HTML / DOM explorer · F4 or Esc back", b.path.View(), ansi.Truncate(b.status, width, "…"))
+	title := "HTML / DOM · paragraph · F7 mode"
+	if b.documentMode {
+		title = "HTML / DOM · document · F7 mode"
+	}
+	lines = append(lines, title, b.path.View(), ansi.Truncate(b.status, width, "…"))
 	marker := "  "
 	if b.focus == treeFocus {
 		marker = "> "
@@ -300,7 +319,7 @@ func (m model) browserView() tea.View {
 		marker = "> "
 	}
 	lines = append(lines, marker+"Properties / preview · tab to scroll")
-	lines = append(lines, b.inspect.View(), "tab focus · arrows tree/scroll · ^C quit")
+	lines = append(lines, b.inspect.View(), "tab focus · F4/Esc back · ^C quit")
 	v := tea.NewView(strings.Join(lines, "\n"))
 	v.AltScreen = true
 	v.WindowTitle = "tytui · HTML / DOM"

@@ -60,6 +60,8 @@ func (i *invocation) prepareGroup(group *box.LayoutNode, owner box.BoxID) (*prep
 	if err != nil {
 		return nil, err
 	}
+	// Build has checked authored markers against this fixed document policy.
+	// Measurement and final layout reuse this preparation and its policy.
 	p, err := paragraph.Prepare(i.ctx, paragraph.Input{Text: text, Direction: g.Paragraph.Style.Direction, Markup: markup, Atomics: g.Anchors},
 		khipu.PrepareOptions{Hyphenation: khipu.NoHyphenation}, khipu.Config{Streaming: &khipu.StreamingConfig{
 			Resolver: r, Defaults: defaults, NewShaper: i.config.NewShaper, BufferOptions: i.config.BufferOptions,

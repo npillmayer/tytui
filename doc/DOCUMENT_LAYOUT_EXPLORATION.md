@@ -13,8 +13,10 @@ results and real-font proofs. See [documentlayout](../documentlayout/README.md),
 [fixed/auto fixtures](../documentlayout/testdata/README.md), and the
 [current integration review and next steps](INTEGRATION_REVIEW_2026-11-15.md).
 The new khipu prepare/measure/bind lifecycle is already integrated through P.
-Document TUI inspection, full painting, finite-height composition and document
-replay remain separate work. The original numbered steps below are historical.
+F7 document mode now selects block subtrees, runs this path asynchronously and
+inspects/exports retained results alongside paragraph mode. Full painting,
+finite-height composition and document replay remain separate work. The original
+numbered steps below are historical.
 
 ## Working picture
 
@@ -131,19 +133,28 @@ RTL block-layout support.
 
 ## Next experiment
 
-The [review](INTEGRATION_REVIEW_2026-11-15.md) records three immediate gaps:
-inline declarations ending in a semicolon fail validation; accepted horizontal
-auto margins are reduced to zero; CSS manual hyphenation is overridden by the
-document's NoHyphenation profile. Fix or explicitly guard these at their owning
-boundaries before expanding accepted input.
+The [review](INTEGRATION_REVIEW_2026-11-15.md)'s three immediate findings are now
+addressed. Inline CSS trailing-semicolon validation is fixed locally; horizontal
+auto margins are fixed in css-box-layout for LTR normal-flow blocks, including
+late containing widths. The fixed document NoHyphenation policy now rejects
+authored soft hyphens under effective CSS manual with a source-located error;
+`hyphens:none` is the explicit opt-out. Focused regressions cover these boundaries,
+including both breakers and intrinsic/final layout consistency.
 
-Then expose the existing nested-auto experiment in the TUI: select a block subtree,
-vary the containing width in CSS pixels and the breaker, inspect source/box/group
-associations, compare retained results and export their proofs. This is the missing
-interactive part of original step 4. Reuse the current APIs rather than rebuilding
-their sizing or retention mechanisms. The proposed later structural experiment
-is an explicitly sized non-text leaf through the existing atomic boundary;
-bounded-height composition needs its own fragmentation design afterward.
+The interactive part of original step 4 is also implemented: F7 document mode
+selects a block subtree, varies CSS-pixel width and breaker, inspects source/box/
+group associations, compares retained results and exports proofs. F5 OpenType
+settings feed fresh per-run services; failed runs keep the previous document.
+The [TUI tests](../document_workbench_test.go) reproduce all four nested-auto
+proof controls and preserve paragraph mode/replay. See the
+[walkthrough](../README.md#document-experiment).
+
+An explicitly sized diagnostic rectangle now exercises the non-text atomic
+boundary. Explicitly sized local PNG/JPEG payloads now use the same boundary,
+with immutable retained bytes and SVG embedding. Bounded-height composition is
+the next separate fragmentation/design question. The proposed
+[finite-height composition plan](FINITE_HEIGHT_COMPOSITION_PLAN.md) begins with
+viewport overflow diagnostics on retained results, before introducing pagination.
 
 ## Ownership to preserve
 

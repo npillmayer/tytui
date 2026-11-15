@@ -1,6 +1,6 @@
 # Three views of document-to-box layout
 
-Started 2026-11-12; updated against the implemented headless path on 2026-11-15.
+Started 2026-11-12; updated against the headless path and document TUI on 2026-11-15.
 Read alongside [the document-layout exploration](DOCUMENT_LAYOUT_EXPLORATION.md)
 and [the current review](INTEGRATION_REVIEW_2026-11-15.md).
 Tytui is the laboratory in which we exercise these boundaries.
@@ -33,8 +33,9 @@ parked. The color should reach rendering without splitting the word's shaping.
 The root has inline content before and after a block child. Consequently there
 are **three paragraph requests**, although the HTML contains no p element. The
 span belongs to the first request, not to a fourth paragraph. The headless
-documentlayout path discovers these groups through box layout. The existing TUI
-paragraph selector still rejects nested blocks; document controls are proposed.
+documentlayout path discovers these groups through box layout. The TUI's F7
+document mode selects block subtrees and runs that path; its separate paragraph
+selector still rejects nested blocks.
 
 ## View 1 — Responsibilities and data flow
 
@@ -58,7 +59,7 @@ flowchart TD
     CU["Implemented: cords + uax<br/>styled text and bidi services"]
     Result["Implemented: retained document result<br/>positioned boxes + typed paragraphs"]
     Render["Implemented: document proof renderer<br/>retained paragraph glyph proofs"]
-    UI["Proposed: document TUI experiment"]
+    UI["Implemented: F7 document TUI experiment"]
     Paint["Partial: page rendering<br/>glyph proofs exist; CSS painting deferred"]
 
     Source --> DOM --> Doc --> Box --> Flow
@@ -82,9 +83,8 @@ flowchart TD
     classDef implemented fill:#e5f4e8,stroke:#28783b,color:#153d20;
     classDef partial fill:#fff2d6,stroke:#9b6b00,color:#523900;
     classDef proposed fill:#e6efff,stroke:#3567a8,color:#193b68;
-    class DOM,Doc,Box,Flow,X,M,P,K,V,A,CU,Result,Render implemented;
+    class DOM,Doc,Box,Flow,X,M,P,K,V,A,CU,Result,Render,UI implemented;
     class Paint partial;
-    class UI proposed;
 ```
 
 Font discovery is optional input preparation and is omitted here for clarity.
@@ -232,7 +232,8 @@ Fake, synthetic and real-font paths now have tests. Nested fixed/auto atomic ite
 and intrinsic sizing are implemented; [fixtures](../documentlayout/testdata/README.md)
 exercise both breakers. The target remains a continuous document with natural
 height. Broader DOM line-height extraction, margin collapse, full painting,
-pagination and the proposed document TUI remain separate work.
+pagination and document replay remain separate work. The implemented document
+TUI selects block subtrees, compares retained results and exports these proofs.
 
 The diagrams explain contracts and ownership; they are not screenshots or captured
 execution traces. The symbolic heights in view 2 are not font-specific output.

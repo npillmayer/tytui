@@ -57,11 +57,23 @@ type Document struct {
 	root    *box.LayoutNode
 	nodes   map[box.NodeID]NodeSource
 	sources map[boxtext.TextSourceID]TextSource
+	leaves  map[box.NodeID]LeafPayload
 	groups  map[box.BoxID]groupEntry
 	order   []Group
 }
 
-func (d *Document) Root() *box.LayoutNode                       { return d.root }
+func (d *Document) Root() *box.LayoutNode { return d.root }
+
+// RectangleLabel returns the retained renderer payload for a diagnostic leaf.
+// Node IDs are CSS source IDs, as on LayoutNode.NodeID, not DOM preorder IDs.
+func (d *Document) RectangleLabel(id box.NodeID) (string, bool) {
+	payload, ok := d.leaves[id]
+	return payload.Label, ok && payload.Kind == "rectangle"
+}
+
+// Leaf returns detached metadata and a shared immutable image, if present.
+func (d *Document) Leaf(id box.NodeID) (LeafPayload, bool) { p, ok := d.leaves[id]; return p, ok }
+
 func (d *Document) Groups() []Group                             { return slices.Clone(d.order) }
 func (d *Document) NodeSource(id box.NodeID) (NodeSource, bool) { s, ok := d.nodes[id]; return s, ok }
 func (d *Document) TextSource(id boxtext.TextSourceID) (TextSource, bool) {
@@ -73,7 +85,11 @@ func (d *Document) TextSource(id boxtext.TextSourceID) (TextSource, bool) {
 // input, then delegates split/hoist and anonymous groups to CSS core. Inputs must
 // be read-only during this call. Errors/cancellation return no partial document.
 // The initial subset is normal whitespace, normal line height, horizontal flow,
-// fixed-pixel or auto atomic widths and zero ordinary-inline edges. No font coverage is
+// fixed-pixel or auto atomic widths and zero ordinary-inline edges. The document
+// profile is NoHyphenation: authored U+00AD requires effective hyphens:none;
+// manual (including the CSS default) with U+00AD and automatic hyphenation fail
+// with khipu.ErrUnsupportedPolicy. Marker errors locate the original decoded
+// text-node byte offset, before whitespace normalization. No font coverage is
 // checked and no atomic interior is flattened into its enclosing paragraph.
 func Build(ctx context.Context, input *htmlinput.Document, selected int) (*Document, error) {
 	if ctx == nil {
@@ -97,7 +113,8 @@ func Build(ctx context.Context, input *htmlinput.Document, selected int) (*Docum
 	if err != nil {
 		return nil, err
 	}
-	d := &Document{nodes: make(map[box.NodeID]NodeSource), sources: make(map[boxtext.TextSourceID]TextSource), groups: make(map[box.BoxID]groupEntry)}
+	d := &Document{leaves: make(map[box.NodeID]LeafPayload), nodes: make(map[box.NodeID]NodeSource), sources: make(map[boxtext.TextSourceID]TextSource), groups: make(map[box.BoxID]groupEntry)}
+	images := make(map[string]*ImageResource) // one byte snapshot per path per build
 	var render func(int) (*box.RenderNode, error)
 	render = func(id int) (*box.RenderNode, error) {
 		if err := ctx.Err(); err != nil {
@@ -116,6 +133,9 @@ func Build(ctx context.Context, input *htmlinput.Document, selected int) (*Docum
 		d.nodes[nodeID] = source
 		r := &box.RenderNode{ID: nodeID, HTML: &html.Node{Type: n.Type, Data: n.Name}}
 		if n.Type == html.TextNode {
+			if err := validateTextHyphenation(input, id); err != nil {
+				return nil, err
+			}
 			sid := boxtext.TextSourceID(id + 1)
 			d.sources[sid] = TextSource{NodeSource: source, Text: n.Text}
 			r.Text = &boxtext.TextRef{Source: sid, Range: boxtext.TextRange{End: uint64(len(n.Text))}}
@@ -132,15 +152,57 @@ func Build(ctx context.Context, input *htmlinput.Document, selected int) (*Docum
 		if id == selected && display != "block" {
 			return nil, unsupported(n.Path + ": root must be display:block")
 		}
-		if !supportedElement(n.Name) {
+		payload, src, err := parseLeaf(n)
+		leaf := payload.Kind != ""
+		if err != nil {
+			return nil, err
+		}
+		if !leaf && !supportedElement(n.Name) {
 			return nil, unsupported(n.Path + ": unsupported <" + n.Name + ">")
 		}
 		if display != "block" && display != "inline" && display != "inline-block" {
 			return nil, unsupported(n.Path + ": display " + display)
 		}
-		computed, err := boxStyle(input, id, display, s)
+		boxDisplay := display
+		if leaf {
+			if display != "inline" && display != "inline-block" {
+				return nil, unsupported(n.Path + ": leaf must be inline")
+			}
+			boxDisplay = "inline-block"
+		}
+		computed, err := boxStyle(input, id, boxDisplay, s, leaf)
 		if err != nil {
 			return nil, err
+		}
+		if leaf {
+			height, err := input.Property(id, "height")
+			if err != nil {
+				return nil, err
+			}
+			h, err := pixelLength(height, false, false)
+			if err != nil {
+				return nil, err
+			}
+			if computed.Width.Kind != box.LenPx {
+				return nil, unsupported(n.Path + ": leaf requires explicit CSS width and height in px")
+			}
+			r.Replaced = &box.ReplacedContent{Height: h.Value}
+			if payload.Kind == "image" {
+				path, err := localImagePath(input.Name, src)
+				if err != nil {
+					return nil, fmt.Errorf("%s: %w", n.Path, err)
+				}
+				resource := images[path]
+				if resource == nil {
+					resource, err = readImage(ctx, path)
+					if err != nil {
+						return nil, fmt.Errorf("%s: image %q: %w", n.Path, path, err)
+					}
+					images[path] = resource
+				}
+				payload.Image = resource
+			}
+			d.leaves[nodeID] = payload
 		}
 		r.Style = &computed
 		r.Styles = map[string]string{"display": display}

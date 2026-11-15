@@ -19,6 +19,26 @@ func unsupported(message string) error {
 	return fmt.Errorf("%w: documentlayout: %s", khipu.ErrUnsupportedPolicy, message)
 }
 
+// The document experiment prepares every group with NoHyphenation, for both
+// measurement and final layout. Reject authored discretionary markers unless CSS
+// explicitly disables them; accepting manual here would silently override CSS.
+// Resolve inheritance through the DOM, before normalization changes byte offsets.
+func validateTextHyphenation(d *htmlinput.Document, id int) error {
+	n := d.Nodes[id]
+	offset := strings.IndexRune(n.Text, '\u00ad')
+	if offset < 0 {
+		return nil
+	}
+	value, err := d.Property(id, "hyphens")
+	if err != nil {
+		return err
+	}
+	if value != "none" {
+		return unsupported(fmt.Sprintf("%s: decoded text byte %d: U+00AD with hyphens:%s conflicts with the document NoHyphenation profile; use hyphens:none to explicitly disable discretionary breaks", n.Path, offset, value))
+	}
+	return nil
+}
+
 func supportedElement(name string) bool {
 	return strings.Contains(" body div p section article main header footer nav aside blockquote h1 h2 h3 h4 h5 h6 figure figcaption a abbr b bdi cite code del dfn em i ins kbd mark q s samp small span strong sub sup time u var ", " "+name+" ")
 }
@@ -68,7 +88,7 @@ func pixelLength(value string, auto, signed bool) (box.Length, error) {
 	return box.Length{Kind: box.LenPx, Value: float32(n)}, nil
 }
 
-func boxStyle(d *htmlinput.Document, id int, display string, s typestyle.Style) (box.ComputedStyle, error) {
+func boxStyle(d *htmlinput.Document, id int, display string, s typestyle.Style, leaf bool) (box.ComputedStyle, error) {
 	result := box.DefaultComputedStyle()
 	result.FontSizePx = float32(float64(s.EmSize) / float64(dimen.BP) * 4 / 3)
 	get := func(key string) (string, error) { return d.Property(id, key) }
@@ -77,6 +97,9 @@ func boxStyle(d *htmlinput.Document, id int, display string, s typestyle.Style) 
 		{"min-width", "none"}, {"max-width", "none"}, {"min-height", "none"}, {"max-height", "none"},
 		{"word-spacing", "normal"}, {"letter-spacing", "normal"}, {"word-break", "normal"}, {"overflow-wrap", "normal"},
 	} {
+		if leaf && policy.key == "height" {
+			continue
+		}
 		v, err := get(policy.key)
 		if err != nil {
 			return result, err
@@ -151,4 +174,34 @@ func boxStyle(d *htmlinput.Document, id int, display string, s typestyle.Style) 
 		}
 	}
 	return result, nil
+}
+
+// Leaf syntax is opt-in; an unreadable image never becomes a rectangle.
+func parseLeaf(n htmlinput.Node) (LeafPayload, string, error) {
+	var payload LeafPayload
+	var src string
+	for _, a := range n.Attributes {
+		switch a.Key {
+		case "data-tytui-leaf":
+			if n.Name != "img" || (a.Val != "rectangle" && a.Val != "image") {
+				return payload, "", unsupported(n.Path + ": unknown leaf")
+			}
+			payload.Kind = a.Val
+		case "alt":
+			payload.Label = a.Val
+		case "src":
+			src = a.Val
+		}
+	}
+	if payload.Kind != "" {
+		for _, a := range n.Attributes {
+			if a.Key == "srcset" || a.Key == "width" || a.Key == "height" || (payload.Kind == "rectangle" && a.Key == "src") {
+				return payload, "", unsupported(n.Path + ": leaf requires CSS dimensions; image resources require the image marker")
+			}
+		}
+		if payload.Kind == "image" && strings.TrimSpace(src) == "" {
+			return payload, "", unsupported(n.Path + ": image requires src")
+		}
+	}
+	return payload, src, nil
 }

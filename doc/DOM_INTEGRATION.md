@@ -48,9 +48,14 @@ extracted rules and registers them as author sheets. Linked resources are not
 loaded. Unsupported declarations, at-rules, and invalid selectors remain rejected;
 inline validation remains, while duplicate declarations and !important are delegated
 to w3c-dom’s cascade. Importance, specificity, and source order determine winners;
-quoted exclamation marks are ordinary value content. Validation appends a CSS
-terminator to inline input to avoid douceur truncating a final multi-token value;
-the original attribute is retained for upstream styling.
+quoted exclamation marks are ordinary value content. Validation parses inline
+input inside a temporary declaration block: the closing brace retains a final
+multi-token value without duplicating an optional semicolon. Empty styles and
+trailing whitespace/comments are accepted; the original attribute is retained
+for upstream styling. `htmlinput/inline_validation_test.go` covers these endings,
+quoted punctuation, retained source/styles and validation errors;
+`documentlayout/inline_css_test.go` follows terminated declarations through both
+breakers, frozen fonts, separate paint and independent box geometry.
 
 Property inspection delegates to `css.GetProperty`, including inherited font
 properties and explicit inherit/initial/unset. Text nodes inspect their parent;
