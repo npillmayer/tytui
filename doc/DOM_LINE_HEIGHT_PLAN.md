@@ -7,6 +7,13 @@ The purpose is an integration experiment: establish which CSS semantics the
 participating modules can represent, expose gaps with reproducible cases, and
 keep reusable fixes in their owning packages.
 
+2026-11-15 scope note: this plan remains parked. The separate document path now
+resolves each normalized group's owner typography for its strut and supplies
+normal typed line height. Step 3's missing-owner-context concern therefore no
+longer applies to that path; general DOM factor/length computation and the original
+paragraph/replay migration remain unimplemented. See the
+[current integration review](INTEGRATION_REVIEW_2026-11-15.md).
+
 ## Current evidence and gaps
 
 | Finding from the current checkouts | Consequence / priority |

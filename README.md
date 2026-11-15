@@ -10,6 +10,8 @@ show nested boxes, baselines and real glyphs without remeasurement. Independent
 geometry, resize/failure recovery and result lifetime are verified under both
 breakers; broader CSS policies remain explicitly deferred.
 TUI and replay behavior are unchanged.
+See the [2026-11-15 integration review](doc/INTEGRATION_REVIEW_2026-11-15.md)
+for the current boundaries, confirmed gaps and proposed next document experiments.
 
 An experimental typography integration laboratory, with an interactive paragraph
 workbench built with [Bubble Tea](https://charm.land/). Tytui is a practical example
@@ -27,7 +29,7 @@ The pipeline supports synthetic and OpenType fonts, Latin/Hebrew mixed-direction
 paragraphs, and firstfit or Knuth–Plass line breaking. The TUI displays text and
 layout diagnostics; SVG exports render positioned glyph outlines for OpenType.
 
-Run with Go 1.25.6 or newer and sibling `cords`, `khipu`, `uax`, `w3c-dom`, `opentype`, `tree`, `schuko`, `fontfind`, and `typography` checkouts:
+Run with Go 1.25.6 or newer and sibling `cords`, `khipu`, `uax`, `w3c-dom`, `opentype`, `tree`, `schuko`, `fontfind`, `typography`, and `css-box-layout` checkouts:
 
 ```sh
 go run .

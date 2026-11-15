@@ -1,12 +1,12 @@
 # Three views of document-to-box layout
 
-Planning diagrams, 2026-11-12. Read alongside
-[the document-layout exploration](DOCUMENT_LAYOUT_EXPLORATION.md).
-They explain the intended integration and distinguish it from what runs today.
-Tytui is the laboratory in which we will exercise these boundaries.
+Started 2026-11-12; updated against the implemented headless path on 2026-11-15.
+Read alongside [the document-layout exploration](DOCUMENT_LAYOUT_EXPLORATION.md)
+and [the current review](INTEGRATION_REVIEW_2026-11-15.md).
+Tytui is the laboratory in which we exercise these boundaries.
 
 **Status legend:** **Implemented** means available for the current supported
-paragraph subset, not complete CSS or typography conformance. **Partial** means
+document subset, not complete CSS or typography conformance. **Partial** means
 code exists but the document use case has unresolved gaps. **Proposed** means the
 connection or document feature is not implemented. Status appears in node labels
 as well as colors: green = implemented, amber = partial, blue = proposed.
@@ -16,7 +16,7 @@ An arrow shows the intended contract; it does not by itself assert working wirin
 
 ```html
 <style>
-  #sample, #note { display: block; margin: 0; padding: 0; border: 0; }
+  #sample, #note { display: block; margin: 0; padding: 0; border-width: 0; border-style: none; }
   #sample { width: 240px; }
   #note { width: 120px; }
   .accent { color: red; }
@@ -32,9 +32,9 @@ parked. The color should reach rendering without splitting the word's shaping.
 
 The root has inline content before and after a block child. Consequently there
 are **three paragraph requests**, although the HTML contains no p element. The
-span belongs to the first request, not to a fourth paragraph. This document cannot
-yet be laid out end-to-end by tytui: its current paragraph selector rejects nested
-blocks, and the proposed document path must discover groups through box layout.
+span belongs to the first request, not to a fourth paragraph. The headless
+documentlayout path discovers these groups through box layout. The existing TUI
+paragraph selector still rejects nested blocks; document controls are proposed.
 
 ## View 1 — Responsibilities and data flow
 
@@ -46,21 +46,23 @@ roles, not four new modules to create.
 flowchart TD
     Source["HTML + CSS<br/>example above"]
     DOM["Implemented: w3c-dom<br/>styled DOM and CSS services"]
-    Doc["Proposed: document adapter<br/>source IDs + supported computed values"]
-    Box["Partial: css-box-layout<br/>normalize boxes and resolve used dimensions"]
-    Flow["Partial: css-box-layout<br/>block flow and positioning"]
-    X["Partial: X — tytui/htmlinput<br/>single-subtree extraction exists;<br/>inline-group extraction proposed"]
+    Doc["Implemented: documentlayout.Build<br/>source IDs + supported computed values"]
+    Box["Implemented: css-box-layout<br/>normalize boxes and resolve used dimensions"]
+    Flow["Implemented: css-box-layout<br/>atomic sizing, block flow and positioning"]
+    X["Implemented: X — documentlayout + htmlinput<br/>normalized inline-group extraction"]
     M["Implemented: M — typography<br/>projection, font selection, itemization"]
     P["Implemented: P — typography/paragraph<br/>bidi preparation and layout orchestration"]
-    K["Implemented: khipu<br/>encode, break, freeze"]
+    K["Implemented: khipu<br/>prepare, measure, bind, break, freeze"]
     V["Implemented: P<br/>assemble frozen lines into boxed vlist"]
     A["Implemented: A — adapter/opentype<br/>font loading, shaping, metrics"]
     CU["Implemented: cords + uax<br/>styled text and bidi services"]
-    Result["Proposed: retained document result<br/>positioned boxes + paragraph references"]
-    Render["Proposed: document proof renderer<br/>reuse implemented paragraph glyph proofs"]
+    Result["Implemented: retained document result<br/>positioned boxes + typed paragraphs"]
+    Render["Implemented: document proof renderer<br/>retained paragraph glyph proofs"]
+    UI["Proposed: document TUI experiment"]
+    Paint["Partial: page rendering<br/>glyph proofs exist; CSS painting deferred"]
 
     Source --> DOM --> Doc --> Box --> Flow
-    Flow -->|"inline group + available width"| X
+    Flow -->|"measure bounds or lay out at final width"| X
     X -->|"text + semantic styles + bidi input"| M
     M -->|"prepared styled.Text + resolver"| P
     A -.-> M
@@ -68,34 +70,37 @@ flowchart TD
     CU -.-> P
     CU -.-> K
     P --> K --> V
-    V -->|"line summaries + extent + retained content"| Flow
+    P -->|"intrinsic bounds through adapter"| Flow
+    V -->|"extent + atomic border origins through adapter"| Flow
+    V -->|"typed retention through adapter"| Result
     Flow --> Result --> Render
+    Result --> UI
+    Render --> Paint
     X -->|"separate paint + source correspondence"| Render
     V -->|"frozen glyphs and local placements"| Render
 
     classDef implemented fill:#e5f4e8,stroke:#28783b,color:#153d20;
     classDef partial fill:#fff2d6,stroke:#9b6b00,color:#523900;
     classDef proposed fill:#e6efff,stroke:#3567a8,color:#193b68;
-    class DOM,M,P,K,V,A,CU implemented;
-    class Box,Flow,X partial;
-    class Doc,Result,Render proposed;
+    class DOM,Doc,Box,Flow,X,M,P,K,V,A,CU,Result,Render implemented;
+    class Paint partial;
+    class UI proposed;
 ```
 
 Font discovery is optional input preparation and is omitted here for clarity.
-The document renderer will use retained services and payloads; it must not reopen
+The document renderer uses retained services and payloads; it must not reopen
 fonts, reshape text or infer color from a box's geometry.
 
-Current obstacles are style transport and text-source identity in box construction,
-computed-value context, coordinate conventions, and retention of paragraph results
-for anonymous boxes. The existing InlineLayouter interface is a useful connection
-point, not evidence that these obstacles are already solved.
+Style transport, source identity, anonymous-owner retention and content-coordinate
+composition are implemented and tested. The remaining profile and input gaps are
+listed in the review. No paragraph payload passes through the CSS callback;
+documentlayout retains the concrete results separately.
 
 ## View 2 — One source, successive representations
 
 This view answers **why are DOM nodes, boxes and paragraphs different objects?**
-The DOM structure below is available today. The box structure is the intended
-normalization of this example, supported by partial builder machinery. The final
-composition is proposed. G1–G3 are explanatory group labels, not runtime IDs.
+These representations are implemented for this subset. G1–G3 are explanatory
+group labels, not runtime IDs; each corresponds to a normalized group's BoxID.
 
 ```mermaid
 flowchart LR
@@ -112,7 +117,7 @@ flowchart LR
       D0 --> DN
       D0 --> DA
     end
-    subgraph B["Normalized boxes — partial"]
+    subgraph B["Normalized boxes — implemented"]
       B0["sample block"]
       B1["anonymous block<br/>G1: anonymous inline group<br/>Before office."]
       B2["note block<br/>G2: anonymous inline group<br/>Inside the narrower block."]
@@ -121,12 +126,12 @@ flowchart LR
       B0 --> B2
       B0 --> B3
     end
-    subgraph L["Paragraph capability implemented;<br/>group integration proposed"]
+    subgraph L["Retained group paragraphs — implemented"]
       V1["V1: request at 240px<br/>lines → boxed vlist"]
       V2["V2: request at 120px<br/>lines → boxed vlist"]
       V3["V3: request at 240px<br/>lines → boxed vlist"]
     end
-    subgraph O["Positioned document — proposed"]
+    subgraph O["Positioned document — implemented"]
       O0["sample content at origin<br/>natural height H1 + H2 + H3"]
       O1["V1 origin: 0, 0"]
       O2["note / V2 origin: 0, H1"]
@@ -143,9 +148,7 @@ flowchart LR
     classDef implemented fill:#e5f4e8,stroke:#28783b,color:#153d20;
     classDef partial fill:#fff2d6,stroke:#9b6b00,color:#523900;
     classDef proposed fill:#e6efff,stroke:#3567a8,color:#193b68;
-    class D0,D1,DS,DP,DN,DA implemented;
-    class B0,B1,B2,B3 partial;
-    class V1,V2,V3,O0,O1,O2,O3 proposed;
+    class D0,D1,DS,DP,DN,DA,B0,B1,B2,B3,V1,V2,V3,O0,O1,O2,O3 implemented;
 ```
 
 The G1/G3 anonymous blocks have no corresponding HTML element. The inline span
@@ -164,17 +167,17 @@ They are not measured output from the HTML above.
 ## View 3 — Width goes down; height comes back
 
 This view answers **who calls whom, and when does the following block move?**
-It describes the proposed document integration using the implemented paragraph
-engine. Fake paragraphs can replace P for the first positioning tests.
+It describes the implemented fixed-width path for the example above. Fake
+paragraphs remain useful controls in owning box-engine tests.
 
 ```mermaid
 sequenceDiagram
-    participant W as Workbench (document experiment proposed)
-    participant B as Box builder / used values (partial)
-    participant F as Block flow (partial)
-    participant X as Inline-group adapter (proposed)
+    participant W as Headless document experiment (implemented)
+    participant B as Box builder / used values (implemented)
+    participant F as Block flow (implemented)
+    participant X as Inline-group adapter (implemented)
     participant P as Paragraph P + M/A/khipu (implemented)
-    participant R as Document result / proof (proposed)
+    participant R as Document result / proof (implemented)
 
     W->>B: Styled sample + supported values + root constraints
     B-->>W: Box tree, G1/G2/G3 identities, used widths
@@ -183,26 +186,34 @@ sequenceDiagram
         F->>X: LayoutInline(group, available content width)
         X->>X: Collect normalized text, styles, bidi and source map
         X->>X: Retain paint separately, then convert width to paragraph units
-        X->>P: Prepared styled.Text + width + policy + injected services
-        P->>P: Shape, break, freeze, assemble local lines
+        X->>P: Prepare itemized styled.Text + anchors + policy + services
+        X->>P: Prepared.Layout with final width and atomic geometry
+        P->>P: Bind, break, freeze, assemble local lines
         P-->>X: Boxed vlist: extent, baselines, frozen content
-        X->>X: Retain group-to-result association, then convert line summaries
-        X-->>F: Line boxes + retained paragraph references
+        X->>X: Retain typed group/owner result; convert outer summaries
+        X-->>F: Extent + atomic border origins (no paragraph payload)
         F->>F: Position group, then advance by its returned extent
     end
     F-->>W: Positioned box geometry
     W->>R: Snapshot geometry, paragraph associations and separate paint
     R->>R: Compose parent transforms once, then draw retained glyphs
     Note over F,P: Outer flow positions the vlist and does not stack its lines again.
-    Note over W,R: This document path is proposed. Existing paragraph results remain the control.
+    Note over W,R: Publish only on whole-document success; preserve the old snapshot on failure.
 ```
 
 The callback receives the content width after the relevant box edges have been
 resolved. Paragraph output remains in local coordinates. The adapter translates
 between box-layout pixel/float32 summaries and paragraph DU/fractional-big-point
 geometry; exact conversion and rounding belong in the integration contract.
-Preserve precise retained glyph geometry and the vlist's full extent, including
-compatibility-policy trailing spacing.
+Preserve precise retained glyph geometry. This document profile uses normal
+CSSLineHeight without compatibility-policy trailing kerns.
+
+The example has no atomic children, so it needs no intrinsic callbacks. With
+auto-width inline-blocks, CSS first recursively requests intrinsic bounds through
+MeasureInline, which reuses P's private preparation. CSS chooses widths and
+completes the nested atomic boxes before final LayoutInline. Measurement neither
+publishes a paragraph nor consumes its single final callback. Reuse is limited
+to one invocation; independent resize calls prepare afresh.
 
 For a resize experiment, change note's width from 120px to 90px. The next layout
 must call P with the new width. If its returned height changes from H2 to H2', G3
@@ -217,11 +228,11 @@ Update statuses only when the relevant boundary is exercised by an integration
 test. Keep the example and its source identities consistent across all three
 views. A working isolated package does not make an untested connection implemented.
 
-First prove the fake paragraph widths and positions; then use synthetic typography,
-then real fonts and frozen glyph rendering. The target is a continuous document
-with natural height, not pagination. DOM line-height extraction, intrinsic sizing,
-atomic inline items, margin collapse and the CSS box engine's broader coverage
-remain separate follow-up work.
+Fake, synthetic and real-font paths now have tests. Nested fixed/auto atomic items
+and intrinsic sizing are implemented; [fixtures](../documentlayout/testdata/README.md)
+exercise both breakers. The target remains a continuous document with natural
+height. Broader DOM line-height extraction, margin collapse, full painting,
+pagination and the proposed document TUI remain separate work.
 
-This is documentation only. The diagrams are explanatory contracts and proposed
-experiments, not screenshots or captured execution traces.
+The diagrams explain contracts and ownership; they are not screenshots or captured
+execution traces. The symbolic heights in view 2 are not font-specific output.

@@ -1,5 +1,10 @@
 # Integration review TODO — updated 2026-11-12
 
+For the newer document/atomic integration, see the
+[2026-11-15 review](INTEGRATION_REVIEW_2026-11-15.md), including confirmed input
+and policy gaps. The findings below track the original paragraph experiment;
+they are not a current checklist for document layout.
+
 Review of steps 1–7 against IMPLEMENTATION_PLAN.md. All vertical slices exist,
 but the supported subsets are not fully validated. The tytui race-enabled suite
 passed during review; temporary targeted probes exposed the issues below.

@@ -7,11 +7,14 @@ are parked unless a concrete document-layout experiment requires them.
 
 Tytui remains an experimental integration laboratory. The immediate outcome is a
 small, inspectable document-layout example and evidence about the participating
-modules. The fixed-width experiment is implemented in
-[documentlayout](../documentlayout/README.md), with a
-[retained real-font proof](../documentlayout/testdata/nested-firstfit.svg) and
-independent geometry/glyph tests (pipeline integration stages 3D–3F). Intrinsic
-measurement, auto-sized atomics, page composition and document replay remain deferred.
+modules. **Re-evaluated 2026-11-15:** the headless experiment now includes fixed
+and auto-width nested inline-blocks, intrinsic measurement, retained paragraph
+results and real-font proofs. See [documentlayout](../documentlayout/README.md),
+[fixed/auto fixtures](../documentlayout/testdata/README.md), and the
+[current integration review and next steps](INTEGRATION_REVIEW_2026-11-15.md).
+The new khipu prepare/measure/bind lifecycle is already integrated through P.
+Document TUI inspection, full painting, finite-height composition and document
+replay remain separate work. The original numbered steps below are historical.
 
 ## Working picture
 
@@ -28,12 +31,12 @@ css-box-layout: construct/normalize box tree
 Resolve used dimensions from containing-block constraints
     │
     ▼
-Flow layout: position blocks; request inline layout at an available width
+CSS flow: measure auto contents, choose widths, complete nested atomics
     │
     ├── Inline-group adapter: collect text/styles/source correspondence
     │       │ M prepares typography; paint remains separate
     │       ▼
-    │   typography/paragraph: shape → break → freeze → boxed vlist
+    │   typography/paragraph: prepare ↔ measure; bind → break → freeze → vlist
     │       │ retained paragraph-local line geometry and glyphs
     │       ▼
     └── Overall extent + atomic border origins (return to block flow)
@@ -92,25 +95,29 @@ as one complete document snapshot only after layout succeeds. A failed or later
 run must not alter the previous snapshot; retained objects and backing storage
 must remain valid and immutable for that snapshot's lifetime.
 
-The first experiment assumes one accepted result per group per invocation.
-Before speculative sizing or repeated group requests are introduced, specify how
-the accepted result is selected; blindly overwriting the table is insufficient.
+There is one accepted final result per group per invocation. Intrinsic measurement
+is a separate callback that reuses private preparation and publishes no paragraph.
+Before speculative final layout or repeated final requests are introduced, specify
+how the accepted result is selected; blindly overwriting the table is insufficient.
 
 This is implemented wiring. CSS core owns recursive nested atomic preparation;
-callbacks receive read-only PreparedAtomicsView and UsedValuesView. No external
+final callbacks receive read-only PreparedAtomicsView and UsedValuesView; measurement
+receives intrinsic bounds and resolved edges. No external
 AtomicSizer, []LineBox return, opaque paragraph payload or mutable node geometry
-mirror is used. Speculative/repeated group callbacks are explicitly rejected.
+mirror is used. Speculative/repeated final callbacks are explicitly rejected;
+repeated measurements are supported within the serialized invocation.
 
 ## What exists today
 
-Current implemented boundaries (2026-11-14):
+Current implemented boundaries (2026-11-15):
 
 | Boundary | Current surface | Ownership |
 | --- | --- | --- |
 | Styled document → render input | documentlayout.Build supplies typed styles and stable text source references to RenderNode. | DOM policy and source tables stay in tytui; no glyph coverage policy is added. |
 | Render input → box tree | BuildLayoutTree normalizes anonymous groups and split/hoisted inlines. | CSS core retains NodeID/BoxID distinctions and transported styles. |
-| Box tree → used dimensions | ResolveUsedValues supplies finite fixed-width dimensions and margins. | CSS core owns used widths and recursive atomic preparation. |
-| Block flow → paragraph request | LayoutInline(InlineRequest) receives Group, OwnerID, ContentWidth, Used and Atomics. | The adapter extracts one group, itemizes, prepares and lays out it; no atomic-interior recursion. |
+| Box tree → used dimensions | ResolveUsedValues resolves definite values and marks pending auto widths. | CSS core owns used widths, shrink-to-fit and descendant re-resolution. |
+| CSS sizing → paragraph measurement | MeasureInline supplies nested atomic intrinsic bounds and resolved edges to Prepared.MeasureIntrinsic. | Private preparation is reused; measurements publish no final layout. |
+| Block flow → paragraph request | LayoutInline(InlineRequest) receives Group, OwnerID, ContentWidth, Used and completed Atomics. | The adapter extracts/itemizes/prepares once per invocation, then binds and lays out; no atomic-interior recursion. |
 | Paragraph result → block flow | InlineResult returns Extent plus BoxID-mapped atomic border origins. | Paragraph lines/glyphs/source/paint stay in typed GroupResult records. |
 | Flow → document output | Result publishes detached geometry accessors and typed retained groups after whole-flow success. | Geometry uses explicit RelativeTo content parents; old snapshots survive resize/failure. |
 | Document → proof | BuildProof/WriteSVG compose each owner-content transform once around retained glyph/line placements. | Generic paragraph walking lives in typography/render; CSS/DOM associations stay in tytui. |
@@ -121,6 +128,22 @@ The sibling's authoritative design is
 The implementation currently supports a much narrower surface than a complete CSS
 engine. Its outer-layout contract is LTR; paragraph bidi support does not establish
 RTL block-layout support.
+
+## Next experiment
+
+The [review](INTEGRATION_REVIEW_2026-11-15.md) records three immediate gaps:
+inline declarations ending in a semicolon fail validation; accepted horizontal
+auto margins are reduced to zero; CSS manual hyphenation is overridden by the
+document's NoHyphenation profile. Fix or explicitly guard these at their owning
+boundaries before expanding accepted input.
+
+Then expose the existing nested-auto experiment in the TUI: select a block subtree,
+vary the containing width in CSS pixels and the breaker, inspect source/box/group
+associations, compare retained results and export their proofs. This is the missing
+interactive part of original step 4. Reuse the current APIs rather than rebuilding
+their sizing or retention mechanisms. The proposed later structural experiment
+is an explicitly sized non-text leaf through the existing atomic boundary;
+bounded-height composition needs its own fragmentation design afterward.
 
 ## Ownership to preserve
 
@@ -139,10 +162,10 @@ one DOM node may generate multiple boxes. Document-to-text correspondence must
 survive normalization and paragraph extraction rather than being reconstructed
 from displayed strings afterward.
 
-## First experiment: a bounded continuous document
+## Initial experiment (historical): a bounded continuous document
 
-Recommended starting fixture: a block root with a fixed available width, two
-paragraphs, and one nested block containing another paragraph. Add basic padding
+The original recommended starting fixture was a block root with a fixed available
+width, two paragraphs, and one nested block containing another paragraph. Add basic padding
 and borders after the zero-edge case works. Use normal-flow LTR block layout,
 explicitly supported widths, and additive margins only where the upstream contract
 supports them. No pagination, floats, positioned elements, flex/grid, margin
@@ -260,5 +283,9 @@ explicitly. Run owning-package tests and affected integration suites for each
 implementation; run race/build/vet checks when retaining shared results or moving
 boundaries. Preserve paragraph replay fixtures and rendering-bypass tests.
 
-This initial document is based on source inspection. No implementation changes
-or runtime verification were performed for this planning pass.
+The initial 2026-11-12 planning pass was source inspection only. The 2026-11-15
+review rechecked actual code, ordinary/race suites, builds and vet in tytui,
+typography, khipu and css-box-layout, plus the ordinary w3c-dom suite. All passed;
+temporary targeted probes exposed the policy/input gaps above. See the review
+for exact scope, checkout state and remaining limits. No implementation changes
+were made during this re-evaluation.
