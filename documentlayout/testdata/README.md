@@ -73,3 +73,12 @@ lines and vlists; it has no preparation/breaker configuration. Source assertions
 check decoded DOM anchors, paint, ligatures, Hebrew and separate atomic ownership.
 Numeric synthetic tests remain the independent geometry oracle. All four SVGs
 were XML-validated and visually inspected; they add no CSS painting or replay API.
+
+
+Stage 5E verification completed 2026-11-15: ordinary/race suites, build and vet
+passed across khipu, typography, tytui and css-box-layout. These include independent
+geometry/glyph controls, guarded retained rendering, failure/recovery and existing
+paragraph replay checks. No SVG or replay fixture was regenerated for validation.
+The fixtures demonstrate the bounded profile described above, not full CSS
+baseline/painting or hyphenation conformance. Broader policies and result-cache
+invalidation remain deferred; glyph coverage remains caller-owned.

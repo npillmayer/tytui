@@ -1,6 +1,7 @@
 # Document flow and normalized input
 
-`documentlayout` implements pipeline integration stages 3D–3F and 4C–4D. It builds typed CSS
+`documentlayout` implements pipeline integration stages 3D–3F and 4C–4D,
+with stage 5 verification complete (2026-11-15). It builds typed CSS
 render input from a selected styled block, lets `css-box-layout` normalize the
 structure, extracts its anonymous inline groups, and connects `FlowLayout` to
 typography's prepared paragraph engine. CSS core schedules and sizes nested atomic
@@ -288,4 +289,19 @@ existing frozen/vlist walker needs no prepared owner or breaker configuration.
 No production API changes, new coverage validation, font copies or replay changes
 were needed; the fixed-width proof remains unchanged.
 
-Final cross-module documentation alignment and validation remain stage 5E.
+Stage 5E completes cross-module documentation alignment and validation
+(2026-11-15). Ordinary and race suites, build and vet passed in khipu, typography,
+tytui and css-box-layout, including generic dependency audits, OpenType adapter
+regressions and unchanged retained proof/replay controls. No production changes
+were needed for stage 5 verification. See the
+[implementation record](../../khipu/doc/PIPELINE_INTEGRATION.md) and
+[CSS integration evidence](../../css-box-layout/doc/Document-Layout-Integration.md#7-bounded-integration-evidence).
+
+Completion applies to the bounded profile above. Cross-invocation/global caches,
+speculative or repeated final callbacks, percentage/relative-length expansion,
+horizontal auto-margin distribution, full baseline/inline-fragment policies,
+outer RTL/vertical writing, full CSS painting, pagination, TUI integration and
+document replay remain separate work. The generic khipu/typography explicit
+measurement API does not enable CSS hyphenation here; automatic intrinsic
+hyphenation and successive textbox splitting remain deferred. Glyph coverage
+stays caller-owned; relocating existing itemizer checks is still a future task.

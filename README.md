@@ -3,10 +3,12 @@
 The headless [documentlayout package](documentlayout/README.md) connects
 CSS-normalized inline groups to prepared paragraph layout, including fixed and auto-width
 atomic boxes and retained source/paint correspondence (pipeline integration
-stages 3D–3F and 4C–4D). Intrinsic callbacks reuse preparation while CSS core selects
+stages 3D–3F and 4C–4D, verified through stage 5). Intrinsic callbacks reuse preparation while CSS core selects
 auto widths. `Document.Layout` publishes CSS geometry and typed paragraph results
-together after success. A [retained document proof](documentlayout/testdata/nested-firstfit.svg)
-shows nested boxes, baselines and real glyphs without remeasurement.
+together after success. [Retained fixed/auto document proofs](documentlayout/testdata/README.md)
+show nested boxes, baselines and real glyphs without remeasurement. Independent
+geometry, resize/failure recovery and result lifetime are verified under both
+breakers; broader CSS policies remain explicitly deferred.
 TUI and replay behavior are unchanged.
 
 An experimental typography integration laboratory, with an interactive paragraph
