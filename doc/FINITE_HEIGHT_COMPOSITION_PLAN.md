@@ -4,19 +4,19 @@ Proposed plan, 2026-11-15. This expands step 4 of the
 [integration review](INTEGRATION_REVIEW_2026-11-15.md). No implementation changes
 are part of this document.
 
-Start by observing the existing continuous document layout through a finite
-viewport. Implement steps 1–3 below, inspect the evidence, and then decide which
-pagination experiment to pursue. A viewport does not change line breaking,
-vertical stacking, or the retained document. Pagination will require an explicit
-composition contract, rather than clipping the same picture into page-sized strips.
+The active scope is observing the existing continuous document layout through a
+finite viewport: headless overflow diagnostics, SVG overlays and TUI inspection.
+A viewport does not change line breaking, vertical stacking, or the retained
+document. Pagination and all page-break activities are postponed. Their approach
+is undecided, and completing this plan does not trigger pagination work.
 
 ## Current foundation and gaps
 
 | Implemented boundary | What it provides | What remains missing |
 | --- | --- | --- |
 | `documentlayout.LayoutRequest` | Containing width in CSS pixels and breaker selection | No viewport height or retained constraint record in `Result` |
-| CSS `FlowLayout` and geometry table | Continuous block flow; border/content rectangles relative to parent content origins | No page sequence, fragment continuations, or legal vertical break protocol |
-| `paragraph.VList` | Immutable frozen content, placed lines, atomic placements, and `Materials()` containing line boxes and fixed kerns | No target-height packing or fragment-boundary spacing policy |
+| CSS `FlowLayout` and geometry table | Continuous block flow; border/content rectangles relative to parent content origins | Reuse absolute coordinate composition for viewport assessment |
+| `paragraph.VList` | Immutable frozen content, placed lines, atomic placements, and `Materials()` containing line boxes and fixed kerns | Existing geometry suffices for observation; no new packing policy needed |
 | `documentlayout.Result` | Source correspondence, paint, retained paragraphs and CSS geometry | No headless overflow assessment |
 | `BuildProof` / `WriteSVG` | Absolute document proof, glyphs and retained image payloads | Proof bounds mix several kinds of geometry; export expands to the whole proof rather than showing a viewport |
 | F7 document workbench | Independent document runs/history and captured exports | Width only; the terminal's scrolling inspector is not a physical layout viewport |
@@ -146,89 +146,37 @@ record what actually exceeds the viewport. Richer CSS line-height extraction,
 margin collapse and baseline propagation remain separate work unless these
 observations make one necessary.
 
-## 4. Settle the fragmentation contract before paginating
+## Deferred: pagination and page breaks
 
-Review the viewport cases and choose a deliberately small supported page model:
-equal-width/equal-height pages, normal block flow, and indivisible atomic objects.
-There is no need for a new general annotation API or a generic object framework.
-Document these decisions before adding a page-producing API:
+All page-break activities are postponed, including fragmentation API design,
+page allocation, break-opportunity discovery, continuation boxes, boundary
+spacing/margin policies and pagination prototypes. The earlier proposed steps
+4–6 are withdrawn from the active plan; no page model, algorithm or ownership
+arrangement has been selected.
 
-| Decision | Recommended initial direction |
-| --- | --- |
-| Composition owner | CSS-aware document composition owns block traversal, page allocation and continuation boxes. Establish the boundary in `css-box-layout`; introduce a separate general-purpose compositor only if a concrete reusable contract warrants it. |
-| Paragraph contribution | P owns line/vlist fragment metrics and legal line-boundary material slices. Reuse frozen lines at the same width; do not rerun paragraph layout for each page. |
-| Break opportunities | Begin between supported sibling blocks. Later add between retained paragraph lines. Never split glyphs or atomic objects at an arbitrary Y coordinate. |
-| Vertical spacing | Specify which interline kerns/gaps survive each boundary, first/last-fragment extent and baseline, and trailing spacing. Natural-vlist placement alone cannot answer this. |
-| CSS edges and margins | Specify boundary margin treatment and decoration continuation. Initially restrict cases whose semantics have not been implemented; do not invent margin collapse in tytui. |
-| Oversized material | Place an indivisible oversized item once on an otherwise empty page and report overflow. Guarantee progress rather than generating empty pages indefinitely. |
-| Continuation identity | Retain original box/group/source identity plus page and fragment ordinal, original line indexes and page-relative transforms. Never mutate shared frozen ranges or rebase logical source offsets as if pages were new paragraphs. |
-| Rendering and resources | Share immutable frozen content, fonts, paint/source maps and image bytes. Render selected retained material through a fragment-aware boundary. Color continues to bypass typesetter styles. |
-
-Source identity must survive bidi visual ordering, collapsed whitespace and
-discretionary replacements. A fragment's correspondence may consist of multiple
-source spans; a visual slice is not necessarily one contiguous original HTML
-range. Preserve the existing distinction between decoded DOM bytes and HTML bytes.
-
-The current one-final-callback-per-group integration cannot simply be called again
-for each page. Define an explicit retained fragment result instead. Neither
-`InlineExtent` nor `VList.Box()` is that result. Variable page widths, floats,
-columns, break constraints such as widows/orphans, and CSS page styling remain
-explicitly unsupported until separately designed.
-
-## 5. Prototype whole-block page composition
-
-Start with a flat sequence of supported blocks, zero external vertical margins,
-and fixed equal page widths. Consume blocks in normalized tree flow order, moving
-a whole block to the next page when it does not fit. Keep paragraphs and atomic
-leaves indivisible. Produce retained page/fragment placements and explicit
-oversized-item diagnostics; do not create pages by cropping a continuous SVG.
-
-This deliberately limited prototype tests page identity, progress and payload
-lifetime before paragraph continuation. Nested fragmentation and nonzero boundary
-margins must report the limitation until their policies exist.
-
-**Acceptance:** exact fits, multiple pages, an oversized block, empty input and
-deterministic ordering. Every input occurrence appears once; no accidental empty
-pages or duplicated resources. Retained paragraph content and legacy proofs/replay
-remain unchanged. General composition tests belong in the owning library, with
-tytui tests exercising adapters and source correspondence.
-
-## 6. Add paragraph continuation, then nested block continuation
-
-In P, add the smallest immutable fragment-view/measurement contract needed to
-select retained lines and their owned vertical material. Settle gap and edge
-policies from step 4 in focused upstream tests. Keep original frozen line indexes
-and atomic associations. Rendering should consume the same view, rather than
-having tytui splice private vlist arrays or duplicate the placement algorithm.
-
-Integrate these opportunities into document composition. Only after flat paragraph
-continuation works should CSS core build nested ancestor continuation boxes and
-apply the agreed margin/decoration policy. Test that each line and atomic
-occurrence appears once, fragment extents match rendering, and both breakers'
-retained source/paint correspondence survives page changes. Use pointed Hebrew,
-mixed direction and available discretionary fixtures at the appropriate upstream
-boundary without relaxing the document profile's hyphenation restrictions.
+Revisit this topic only following a separate decision to resume it. Viewport
+experiments may expose useful geometry findings, but they do not require
+preparatory pagination work or commit us to an eventual approach.
 
 ## Ownership and validation
 
 | Module | Responsibility in this plan |
 | --- | --- |
-| `w3c-dom` | Parse/cascade CSS; add break-related property semantics only when the supported composition policy requires them. No page placement. |
-| `css-box-layout` | CSS geometry, flow order, block edges/margins and ancestor continuation; reusable document-composition fixes belong here or in an explicitly agreed compositor. |
-| `typography/paragraph` (P) | Immutable line/vlist geometry, fragment measurements and vertical-material policies. No DOM, page allocation or paint. |
+| `w3c-dom` | Parse/cascade supported CSS. No new properties are required for viewport observation. |
+| `css-box-layout` | Continuous CSS geometry, flow order and block edges/margins; reusable correctness fixes remain upstream. |
+| `typography/paragraph` (P) | Retained immutable line/vlist geometry. No new assembly policy is required for observation. |
 | `khipu` | Horizontal breaking, frozen glyph/atomic material and provenance. No viewport or page policy. |
-| `typography/render` / document renderer | Retained fragment rendering, paint bypass and resource lifetime; no reflow. |
-| `tytui/documentlayout` and TUI | Join upstream geometry to source/diagnostic records, provide experiment controls and reproducible proofs. Keep reusable fragmentation algorithms upstream. |
+| `typography/render` / document renderer | Retained document rendering, viewport overlays, paint bypass and resource lifetime; no reflow. |
+| `tytui/documentlayout` and TUI | Join upstream geometry to source/diagnostic records, provide experiment controls and reproducible proofs. Keep application wiring thin and reusable geometry fixes upstream. |
 
 For steps 1–3, run focused geometry/export/workbench tests, then tytui's ordinary
 and race suites, build and vet checks. Preserve existing proof fixtures and replay
-tests as compatibility controls. For later steps, add focused owner-package tests
-and run the corresponding typography/css-box-layout suites alongside integration
-tests. Do not broaden dependencies or change paragraph replay to store a viewport.
+tests as compatibility controls. If an observation exposes an upstream geometry
+defect, add focused tests and verify the affected owner's suite. Do not broaden
+dependencies or change paragraph replay to store a viewport.
 
 There is still no document replay format. Checked-in source fixtures, captured
 width/height/profile/breaker/font identities and retained export tests suffice for
 the first milestone. Specify document replay separately when portable document
-cases are needed; it must eventually include fragment constraints and immutable
-leaf identities as well as fonts. This plan records proposed work, not new test
-results or a claim of CSS fragmentation conformance.
+cases are needed, based on the scope agreed at that time. This plan records
+proposed work, not new test results or a claim of CSS overflow conformance.

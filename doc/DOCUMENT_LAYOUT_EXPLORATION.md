@@ -151,10 +151,10 @@ proof controls and preserve paragraph mode/replay. See the
 
 An explicitly sized diagnostic rectangle now exercises the non-text atomic
 boundary. Explicitly sized local PNG/JPEG payloads now use the same boundary,
-with immutable retained bytes and SVG embedding. Bounded-height composition is
-the next separate fragmentation/design question. The proposed
-[finite-height composition plan](FINITE_HEIGHT_COMPOSITION_PLAN.md) begins with
-viewport overflow diagnostics on retained results, before introducing pagination.
+with immutable retained bytes and SVG embedding. The proposed
+[finite-height composition plan](FINITE_HEIGHT_COMPOSITION_PLAN.md) is limited to
+viewport overflow diagnostics and inspection of retained continuous layout.
+Pagination and all page-break activities are postponed; no approach is selected.
 
 ## Ownership to preserve
 

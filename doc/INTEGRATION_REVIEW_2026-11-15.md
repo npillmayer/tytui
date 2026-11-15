@@ -298,19 +298,16 @@ BoxIDs alone are not identities across changed source or arbitrary rebuilds.
    Reuse the existing atomic attachment boundary. Avoid inventing another generic
    object framework or implementing image discovery in khipu. Test source/identity,
    mixed direction, zero size, retained payload lifetime and both breakers.
-4. **Then introduce finite height as a separate composition question.** First show
-   overflow against a viewport without claiming pagination. If pages are the next
-   target, specify legal vertical break opportunities, continuation/source identity,
-   margins at boundaries and how retained line material is partitioned. P can
-   supply line/vlist material; document composition owns pages and columns. Neither
-   the current `InlineExtent` callback nor `VList.Box()` alone is a fragmentation
-   API. Avoid treating clipping or rerunning each paragraph as page composition.
-   The proposed [finite-height composition plan](FINITE_HEIGHT_COMPOSITION_PLAN.md)
-   starts with headless overflow assessment, retained SVG viewport overlays and
-   a TUI height control, then gates pagination on explicit fragmentation contracts.
+4. **Observe finite viewport overflow on continuous layout.** The proposed
+   [finite-height composition plan](FINITE_HEIGHT_COMPOSITION_PLAN.md) covers
+   headless overflow assessment, retained SVG viewport overlays and a TUI height
+   control. Existing lines and document placements remain unchanged. Pagination
+   and all page-break activities, including fragmentation contract design and
+   prototypes, are postponed; the eventual approach is undecided. Completing the
+   viewport experiment does not automatically resume that work.
 
-Items 1–3 are complete for this bounded experiment. Finite-height composition
-is the next separate design question (item 4). Baseline propagation, margin collapse and richer
+Items 1–3 are complete for this bounded experiment. Finite-viewport observation
+is the next experiment (item 4). Baseline propagation, margin collapse and richer
 line-height are candidates selected by observations, not prerequisites to repeat
 the completed document experiment. Add document replay when we need to exchange
 these cases beyond checked-in fixtures; specify it independently before changing
