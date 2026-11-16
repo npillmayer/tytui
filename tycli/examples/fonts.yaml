@@ -1,0 +1,10 @@
+# Paths are relative to this YAML file. These fixtures live in the required
+# sibling OpenType checkout; no fonts are copied or downloaded by tycli.
+default: ../../../opentype/testdata/fonts/GentiumPlus-R.ttf
+fallbacks:
+  - ../../../opentype/testdata/fonts/NotoSansHebrew-Regular.ttf
+rules:
+  - family: serif
+    weight: 400
+    slant: normal
+    path: ../../../opentype/testdata/fonts/GentiumPlus-R.ttf

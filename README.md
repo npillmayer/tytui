@@ -305,3 +305,14 @@ TUI defaults remain unchanged. The separate `documentlayout` CSS box-engine brid
 currently supports normal line height; other CSS line-height declarations remain
 unsupported there. Both explicit single-paragraph line-height and compatibility
 layouts use replay version 4 with explicit assembly mode and placement evidence.
+
+## CLI box-layout companion
+
+[`tycli`](tycli/README.md) runs the headless document pipeline with HTML/CSS,
+explicit YAML font mappings, CSS-pixel width and selectable diagnostics. It
+exports positioned CSS box outlines without glyphs and leaves the TUI intact:
+
+```sh
+go run ./tycli documentlayout/testdata/nested.html --root root \
+  --fonts tycli/examples/fonts.yaml --width 420 --output /tmp/boxes.svg
+```

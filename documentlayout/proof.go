@@ -61,6 +61,10 @@ type Proof struct {
 // Outlines/identity come from explicitly supplied services for the retained faces.
 // Errors and cancellation return no partial proof. Keep inputs/services stable.
 func BuildProof(ctx context.Context, result *Result, services render.Services) (*Proof, error) {
+	return buildProof(ctx, result, services, false)
+}
+
+func buildProof(ctx context.Context, result *Result, services render.Services, boxesOnly bool) (*Proof, error) {
 	if ctx == nil || result == nil || result.document == nil {
 		return nil, invalid("document proof requires context and a completed result")
 	}
@@ -129,6 +133,9 @@ func BuildProof(ctx context.Context, result *Result, services render.Services) (
 			include(r.X+r.W, r.Y+r.H)
 		}
 		p.Boxes = append(p.Boxes, b)
+	}
+	if boxesOnly {
+		return p, nil
 	}
 	var leaves func(*box.LayoutNode)
 	leaves = func(n *box.LayoutNode) {

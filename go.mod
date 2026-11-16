@@ -23,6 +23,8 @@ replace github.com/npillmayer/tree => ../tree
 replace github.com/npillmayer/schuko => ../schuko
 
 require (
+	github.com/thatisuday/commando v1.0.4
+	gopkg.in/yaml.v3 v3.0.1
 	charm.land/bubbles/v2 v2.0.0
 	charm.land/bubbletea/v2 v2.0.1
 	charm.land/lipgloss/v2 v2.0.0
@@ -41,6 +43,7 @@ require (
 )
 
 require (
+	github.com/thatisuday/clapper v1.0.10 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
 	github.com/npillmayer/tree v0.0.0-20260127205735-9aa4bb66c981 // indirect
 )

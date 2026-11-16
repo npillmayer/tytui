@@ -24,6 +24,9 @@ type LayoutRequest struct {
 // Services must be stable during layout and retained font/scale services must
 // remain usable for the result's lifetime. Serialize calls sharing a Resolver.
 type Config struct {
+	// Trace receives synchronous stage diagnostics; nil disables reporting.
+	Trace func(string)
+
 	Resolver      *typography.Resolver
 	NewShaper     func() (contracts.StreamingShaper, error) // fresh exclusive stream per call
 	BufferOptions contracts.ShapeBufferOptions
@@ -75,6 +78,7 @@ var _ box.InlineLayouter = (*invocation)(nil)
 var _ box.IntrinsicMeasurer = (*invocation)(nil)
 
 func (i *invocation) run() (*Result, error) {
+	i.trace("CSS: resolve used values")
 	containing := box.Rect{W: i.request.Width}
 	used, err := box.ResolveUsedValues(i.document.root, box.ResolveContext{ContainingBlock: containing})
 	if err != nil {
@@ -83,6 +87,7 @@ func (i *invocation) run() (*Result, error) {
 	if err := i.ctx.Err(); err != nil {
 		return nil, err
 	}
+	i.trace("CSS: flow layout and recursive atomic sizing")
 	flow, err := box.FlowLayout(i.document.root, used, i, i, box.LayoutContext{ContainingBlock: containing}, box.LayoutOptions{})
 	if err != nil {
 		return nil, err
@@ -107,6 +112,7 @@ func (i *invocation) LayoutInline(request box.InlineRequest) (box.InlineResult, 
 		return fail(invalid("incomplete inline request"))
 	}
 	id := request.Group.BoxID
+	i.trace(fmt.Sprintf("layout group=%d owner=%d width=%g CSS px", id, request.OwnerID, request.ContentWidth))
 	if err := i.validateGroup(request.Group, request.OwnerID); err != nil {
 		return fail(err)
 	}
@@ -212,5 +218,14 @@ func inlineSummary(g *InlineGroup, result *paragraph.Result) (box.InlineResult, 
 	if len(pending) != 0 {
 		return box.InlineResult{}, invalid("missing paragraph atomic placement")
 	}
+	// Grant permission only for line-free output. The current paragraph profile
+	// reserves a strut even for empty text, so those results remain separators.
+	out.AllowsMarginCollapse = len(result.VList.Lines()) == 0 && out.Extent.H == 0 && len(g.AtomicSources) == 0
 	return out, nil
+}
+
+func (i *invocation) trace(message string) {
+	if i.config.Trace != nil {
+		i.config.Trace(message)
+	}
 }

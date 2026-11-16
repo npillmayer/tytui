@@ -1,6 +1,7 @@
 package documentlayout
 
 import (
+	"fmt"
 	box "github.com/npillmayer/css-box-layout/layout"
 	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/typography/paragraph"
@@ -41,6 +42,7 @@ func (i *invocation) prepareGroup(group *box.LayoutNode, owner box.BoxID) (*prep
 	if prepared := i.prepared[group.BoxID]; prepared != nil {
 		return prepared, nil
 	}
+	i.trace(fmt.Sprintf("prepare group=%d owner=%d: itemize, shape and knot", group.BoxID, owner))
 	g, err := i.document.Extract(i.ctx, group.BoxID)
 	if err != nil {
 		return nil, err

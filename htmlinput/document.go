@@ -95,6 +95,12 @@ func LoadFile(path string) (*Document, error) {
 }
 
 func Parse(name string, r io.Reader) (*Document, error) {
+	return ParseWithCSS(name, r, "")
+}
+
+// ParseWithCSS registers additional author CSS after embedded stylesheets.
+// Linked stylesheets are still not fetched.
+func ParseWithCSS(name string, r io.Reader, additionalCSS string) (*Document, error) {
 	if r == nil {
 		return nil, fmt.Errorf("HTML reader is nil")
 	}
@@ -130,6 +136,13 @@ func Parse(name string, r io.Reader) (*Document, error) {
 	extracted, err := douceuradapter.ExtractStyleElementsWithError(h)
 	if err != nil {
 		return nil, fmt.Errorf("embedded CSS: %w", err)
+	}
+	if additionalCSS != "" {
+		sheet, err := parser.Parse(additionalCSS)
+		if err != nil {
+			return nil, fmt.Errorf("additional CSS: %w", err)
+		}
+		extracted = append(extracted, douceuradapter.Wrap(sheet))
 	}
 	for _, sheet := range extracted {
 		for _, adapted := range sheet.Rules() {

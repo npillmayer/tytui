@@ -416,3 +416,18 @@ exports a captured result after deleting its file and failing a subsequent run.
 Local-image validation (2026-11-15): full tytui ordinary/race suites, build and
 vet pass, including paragraph/replay and existing nested-document proof controls.
 No upstream API or replay format changed for this extension.
+
+## Block margin collapsing (2026-11-16)
+
+CSS core now collapses adjoining sibling and eligible parent/child margins.
+The adapter reports `InlineResult.AllowsMarginCollapse` only for retained output
+with no lines, no height, and no atomic participants. It does not infer this from
+empty source text: the current paragraph profile deliberately reserves a normal
+line-height strut for empty input. Those paragraphs remain separators. General
+CSS empty-line suppression is not introduced by this adapter migration.
+
+`margin_collapse_test.go` checks both breakers with synthetic and real OpenType
+services, reserved empty lines, signed gaps, parent boundaries, auto inline-block
+interiors, resize/replay, and immutable SVG proof output.
+`margin_permission_test.go` checks permission for line-free zero-height results.
+The existing empty-strut, atomic, font-lifetime, and replay controls remain intact.
