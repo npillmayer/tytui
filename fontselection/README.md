@@ -49,3 +49,9 @@ Replay owns versioned DTOs and reconstructs loaded entries from its local store.
 It never executes requested paths or descriptors. Owning selection/provider tests
 run with `go test ./fontselection` and `go test -race ./fontselection`; application
 and replay compatibility require the full suites in tytui and typography.
+
+Preparation validates representation compatibility through the resolver's
+`Coverage.CheckFace`, without querying glyphs or shaping. Real preparation pairs
+normal OpenType loading with OpenType coverage. Khipu checks actual shaper
+instances later during paragraph/document execution and lazy replacements.
+No discovery, shaping probe or replay wire change is added to font-only previews.

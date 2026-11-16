@@ -307,7 +307,7 @@ func TestNestedResizeFailureRecoveryAndLifetime(t *testing.T) {
 								}
 							}
 							return nil
-						}}, Coverage: typography.CoverageFunc(func(contracts.FontFace, rune) (uint32, error) { return 1, nil }),
+						}}, Coverage: typography.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(contracts.FontFace, rune) (uint32, error) { return 1, nil }},
 					})
 					if err != nil {
 						t.Fatal(err)
@@ -410,4 +410,14 @@ func TestNestedResultOutlivesOriginalDOM(t *testing.T) {
 			}
 		})
 	}
+}
+
+func (s lifetimeFaultStream) CheckFace(face contracts.FontFace) error {
+	if f, ok := face.(*lifetimeFaultFont); ok {
+		if f == nil {
+			return contracts.ErrIllegalArguments
+		}
+		face = f.FontFace
+	}
+	return s.StreamingShaper.CheckFace(face)
 }

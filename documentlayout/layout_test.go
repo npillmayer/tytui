@@ -21,12 +21,12 @@ import (
 func layoutConfig(t *testing.T) documentlayout.Config {
 	t.Helper()
 	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{
-		Loader: syntheticLoader{}, Coverage: typography.CoverageFunc(func(_ contracts.FontFace, c rune) (uint32, error) {
+		Loader: syntheticLoader{}, Coverage: typography.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(_ contracts.FontFace, c rune) (uint32, error) {
 			if c == '\uFFFC' {
 				t.Error("queried coverage of an atomic marker")
 			}
 			return 1, nil
-		}),
+		}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -283,4 +283,8 @@ func TestDocumentLayoutInvalidInput(t *testing.T) {
 	if out != nil || !errors.Is(err, contracts.ErrIllegalArguments) {
 		t.Fatal("accepted unknown breaker", err)
 	}
+}
+
+func checkSyntheticFace(face contracts.FontFace) error {
+	return new(helpers.SyntheticStreamingShaper).CheckFace(face)
 }

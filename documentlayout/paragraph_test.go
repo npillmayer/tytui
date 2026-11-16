@@ -35,12 +35,12 @@ func (syntheticLoader) Load(ctx context.Context, path string, r *fontresource.Re
 func TestExtractedGroupsFeedPreparedParagraphs(t *testing.T) {
 	d, _, _ := build(t, `<div id="root" style="font-size:20px"><span style="display:inline-block;width:20px;font-size:30px">éאב</span></div>`)
 	var markerQueries int
-	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{Loader: syntheticLoader{}, Coverage: typography.CoverageFunc(func(_ contracts.FontFace, c rune) (uint32, error) {
+	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{Loader: syntheticLoader{}, Coverage: typography.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(_ contracts.FontFace, c rune) (uint32, error) {
 		if c == '\uFFFC' {
 			markerQueries++
 		}
 		return 1, nil
-	})})
+	}}})
 	if err != nil {
 		t.Fatal(err)
 	}

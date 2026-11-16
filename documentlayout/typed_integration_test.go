@@ -60,7 +60,7 @@ func TestTypedNestedFixedSizeIntegration(t *testing.T) {
 		}
 	}
 	index(root, nil)
-	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{Loader: boundaryLoader{}, Coverage: typography.CoverageFunc(func(contracts.FontFace, rune) (uint32, error) { return 1, nil })})
+	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{Loader: boundaryLoader{}, Coverage: typography.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(contracts.FontFace, rune) (uint32, error) { return 1, nil }}})
 	if err != nil {
 		t.Fatal(err)
 	}

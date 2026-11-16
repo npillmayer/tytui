@@ -149,7 +149,7 @@ func boundaryInvocation(t *testing.T, source ...string) *invocation {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{Loader: boundaryLoader{}, Coverage: typography.CoverageFunc(func(contracts.FontFace, rune) (uint32, error) { return 1, nil })})
+	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{Loader: boundaryLoader{}, Coverage: typography.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(contracts.FontFace, rune) (uint32, error) { return 1, nil }}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,4 +233,14 @@ func TestCancellationAtDocumentPublication(t *testing.T) {
 	if out != nil || !errors.Is(err, context.Canceled) || len(i.groups) != len(i.document.groups) {
 		t.Fatal("partial document published", out, err)
 	}
+}
+
+func checkSyntheticFace(face contracts.FontFace) error {
+	if f, ok := face.(*lifetimeFaultFont); ok {
+		if f == nil {
+			return contracts.ErrIllegalArguments
+		}
+		face = f.FontFace
+	}
+	return new(helpers.SyntheticStreamingShaper).CheckFace(face)
 }

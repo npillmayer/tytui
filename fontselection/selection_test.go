@@ -9,6 +9,7 @@ import (
 	"testing/fstest"
 
 	"github.com/npillmayer/fontfind"
+	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/khipu/helpers"
 	"github.com/npillmayer/typography"
@@ -37,7 +38,7 @@ func TestPrepareOrderOwnershipAndFailures(t *testing.T) {
 		calls = append(calls, path)
 		return fakeEntry(t, path, r), nil
 	}
-	s, err := prepare(t.Context(), req, loader)
+	s, err := prepareSynthetic(t.Context(), req, loader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +81,7 @@ func TestPrepareOrderOwnershipAndFailures(t *testing.T) {
 				}
 				return e, nil
 			}
-			got, err := prepare(ctx, &Request{Settings: Settings{DefaultResource: pinned, Size: 12 * dimen.BP}}, load)
+			got, err := prepareSynthetic(ctx, &Request{Settings: Settings{DefaultResource: pinned, Size: 12 * dimen.BP}}, load)
 			if got != nil || err == nil {
 				t.Fatal("invalid selection published")
 			}
@@ -94,7 +95,7 @@ func TestPrepareOrderOwnershipAndFailures(t *testing.T) {
 	}
 	for _, settings := range []Settings{{Size: 12 * dimen.BP}, {DefaultPath: "path", DefaultResource: pinned, Size: 12 * dimen.BP}, {DefaultPath: "path", Size: 0}} {
 		called := false
-		got, err := prepare(t.Context(), &Request{Settings: settings}, func(context.Context, string, *fontresource.Resource) (typography.FaceEntry, error) {
+		got, err := prepareSynthetic(t.Context(), &Request{Settings: settings}, func(context.Context, string, *fontresource.Resource) (typography.FaceEntry, error) {
 			called = true
 			return typography.FaceEntry{}, nil
 		})
@@ -104,7 +105,7 @@ func TestPrepareOrderOwnershipAndFailures(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	if got, err := prepare(ctx, req, loader); got != nil || !errors.Is(err, context.Canceled) {
+	if got, err := prepareSynthetic(ctx, req, loader); got != nil || !errors.Is(err, context.Canceled) {
 		t.Fatal("canceled prepare")
 	}
 }
@@ -173,4 +174,12 @@ func TestPolicyCacheAndTerminalFailures(t *testing.T) {
 			}
 		})
 	}
+}
+
+// This private seam pairs the fake loader with its own explicit coverage contract.
+func prepareSynthetic(ctx context.Context, req *Request, load loadEntry) (*Selection, error) {
+	return prepare(ctx, req, load, typography.CoverageFuncs{
+		Check:  new(helpers.SyntheticStreamingShaper).CheckFace,
+		Lookup: func(contracts.FontFace, rune) (uint32, error) { return 1, nil },
+	})
 }

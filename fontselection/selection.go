@@ -101,14 +101,15 @@ func (s *Selection) Clone() *Selection {
 }
 
 // Prepare loads a closed set of explicitly selected files/resources using normal
-// OpenType parsing. It performs no discovery. Nil selects the synthetic pipeline.
+// OpenType parsing and coverage acceptance checks. It performs no glyph queries,
+// shaping or discovery. Nil selects the synthetic pipeline.
 func Prepare(ctx context.Context, request *Request) (*Selection, error) {
-	return prepare(ctx, request, (ot.Services{}).Load)
+	return prepare(ctx, request, (ot.Services{}).Load, ot.Services{})
 }
 
 type loadEntry func(context.Context, string, *fontresource.Resource) (typography.FaceEntry, error)
 
-func prepare(ctx context.Context, request *Request, loadEntry loadEntry) (*Selection, error) {
+func prepare(ctx context.Context, request *Request, loadEntry loadEntry, coverage typography.Coverage) (*Selection, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("nil context")
 	}
@@ -186,7 +187,7 @@ func prepare(ctx context.Context, request *Request, loadEntry loadEntry) (*Selec
 		}
 		fonts.Fallbacks = append(fonts.Fallbacks, id)
 	}
-	r, err := typography.NewResolver(ctx, fonts, ot.Services{})
+	r, err := typography.NewResolver(ctx, fonts, coverage)
 	if err != nil {
 		return nil, err
 	}

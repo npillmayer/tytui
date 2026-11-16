@@ -94,3 +94,13 @@ func TestRenderingDoesNotRemeasureRetainedLines(t *testing.T) {
 		}
 	}
 }
+
+func (s guardedStream) CheckFace(face contracts.FontFace) error {
+	if f, ok := face.(*guardedMetricFace); ok {
+		if f == nil {
+			return contracts.ErrIllegalArguments
+		}
+		return nil // This fixture shapes fixed synthetic cells for its metric wrapper.
+	}
+	return s.SyntheticStreamingShaper.CheckFace(face)
+}

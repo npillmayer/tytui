@@ -596,7 +596,8 @@ SelectedFonts, Coverage)` replaces LoadSettings and the root loading-service
 bundle. SelectedFonts carries Faces, Default, Rules, Fallbacks and Size; every
 reference is a resource ID. Entries pair contracts.FontFace with Info and an
 immutable resource. NewResolver checks identity metadata and role references,
-requires usable coverage, and performs no parsing, I/O or coverage preflight.
+requires usable coverage, checks each canonical selected face through
+Coverage.CheckFace, and performs no parsing, I/O or glyph-coverage queries.
 
 Exactly one table entry is required per referenced identity, including unused
 configured roles; duplicate, missing and unreferenced entries fail. Rule and
@@ -640,3 +641,24 @@ Tytui retains DOM, prepared paragraph/document, both-breaker glyph and TUI/repla
 integration coverage. Dependency audits keep generic typography packages free of
 concrete backends and every typography production package free of fontfind/tytui.
 Run ordinary/race suites, build and vet in both modules after boundary changes.
+
+## Runtime font acceptance (2026-11-16)
+
+`contracts.FontAcceptor.CheckFace(FontFace) error` is embedded in streaming shapers
+and typography `Coverage`. A check validates the prepared instance without
+queries or stream mutation. `CoverageFuncs{Check, Lookup}` replaces the old
+single-callback adapter. Resolver construction checks all distinct configured
+entries in canonical order; khipu separately preflights actual resolved runs
+before production and each fresh lazy pre/post replacement stream. Nil/invalid
+instances preserve `ErrIllegalArguments`; unsupported representations expose
+`ErrUnsupportedFontFace`. Direct shaping/coverage entry points remain defensive.
+
+Khipu finishes unused streams on preflight failures and cleans up active streams
+only after producer join. Failed replacement pairs remain retryable; successful
+caches, previous results and base shaping remain intact. Test wrappers that
+unwrap custom faces must implement the same unwrapping in CheckFace.
+
+Existing synthetic defaults, paragraph/document/result APIs and replay v4 wire
+records are unchanged. Font-only previews perform no shaping, and acceptance
+does not certify a renderer. No historical replay reader or fixture update is
+introduced. See typography's [implementation plan](../../typography/FONT_SHAPER.md).

@@ -433,3 +433,16 @@ func TestRetainedNestedAutoRealProof(t *testing.T) {
 		})
 	}
 }
+
+func (*proofServiceGuard) CheckFace(face contracts.FontFace) error {
+	if f, ok := face.(*proofGuardFace); ok && f == nil {
+		return contracts.ErrIllegalArguments
+	}
+	return (ot.Services{}).CheckFace(unguardProofFace(face))
+}
+func (s proofGuardStream) CheckFace(face contracts.FontFace) error {
+	if f, ok := face.(*proofGuardFace); ok && f == nil {
+		return contracts.ErrIllegalArguments
+	}
+	return s.StreamingShaper.CheckFace(unguardProofFace(face))
+}
