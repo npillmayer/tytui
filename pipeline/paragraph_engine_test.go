@@ -9,7 +9,6 @@ import (
 	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
 	otadapter "github.com/npillmayer/typography/adapter/opentype"
 	"github.com/npillmayer/typography/paragraph"
 	"github.com/npillmayer/typography/style"
@@ -54,78 +53,78 @@ func TestPublicParagraphEngineMatchesDOMWorkbench(t *testing.T) {
 	}
 	settings := fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-		for _, paint := range []typography.PaintPolicy{typography.GlyphBoundary, typography.LegacyStyleBoundary} {
-			for _, width := range []dimen.DU{20 * dimen.BP, 200 * dimen.BP} {
-				e := styledInput(t, source)
-				if e.Text != content {
-					t.Fatal("fixture content mismatch")
+
+		for _, width := range []dimen.DU{20 * dimen.BP, 200 * dimen.BP} {
+			e := styledInput(t, source)
+			if e.Text != content {
+				t.Fatal("fixture content mismatch")
+			}
+			workbench, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: width, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: settings})})
+			if err != nil {
+				t.Fatal(err)
+			}
+			resolver, err := loadResolver(t.Context(), settings, testServices{Loader: otadapter.Services{}, Coverage: otadapter.Services{}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			text, bindings, err := resolver.Itemize(t.Context(), content, spans)
+			if err != nil {
+				t.Fatal(err)
+			}
+			prepared, _, err := text.StyleAt(start)
+			if err != nil {
+				t.Fatal(err)
+			}
+			requireTypographyOnly(t, prepared)
+			// Preparation belongs to M; P consumes these exact itemized style identities.
+			out, err := paragraph.Run(t.Context(), paragraph.Input{Text: text, Direction: bidi.RightToLeft, Markup: markup}, paragraph.Params{
+				Constraints: paragraph.Constraints{Width: width}, Breaker: paragraph.Breaker(breaker), Assembly: paragraph.Options{Policy: paragraph.ProofCompatibility, DefaultEmSize: settings.Size},
+			}, khipu.Config{Streaming: &khipu.StreamingConfig{NewShaper: func() (contracts.StreamingShaper, error) { return otadapter.NewStream(8) }, Resolver: resolver, Defaults: resolver.Defaults()}, Hyphenator: publicEngineHyphens{}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(out.BreakPositions, workbench.BreakPositions) || !reflect.DeepEqual(out.BidiRuns, workbench.BidiRuns) || !reflect.DeepEqual(bindings, workbench.FontBindings) || out.VList.Box() != workbench.VList().Box() || !reflect.DeepEqual(out.VList.Lines(), workbench.VList().Lines()) {
+				t.Fatalf("%s %s width=%v: breaks=%v bidi=%v bindings=%v box=%v lines=%v styles %#v manual %#v", breaker, "glyph-boundary", width, reflect.DeepEqual(out.BreakPositions, workbench.BreakPositions), reflect.DeepEqual(out.BidiRuns, workbench.BidiRuns), reflect.DeepEqual(bindings, workbench.FontBindings), out.VList.Box() == workbench.VList().Box(), reflect.DeepEqual(out.VList.Lines(), workbench.VList().Lines()), e.Styles, spans)
+			}
+			if out.Frozen.KnotCount() != workbench.Frozen.KnotCount() {
+				t.Fatal("knot count differs")
+			}
+			for k := 0; k < out.Frozen.KnotCount(); k++ {
+				a, _ := out.Frozen.Knot(k)
+				b, _ := workbench.Frozen.Knot(k)
+				if a != b {
+					t.Fatal("source/geometry differs", k)
 				}
-				workbench, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: width, Breaker: breaker, PaintPolicy: paint, Fonts: selectFonts(t, &fontselection.Request{Settings: settings})})
-				if err != nil {
-					t.Fatal(err)
+				x, ok := out.Frozen.CopyText(k)
+				y, ok2 := workbench.Frozen.CopyText(k)
+				if ok != ok2 || !reflect.DeepEqual(x.Glyphs, y.Glyphs) || !reflect.DeepEqual(x.Clusters, y.Clusters) || x.ReplacementText != y.ReplacementText || x.Context.Input != y.Context.Input || x.Context.EmSize != y.Context.EmSize {
+					t.Fatal("glyphs or source correspondence differ", k)
 				}
-				resolver, err := loadResolver(t.Context(), settings, testServices{Loader: otadapter.Services{}, Coverage: otadapter.Services{}})
-				if err != nil {
-					t.Fatal(err)
-				}
-				text, bindings, err := resolver.ItemizePolicy(t.Context(), content, spans, paint)
-				if err != nil {
-					t.Fatal(err)
-				}
-				prepared, _, err := text.StyleAt(start)
-				if err != nil {
-					t.Fatal(err)
-				}
-				requireTypographyOnly(t, prepared)
-				// Preparation belongs to M; P consumes these exact itemized style identities.
-				out, err := paragraph.Run(t.Context(), paragraph.Input{Text: text, Direction: bidi.RightToLeft, Markup: markup}, paragraph.Params{
-					Constraints: paragraph.Constraints{Width: width}, Breaker: paragraph.Breaker(breaker), Assembly: paragraph.Options{Policy: paragraph.ProofCompatibility, DefaultEmSize: settings.Size},
-				}, khipu.Config{Streaming: &khipu.StreamingConfig{NewShaper: func() (contracts.StreamingShaper, error) { return otadapter.NewStream(8) }, Resolver: resolver, Defaults: resolver.Defaults()}, Hyphenator: publicEngineHyphens{}})
-				if err != nil {
-					t.Fatal(err)
-				}
-				if !reflect.DeepEqual(out.BreakPositions, workbench.BreakPositions) || !reflect.DeepEqual(out.BidiRuns, workbench.BidiRuns) || !reflect.DeepEqual(bindings, workbench.FontBindings) || out.VList.Box() != workbench.VList().Box() || !reflect.DeepEqual(out.VList.Lines(), workbench.VList().Lines()) {
-					t.Fatalf("%s %s width=%v: breaks=%v bidi=%v bindings=%v box=%v lines=%v styles %#v manual %#v", breaker, paint, width, reflect.DeepEqual(out.BreakPositions, workbench.BreakPositions), reflect.DeepEqual(out.BidiRuns, workbench.BidiRuns), reflect.DeepEqual(bindings, workbench.FontBindings), out.VList.Box() == workbench.VList().Box(), reflect.DeepEqual(out.VList.Lines(), workbench.VList().Lines()), e.Styles, spans)
-				}
-				if out.Frozen.KnotCount() != workbench.Frozen.KnotCount() {
-					t.Fatal("knot count differs")
-				}
-				for k := 0; k < out.Frozen.KnotCount(); k++ {
-					a, _ := out.Frozen.Knot(k)
-					b, _ := workbench.Frozen.Knot(k)
-					if a != b {
-						t.Fatal("source/geometry differs", k)
+				if ok {
+					ix, err := (otadapter.Services{}).Identify(x.Context.Params.Font)
+					if err != nil {
+						t.Fatal(err)
 					}
-					x, ok := out.Frozen.CopyText(k)
-					y, ok2 := workbench.Frozen.CopyText(k)
-					if ok != ok2 || !reflect.DeepEqual(x.Glyphs, y.Glyphs) || !reflect.DeepEqual(x.Clusters, y.Clusters) || x.ReplacementText != y.ReplacementText || x.Context.Input != y.Context.Input || x.Context.EmSize != y.Context.EmSize {
-						t.Fatal("glyphs or source correspondence differ", k)
+					iy, err := (otadapter.Services{}).Identify(y.Context.Params.Font)
+					if err != nil || ix.ResourceID != iy.ResourceID {
+						t.Fatal("font selection differs", err)
 					}
-					if ok {
-						ix, err := (otadapter.Services{}).Identify(x.Context.Params.Font)
-						if err != nil {
-							t.Fatal(err)
-						}
-						iy, err := (otadapter.Services{}).Identify(y.Context.Params.Font)
-						if err != nil || ix.ResourceID != iy.ResourceID {
-							t.Fatal("font selection differs", err)
-						}
-					}
-				}
-				reader, err := out.Frozen.SourceReader(khipu.ByteRange{Start: 0, End: out.Frozen.SourceLen()})
-				if err != nil {
-					t.Fatal(err)
-				}
-				raw, err := io.ReadAll(reader)
-				if err != nil || string(raw) != content {
-					t.Fatal("source changed", err)
-				}
-				// Returned renderer paint remains application-owned, never part of P's input.
-				proof, err := pipeline.BuildGlyphProof(workbench)
-				if err != nil || len(proof.Glyphs) == 0 {
-					t.Fatal("proof failure", err)
 				}
 			}
+			reader, err := out.Frozen.SourceReader(khipu.ByteRange{Start: 0, End: out.Frozen.SourceLen()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, err := io.ReadAll(reader)
+			if err != nil || string(raw) != content {
+				t.Fatal("source changed", err)
+			}
+			// Returned renderer paint remains application-owned, never part of P's input.
+			proof, err := pipeline.BuildGlyphProof(workbench)
+			if err != nil || len(proof.Glyphs) == 0 {
+				t.Fatal("proof failure", err)
+			}
 		}
+
 	}
 }

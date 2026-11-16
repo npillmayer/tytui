@@ -289,7 +289,9 @@ package is removed.
 Proof and replay evidence use retained identity/rendering services; concrete face
 access and VisualOrder remain inside the adapter. Typesetter styles stay color-free;
 the application retains a separate renderer paint snapshot. Replay owns explicit
-input, policy, descriptor and font wire records for versions 1, 2 and 3, with unchanged fixtures and IDs.
+input, discovery-policy, descriptor and font wire records for version 4. Resource
+IDs and current proof controls remain unchanged; historical versions are rejected.
+See [offline replay](OFFLINE_REPLAY.md) for the current-only contract.
 See [the final API contracts](TYPOGRAPHY_API_CONTRACTS.md#current-selected-font-api).
 
 Both modules pass ordinary/race tests, build and vet. Owning upstream tests use the

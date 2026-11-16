@@ -11,20 +11,28 @@ import (
 	"tytui/fontselection"
 )
 
-func TestWireProvenanceCodesAndFieldNames(t *testing.T) {
+func TestWireProvenanceIdentityAndOwnership(t *testing.T) {
 	for _, tc := range []struct {
-		style  fontresource.Slant
-		weight fontresource.Weight
-		want   string
+		style                 fontresource.Slant
+		weight                fontresource.Weight
+		wantStyle, wantWeight int
 	}{
-		{fontresource.Normal, fontresource.Thin, `{"Provider":"offline","Name":"Example","Location":"example.ttf","Request":{"Pattern":"Example","Style":0,"Weight":-3}}`},
-		{fontresource.Oblique, fontresource.Black, `{"Provider":"offline","Name":"Example","Location":"example.ttf","Request":{"Pattern":"Example","Style":2,"Weight":5}}`},
-		{99, 99, `{"Provider":"offline","Name":"Example","Location":"example.ttf","Request":{"Pattern":"Example","Style":99,"Weight":99}}`},
+		{fontresource.Normal, fontresource.Thin, 0, -3},
+		{fontresource.Oblique, fontresource.Black, 2, 5},
+		{99, 99, 99, 99},
 	} {
 		origin := fontresource.Origin{Provider: "offline", Name: "Example", Location: "example.ttf", Request: fontresource.Request{Pattern: "Example", Style: tc.style, Weight: tc.weight}}
 		data, err := json.Marshal(originWire(origin))
-		if err != nil || string(data) != tc.want {
-			t.Fatalf("wire fields/codes changed: %s %v", data, err)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var encoded struct{ Request struct{ Style, Weight int } }
+		if err := json.Unmarshal(data, &encoded); err != nil {
+			t.Fatal(err)
+		}
+		// These codes are part of immutable resource identity, not CSS weights.
+		if encoded.Request.Style != tc.wantStyle || encoded.Request.Weight != tc.wantWeight {
+			t.Fatal("resource identity codes changed", string(data))
 		}
 		var wire wireOrigin
 		if err = json.Unmarshal(data, &wire); err != nil {

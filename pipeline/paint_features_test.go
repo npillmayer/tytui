@@ -28,7 +28,7 @@ func TestPaintCoalescingPreservesRelativeFeatureDomains(t *testing.T) {
 	red := style.Style{Family: "serif", EmSize: 12 * dimen.BP, Weight: 400, Slant: "normal", Color: "red", Language: "en", WhiteSpace: "normal", UnicodeBidi: "normal"}
 	blue := red
 	blue.Color = "blue"
-	spans, err := typography.ProjectStyles("fifififi", []style.Span{{Start: 0, End: 4, Style: red}, {Start: 4, End: 8, Style: blue}}, r, defaults, typography.GlyphBoundary)
+	spans, err := typography.ProjectStyles("fifififi", []style.Span{{Start: 0, End: 4, Style: red}, {Start: 4, End: 8, Style: blue}}, r, defaults)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -19,15 +19,14 @@ import (
 	"github.com/npillmayer/typography"
 	otadapter "github.com/npillmayer/typography/adapter/opentype"
 	"github.com/npillmayer/typography/fontresource"
+	"github.com/npillmayer/typography/paragraph"
 
 	"tytui/fontselection"
 	"tytui/pipeline"
 )
 
-// Version is the default compatibility format. LineHeightVersion is selected
-// only for results explicitly using CSS-inspired line boxes.
-const Version = 2
-const LineHeightVersion = 3
+// Version is the only supported experimental format. Historical formats are rejected.
+const Version = 4
 const maxBytes = 64 << 20
 
 // Revision describes source provenance, not a promise of identical build output.
@@ -36,7 +35,7 @@ type Revision struct {
 	Dirty          bool
 }
 
-// Font and Selection preserve the version-1/version-2 serialization contract.
+// Font and Selection describe pinned resources and selection provenance.
 // Font wire records are independent of runtime identity and adapter types.
 type Font struct {
 	Info  wireInfo
@@ -101,13 +100,12 @@ func Save(ctx context.Context, result *pipeline.Result, manifestPath, store stri
 	if len(revisions) == 0 {
 		return fmt.Errorf("source revisions required; use CaptureRevisions at layout time")
 	}
+
 	m := Manifest{GoVersion: runtime.Version(), Version: Version, Units: "65536 DU per big point; 72 big points per inch", Input: inputWire(result.Input), Bindings: bindingsWire(result.FontBindings), Revisions: append([]Revision(nil), revisions...), Diagnostics: append([]pipeline.Diagnostic(nil), result.Diagnostics...), ParagraphText: result.ParagraphText, BreakPositions: append([]uint64(nil), result.BreakPositions...)}
 	m.Input.LineLayout = result.LineLayout()
+	m.Input.Assembly = paragraph.ProofCompatibility
 	if m.Input.LineLayout != nil {
-		m.Version = LineHeightVersion
-	} else if result.Input.PaintPolicy == typography.LegacyStyleBoundary {
-		m.Version = 1
-		m.Input.PaintPolicy = ""
+		m.Input.Assembly = paragraph.CSSLineHeight
 	}
 	var evidenceErr error
 	m.Evidence, evidenceErr = evidence(result)
@@ -249,6 +247,15 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 	if err != nil {
 		return nil, err
 	}
+	// Inspect only the version before decoding the current schema. Historical
+	// fields must produce a version error, never invoke an old reader or font I/O.
+	var header struct{ Version int }
+	if err := json.Unmarshal(data, &header); err != nil {
+		return nil, err
+	}
+	if header.Version != Version {
+		return nil, fmt.Errorf("unsupported replay version %d; current experimental version is %d", header.Version, Version)
+	}
 	var m Manifest
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
@@ -258,24 +265,23 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 	if decoder.Decode(new(any)) != io.EOF {
 		return nil, fmt.Errorf("trailing manifest data")
 	}
-	if (m.Version != 1 && m.Version != Version && m.Version != LineHeightVersion) || m.Units != "65536 DU per big point; 72 big points per inch" {
-		return nil, fmt.Errorf("unsupported manifest version or units")
+	if m.Units != "65536 DU per big point; 72 big points per inch" {
+		return nil, fmt.Errorf("unsupported replay units")
 	}
-	if (m.Version == LineHeightVersion) != (m.Input.LineLayout != nil) {
-		return nil, fmt.Errorf("version 3 requires line-height values; versions 1/2 must omit them")
-	}
-	if (m.Version == LineHeightVersion) != (m.Evidence.Layout != nil) {
-		return nil, fmt.Errorf("version 3 requires placement evidence; versions 1/2 must omit it")
-	}
-	if m.Version == 1 {
-		if m.Input.PaintPolicy != "" {
-			return nil, fmt.Errorf("version 1 cannot specify a paint policy")
+	switch m.Input.Assembly {
+	case paragraph.ProofCompatibility:
+		if m.Input.LineLayout != nil {
+			return nil, fmt.Errorf("proof compatibility assembly must omit line-height values")
 		}
-		m.Input.PaintPolicy = typography.LegacyStyleBoundary
-	} else if m.Version == Version && m.Input.PaintPolicy != typography.GlyphBoundary {
-		return nil, fmt.Errorf("version 2 requires glyph-boundary paint policy")
-	} else if m.Version == LineHeightVersion && m.Input.PaintPolicy != typography.GlyphBoundary && m.Input.PaintPolicy != typography.LegacyStyleBoundary {
-		return nil, fmt.Errorf("version 3 requires an explicit paint policy")
+	case paragraph.CSSLineHeight:
+		if m.Input.LineLayout == nil {
+			return nil, fmt.Errorf("CSS assembly requires line-height values")
+		}
+	default:
+		return nil, fmt.Errorf("unknown or missing assembly mode %q", m.Input.Assembly)
+	}
+	if m.Evidence.Layout == nil {
+		return nil, fmt.Errorf("replay requires placement evidence")
 	}
 	if m.Input.hasFonts() {
 		return nil, fmt.Errorf("manifest contains unpinned font settings")
@@ -318,7 +324,7 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 	}
 	if m.Selection != nil {
 		sel := m.Selection
-		s := &fontselection.Selection{Fonts: typography.SelectedFonts{Default: sel.Default, Size: dimen.DU(sel.Size)}, Provenance: fontselection.Provenance{DiscoveryPolicy: sel.Policy.native(), DescriptorInput: sel.Descriptors.native(), ResolutionDiagnostics: diagnosticsNative(sel.Diagnostics)}}
+		s := &fontselection.Selection{Fonts: typography.SelectedFonts{Default: sel.Default, Size: dimen.DU(sel.Size)}, Provenance: fontselection.Provenance{RequestedPath: sel.RequestedPath, RequestedFallbackPaths: append([]string(nil), sel.RequestedFallbackPaths...), DiscoveryPolicy: sel.Policy.native(), DescriptorInput: sel.Descriptors.native(), ResolutionDiagnostics: diagnosticsNative(sel.Diagnostics)}}
 		seen := map[string]bool{}
 		use := func(id string) error {
 			entry, ok := resources[id]
@@ -338,6 +344,7 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 			if err := use(rule.ResourceID); err != nil {
 				return nil, err
 			}
+			s.Provenance.RequestedRulePaths = append(s.Provenance.RequestedRulePaths, rule.RequestedPath)
 			s.Fonts.Rules = append(s.Fonts.Rules, typography.SelectedRule{Family: rule.Family, Weight: rule.Weight, Slant: rule.Slant, ResourceID: rule.ResourceID})
 		}
 		for _, id := range sel.Fallbacks {
@@ -361,8 +368,19 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 	if err != nil {
 		return nil, err
 	}
-	if !reflect.DeepEqual(actual, m.Evidence) {
-		return nil, fmt.Errorf("replay differs from recorded frozen layout or glyph proof")
+	for _, check := range []struct {
+		name             string
+		actual, recorded any
+	}{
+		{"placements", actual.Layout, m.Evidence.Layout},
+		{"frozen lines", actual.Lines, m.Evidence.Lines},
+		{"frozen knots", actual.Knots, m.Evidence.Knots},
+		{"shaped runs", actual.Runs, m.Evidence.Runs},
+		{"glyph proof", actual.Proof, m.Evidence.Proof},
+	} {
+		if !reflect.DeepEqual(check.actual, check.recorded) {
+			return nil, fmt.Errorf("replay differs from recorded %s", check.name)
+		}
 	}
 	return result, nil
 }

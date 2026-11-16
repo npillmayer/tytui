@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
 
 	"tytui/fontselection"
 	"tytui/pipeline"
@@ -94,20 +93,6 @@ func TestSoftHyphenUsesMarkerPaint(t *testing.T) {
 				t.Fatalf("%s %v: colors %v want %v", breaker, width, colors, want)
 			}
 		}
-	}
-}
-func TestLegacyPaintRemainsAvailable(t *testing.T) {
-	e := styledInput(t, `<p><span style="color:red">f</span><span style="color:blue">i</span></p>`)
-	r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, PaintPolicy: typography.LegacyStyleBoundary, Width: 100 * dimen.BP, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})})
-	if err != nil {
-		t.Fatal(err)
-	}
-	p, err := pipeline.BuildGlyphProof(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(p.Glyphs) != 2 || p.Glyphs[0].Color != "red" || p.Glyphs[1].Color != "blue" {
-		t.Fatalf("legacy proof changed %+v", p)
 	}
 }
 

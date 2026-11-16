@@ -71,8 +71,7 @@ type Run struct {
 	Clusters           []khipu.FrozenCluster
 }
 
-// LayoutEvidence is the version-3 numeric placement transcript, including for
-// synthetic cases without glyph outlines. Versions 1/2 omit it entirely.
+// LayoutEvidence records placements for every assembly mode and backend.
 type LayoutEvidence struct {
 	Width, Extent, Baseline float64
 	HasBaseline             bool
@@ -81,7 +80,7 @@ type LayoutEvidence struct {
 type LinePlacement struct{ X, Top, Baseline, Ascent, Descent, Gap, Height float64 }
 
 type Evidence struct {
-	Layout *LayoutEvidence `json:",omitempty"`
+	Layout *LayoutEvidence
 	Lines  []khipu.FrozenLine
 	Knots  []khipu.FrozenKnot
 	Runs   []Run
@@ -90,16 +89,14 @@ type Evidence struct {
 
 func evidence(result *pipeline.Result) (Evidence, error) {
 	var e Evidence
-	if result.LineLayout() != nil {
-		v := result.VList()
-		if v == nil {
-			return e, fmt.Errorf("line-height result lacks placements")
-		}
-		b := v.Box()
-		e.Layout = &LayoutEvidence{Width: b.Width, Extent: b.Extent, Baseline: b.Baseline, HasBaseline: b.HasBaseline}
-		for _, l := range v.Lines() {
-			e.Layout.Lines = append(e.Layout.Lines, LinePlacement{l.X, l.Top, l.Baseline, l.Ascent, l.Descent, l.Gap, l.Height})
-		}
+	v := result.VList()
+	if v == nil {
+		return e, fmt.Errorf("result lacks retained placements")
+	}
+	b := v.Box()
+	e.Layout = &LayoutEvidence{Width: b.Width, Extent: b.Extent, Baseline: b.Baseline, HasBaseline: b.HasBaseline}
+	for _, l := range v.Lines() {
+		e.Layout.Lines = append(e.Layout.Lines, LinePlacement{l.X, l.Top, l.Baseline, l.Ascent, l.Descent, l.Gap, l.Height})
 	}
 	for i := 0; i < result.Frozen.LineCount(); i++ {
 		line, _ := result.Frozen.Line(i)

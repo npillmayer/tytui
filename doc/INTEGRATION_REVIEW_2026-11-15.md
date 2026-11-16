@@ -1,5 +1,11 @@
 # Integration review and next document experiments
 
+Replay update (2026-11-16): historical version/policy statements below record
+past milestones, not current compatibility requirements. The completed
+[replay simplification](REPLAY_SIMPLIFICATION_PLAN.md) supports only experimental
+version 4 and one glyph-boundary shaping/color behavior. See
+[the current contract and case-review workflow](OFFLINE_REPLAY.md).
+
 Reviewed against the local checkouts on 2026-11-15. This is a source-and-test
 assessment, not a proposal to implement another layout engine. It supersedes the
 pending-work descriptions in the original

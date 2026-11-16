@@ -126,64 +126,64 @@ func TestIndependentRetainedLinePlacements(t *testing.T) {
 
 func TestRetainedPlacementsSurviveInputMutationAndSourceRemoval(t *testing.T) {
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-		for _, policy := range []typography.PaintPolicy{typography.GlyphBoundary, typography.LegacyStyleBoundary} {
-			for _, html := range []string{`<p style="font-size:13.3pt"><span style="color:red">f</span><span style="color:blue">i</span> אב</p>`, `<p></p>`} {
-				dir := t.TempDir()
-				path := filepath.Join(dir, "font.ttf")
-				data, err := os.ReadFile(gentium)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if err = os.WriteFile(path, data, 0600); err != nil {
-					t.Fatal(err)
-				}
-				e := styledInput(t, html)
-				fonts := &fontselection.Request{Settings: fontselection.Settings{DefaultPath: path, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}}
-				r, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, PaintPolicy: policy, Fonts: selectFonts(t, fonts)})
-				if err != nil {
-					t.Fatal(err)
-				}
-				before, err := pipeline.BuildGlyphProof(r)
-				if err != nil {
-					t.Fatal(err)
-				}
-				var svg bytes.Buffer
-				if err = pipeline.WriteSVG(&svg, r); err != nil {
-					t.Fatal(err)
-				}
-				wantBox, wantLines := r.VList().Box(), r.VList().Lines()
-				// Mutate input, retained inspection input and every exposed placement form.
-				fonts.Size = dimen.BP
-				e.Text = "changed"
-				e.Styles = nil
-				handle := r.VList()
-				lines := handle.Lines()
-				materials := handle.Materials()
-				box := handle.Box()
-				if len(lines) > 0 {
-					lines[0].Baseline = -1
-					materials[0].Extent = -1
-				}
-				box.Extent = -1
-				*handle = paragraph.VList{}
-				paints := r.PaintSpans()
-				if len(paints) > 0 {
-					paints[0].Paint.Color = "invalid"
-				}
-				r.Input = pipeline.Input{Direction: bidi.RightToLeft, PaintPolicy: "invalid"}
-				if err = os.Remove(path); err != nil {
-					t.Fatal(err)
-				}
-				after, err := pipeline.BuildGlyphProof(r)
-				if err != nil || !reflect.DeepEqual(before, after) || r.VList().Box() != wantBox || !reflect.DeepEqual(r.VList().Lines(), wantLines) {
-					t.Fatal("retained proof changed", err)
-				}
-				var again bytes.Buffer
-				if err = pipeline.WriteSVG(&again, r); err != nil || !bytes.Equal(svg.Bytes(), again.Bytes()) {
-					t.Fatal("export consulted mutable input", err)
-				}
+
+		for _, html := range []string{`<p style="font-size:13.3pt"><span style="color:red">f</span><span style="color:blue">i</span> אב</p>`, `<p></p>`} {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "font.ttf")
+			data, err := os.ReadFile(gentium)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = os.WriteFile(path, data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			e := styledInput(t, html)
+			fonts := &fontselection.Request{Settings: fontselection.Settings{DefaultPath: path, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}}
+			r, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, fonts)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			before, err := pipeline.BuildGlyphProof(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var svg bytes.Buffer
+			if err = pipeline.WriteSVG(&svg, r); err != nil {
+				t.Fatal(err)
+			}
+			wantBox, wantLines := r.VList().Box(), r.VList().Lines()
+			// Mutate input, retained inspection input and every exposed placement form.
+			fonts.Size = dimen.BP
+			e.Text = "changed"
+			e.Styles = nil
+			handle := r.VList()
+			lines := handle.Lines()
+			materials := handle.Materials()
+			box := handle.Box()
+			if len(lines) > 0 {
+				lines[0].Baseline = -1
+				materials[0].Extent = -1
+			}
+			box.Extent = -1
+			*handle = paragraph.VList{}
+			paints := r.PaintSpans()
+			if len(paints) > 0 {
+				paints[0].Paint.Color = "invalid"
+			}
+			r.Input = pipeline.Input{Direction: bidi.RightToLeft}
+			if err = os.Remove(path); err != nil {
+				t.Fatal(err)
+			}
+			after, err := pipeline.BuildGlyphProof(r)
+			if err != nil || !reflect.DeepEqual(before, after) || r.VList().Box() != wantBox || !reflect.DeepEqual(r.VList().Lines(), wantLines) {
+				t.Fatal("retained proof changed", err)
+			}
+			var again bytes.Buffer
+			if err = pipeline.WriteSVG(&again, r); err != nil || !bytes.Equal(svg.Bytes(), again.Bytes()) {
+				t.Fatal("export consulted mutable input", err)
 			}
 		}
+
 	}
 	if (*pipeline.Result)(nil).VList() != nil || (&pipeline.Result{}).VList() != nil {
 		t.Fatal("absent placements")

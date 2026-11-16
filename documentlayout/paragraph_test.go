@@ -46,7 +46,7 @@ func TestExtractedGroupsFeedPreparedParagraphs(t *testing.T) {
 	}
 	groups := extractAll(t, d)
 	for groupIndex, g := range groups {
-		text, bindings, err := r.ItemizeInline(t.Context(), g.Text, g.Styles, g.Anchors, typography.GlyphBoundary)
+		text, bindings, err := r.ItemizeInline(t.Context(), g.Text, g.Styles, g.Anchors)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -137,8 +137,8 @@ is asynchronous, reject completions for a superseded result or height revision.
 **Acceptance:** show the same result fitting, crossing and lying partly below
 three chosen heights without a new layout invocation or resource acquisition.
 Cover history selection, failed edits, pending layout, stale completions, export
-capture, and switching between paragraph/document modes. Preserve paragraph
-replay v1/v2/v3 and the existing document scheduler's serialization rules.
+capture, and switching between paragraph/document modes. Preserve current paragraph replay controls (version 4) and the existing document
+scheduler's serialization rules.
 
 At this milestone we have a complete finite-viewport experiment. Use a checked-in
 HTML fixture with several blocks, nested content and an explicitly sized leaf to

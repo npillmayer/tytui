@@ -1,0 +1,358 @@
+{
+  "firstfit/compatibility/ligature": {
+    "SVG": "79660098846d9107b81ac681af906be7e79e62b51c64f0855a1f589eb11b522e",
+    "Box": {
+      "Width": 100,
+      "Extent": 19.978125,
+      "Baseline": 13.18359375,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 13.18359375,
+        "Ascent": 13.18359375,
+        "Descent": 4.39453125,
+        "Gap": 2.4000000000000004,
+        "Height": 19.978125
+      }
+    ]
+  },
+  "firstfit/compatibility/mixed_marks": {
+    "SVG": "d641a1b017257b0159c37e3d4c002f06b49cb1a2563f4fc41a5f97140e59d316",
+    "Box": {
+      "Width": 100,
+      "Extent": 19.978125,
+      "Baseline": 13.18359375,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 13.18359375,
+        "Ascent": 13.18359375,
+        "Descent": 4.39453125,
+        "Gap": 2.4000000000000004,
+        "Height": 19.978125
+      }
+    ]
+  },
+  "firstfit/compatibility/selected_shy": {
+    "SVG": "0e5f314616a19471270ebad5cb3c8a3c1c43405582d72e25dc563a06266c4e74",
+    "Box": {
+      "Width": 20,
+      "Extent": 37.44,
+      "Baseline": 12.816,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 12.816,
+        "Ascent": 12.816,
+        "Descent": 3.504,
+        "Gap": 2.4000000000000004,
+        "Height": 18.72
+      },
+      {
+        "X": 0,
+        "Top": 18.72,
+        "Baseline": 31.536,
+        "Ascent": 12.816,
+        "Descent": 3.504,
+        "Gap": 2.4000000000000004,
+        "Height": 18.72
+      }
+    ]
+  },
+  "firstfit/compatibility/unbroken_shy": {
+    "SVG": "b2f945d06d7df25cad3e3c31d4b34c9aa07ec88940b6263413857263ec6fc383",
+    "Box": {
+      "Width": 100,
+      "Extent": 18.72,
+      "Baseline": 12.816,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 12.816,
+        "Ascent": 12.816,
+        "Descent": 3.504,
+        "Gap": 2.4000000000000004,
+        "Height": 18.72
+      }
+    ]
+  },
+  "firstfit/css/ligature": {
+    "SVG": "e41b0a40a89574e8f641f2661e6b20400fc1f3c6388ed108cc16b6810d9f1cb9",
+    "Box": {
+      "Width": 100,
+      "Extent": 18,
+      "Baseline": 13.39453125,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 13.39453125,
+        "Ascent": 13.39453125,
+        "Descent": 4.60546875,
+        "Gap": 0,
+        "Height": 18
+      }
+    ]
+  },
+  "firstfit/css/mixed_marks": {
+    "SVG": "5c1d188c10f034ba08a761267c84c4fcce5df3f558517718e697d3604c66afd0",
+    "Box": {
+      "Width": 100,
+      "Extent": 18.26146875,
+      "Baseline": 13.656,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 13.656,
+        "Ascent": 13.656,
+        "Descent": 4.60546875,
+        "Gap": 0,
+        "Height": 18.26146875
+      }
+    ]
+  },
+  "firstfit/css/selected_shy": {
+    "SVG": "3ae0d890cce179a11c465221bdcdc7a4001d6f98a2dc68c7678abd7cb9384b2b",
+    "Box": {
+      "Width": 20,
+      "Extent": 36.5229375,
+      "Baseline": 13.656,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 13.656,
+        "Ascent": 13.656,
+        "Descent": 4.60546875,
+        "Gap": 0,
+        "Height": 18.26146875
+      },
+      {
+        "X": 0,
+        "Top": 18.26146875,
+        "Baseline": 31.917468749999998,
+        "Ascent": 13.656,
+        "Descent": 4.60546875,
+        "Gap": 0,
+        "Height": 18.26146875
+      }
+    ]
+  },
+  "firstfit/css/unbroken_shy": {
+    "SVG": "5a0447b5e01c27086a913ae4fe36f6eee68310da2a275eec6aef542f1b173d4e",
+    "Box": {
+      "Width": 100,
+      "Extent": 18.26146875,
+      "Baseline": 13.656,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 13.656,
+        "Ascent": 13.656,
+        "Descent": 4.60546875,
+        "Gap": 0,
+        "Height": 18.26146875
+      }
+    ]
+  },
+  "knuth-plass/compatibility/ligature": {
+    "SVG": "79660098846d9107b81ac681af906be7e79e62b51c64f0855a1f589eb11b522e",
+    "Box": {
+      "Width": 100,
+      "Extent": 19.978125,
+      "Baseline": 13.18359375,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 13.18359375,
+        "Ascent": 13.18359375,
+        "Descent": 4.39453125,
+        "Gap": 2.4000000000000004,
+        "Height": 19.978125
+      }
+    ]
+  },
+  "knuth-plass/compatibility/mixed_marks": {
+    "SVG": "d641a1b017257b0159c37e3d4c002f06b49cb1a2563f4fc41a5f97140e59d316",
+    "Box": {
+      "Width": 100,
+      "Extent": 19.978125,
+      "Baseline": 13.18359375,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 13.18359375,
+        "Ascent": 13.18359375,
+        "Descent": 4.39453125,
+        "Gap": 2.4000000000000004,
+        "Height": 19.978125
+      }
+    ]
+  },
+  "knuth-plass/compatibility/selected_shy": {
+    "SVG": "0e5f314616a19471270ebad5cb3c8a3c1c43405582d72e25dc563a06266c4e74",
+    "Box": {
+      "Width": 20,
+      "Extent": 37.44,
+      "Baseline": 12.816,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 12.816,
+        "Ascent": 12.816,
+        "Descent": 3.504,
+        "Gap": 2.4000000000000004,
+        "Height": 18.72
+      },
+      {
+        "X": 0,
+        "Top": 18.72,
+        "Baseline": 31.536,
+        "Ascent": 12.816,
+        "Descent": 3.504,
+        "Gap": 2.4000000000000004,
+        "Height": 18.72
+      }
+    ]
+  },
+  "knuth-plass/compatibility/unbroken_shy": {
+    "SVG": "b2f945d06d7df25cad3e3c31d4b34c9aa07ec88940b6263413857263ec6fc383",
+    "Box": {
+      "Width": 100,
+      "Extent": 18.72,
+      "Baseline": 12.816,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 12.816,
+        "Ascent": 12.816,
+        "Descent": 3.504,
+        "Gap": 2.4000000000000004,
+        "Height": 18.72
+      }
+    ]
+  },
+  "knuth-plass/css/ligature": {
+    "SVG": "e41b0a40a89574e8f641f2661e6b20400fc1f3c6388ed108cc16b6810d9f1cb9",
+    "Box": {
+      "Width": 100,
+      "Extent": 18,
+      "Baseline": 13.39453125,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 13.39453125,
+        "Ascent": 13.39453125,
+        "Descent": 4.60546875,
+        "Gap": 0,
+        "Height": 18
+      }
+    ]
+  },
+  "knuth-plass/css/mixed_marks": {
+    "SVG": "5c1d188c10f034ba08a761267c84c4fcce5df3f558517718e697d3604c66afd0",
+    "Box": {
+      "Width": 100,
+      "Extent": 18.26146875,
+      "Baseline": 13.656,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 13.656,
+        "Ascent": 13.656,
+        "Descent": 4.60546875,
+        "Gap": 0,
+        "Height": 18.26146875
+      }
+    ]
+  },
+  "knuth-plass/css/selected_shy": {
+    "SVG": "3ae0d890cce179a11c465221bdcdc7a4001d6f98a2dc68c7678abd7cb9384b2b",
+    "Box": {
+      "Width": 20,
+      "Extent": 36.5229375,
+      "Baseline": 13.656,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 13.656,
+        "Ascent": 13.656,
+        "Descent": 4.60546875,
+        "Gap": 0,
+        "Height": 18.26146875
+      },
+      {
+        "X": 0,
+        "Top": 18.26146875,
+        "Baseline": 31.917468749999998,
+        "Ascent": 13.656,
+        "Descent": 4.60546875,
+        "Gap": 0,
+        "Height": 18.26146875
+      }
+    ]
+  },
+  "knuth-plass/css/unbroken_shy": {
+    "SVG": "5a0447b5e01c27086a913ae4fe36f6eee68310da2a275eec6aef542f1b173d4e",
+    "Box": {
+      "Width": 100,
+      "Extent": 18.26146875,
+      "Baseline": 13.656,
+      "HasBaseline": true
+    },
+    "Lines": [
+      {
+        "X": 0,
+        "Top": 0,
+        "Baseline": 13.656,
+        "Ascent": 13.656,
+        "Descent": 4.60546875,
+        "Gap": 0,
+        "Height": 18.26146875
+      }
+    ]
+  }
+}

@@ -1,181 +1,134 @@
-# Font manifests and offline paragraph replay
+# Current experimental paragraph replay
 
-The proposed [replay simplification plan](REPLAY_SIMPLIFICATION_PLAN.md) replaces
-multi-version compatibility with one current experimental format and retires
-legacy shaping/color policies. It is not implemented yet; the behavior below
-describes the current versions 1–3.
-
-The headless `tytui/replay` package reads versions 1–3 and uses a separate local
-font content store. Compatibility layouts save as version 1 or 2; explicit
-line-height layouts save as version 3. It supports OpenType and synthetic results.
-This is an API for export/import; the TUI's existing Ctrl+S still exports SVG.
+`tytui/replay` writes and reads **version 4 only**, using a separate local font
+content store. Versions 1–3 and unknown versions fail explicitly before current
+schema decoding, font acquisition or pipeline execution. There is no migration
+reader and no promise of indefinite behavioral compatibility. This is a headless
+paragraph API; TUI Ctrl+S still exports SVG. Document replay remains deferred.
 
 ```go
-// Capture alongside the layout, before editing any source checkout.
 revisions, err := replay.CaptureRevisions(ctx, workspaceRoot)
-// Handle err, then run the paragraph pipeline and retain its completed result.
+// Handle err, then run the pipeline using the captured checkout state.
 err = replay.Save(ctx, result, "case.json", "font-store", revisions)
-// Handle err. The original fonts/HTML and font-discovery providers are no longer needed.
+// Handle err. Original font files and discovery providers are no longer needed.
 reproduced, err := replay.Load(ctx, "case.json", "font-store")
 ```
 
-CaptureRevisions reads Git HEAD and tracked/untracked dirty status for tytui and
-its nine sibling dependencies. Save requires explicit revision evidence; callers
-may supply equivalent records for their build environment. Capture at layout time:
-these records describe source provenance, not proof that a running binary was
-built from that checkout. A dirty flag does not archive the patch. The manifest
-also records the exporting Go runtime version. Replay verifies outputs under the
-current executable rather than checking out or executing recorded revisions.
+## One format, current paint, explicit assembly
 
-## What is pinned
+Version 4 fixes glyph-boundary paint behavior. Color bypasses typesetter styles;
+rendering uses separate logical paint ranges and retained source/cluster mapping.
+A ligature is one colored glyph. There is no `Input.PaintPolicy` wire field;
+strict decoding rejects one even if it names the current policy.
 
-Every configured face is retained at pipeline completion in `Result.FontSnapshot`,
-including unused mappings and fallback candidates. Saving never reopens original
-font paths. The resolver snapshot shares private immutable bytes; public readers
-do not expose the backing slice.
+`Input.Assembly` is required:
 
-The manifest stores original plain input or original HTML plus the selected DOM
-locator, extracted text, styles, source maps and bidi isolates. Replay uses the
-retained extraction, not a new DOM parse or network stylesheet fetch. Source HTML
-is checked against its original document hash. Plain whitespace normalization is
-rerun and the processed paragraph is compared with the recorded result.
+| Mode | Required input | Placement evidence |
+| --- | --- | --- |
+| `proof-compatibility-v1` | `LineLayout` absent/null | Required |
+| `css-line-height-v1` | `LineLayout` present, with default and optional byte-range overrides | Required |
 
-The rendering bypass does not change this format. Document colors remain in
-Input.Source/Styles on the wire. Run/Load derive color-free typesetter styles and
-a separate renderer color snapshot; Result.PaintSpans() returns a detached copy.
-Glyph proofs use that snapshot rather than looking up colors in retained input.
-Version-1 boundary behavior and version-2 glyph-anchor colors remain unchanged.
+Both modes preserve their existing geometry. CSS values support normal, factor
+and resolved-length policies. The format version does not depend on assembly.
+`Evidence.Layout` records box width/extent/baseline and line placements for both
+modes and both synthetic/OpenType backends. Unknown modes, inconsistent values
+and missing placement evidence fail.
 
-Font entries record parsed family/subfamily, origin/request, byte size, SHA-256,
-and provenance-scoped resource ID. Selection records default/rule/ordered fallback
-references, original file requests, descriptor requests, semantic provider order
-and generic mappings, and diagnostics. Provider implementations, environment,
-credentials, and API configuration are not serialized. Application-supplied names,
-source content, and diagnostic messages are preserved as supplied; callers should
-not put secrets in those fields.
+The pipeline and typography now have only current glyph-boundary behavior:
+PaintPolicy selectors, legacy shaping/color branches and the intermediate Save
+guard are removed. Assembly values still come from `Result.LineLayout()`, not
+mutable inspection metadata. Source paint stays separate and rendering consumes
+retained glyph/source correspondence. No new format change was needed for this
+API simplification; version-4 evidence and step-1 controls are unchanged.
 
-Frozen line/knot geometry and run evidence retain feature selections, language,
-script, direction, size, glyph positions/clusters, and replacement-local text and
-font identities. OpenType cases also retain a structural representation of the
-glyph proof. These are verification evidence, not instructions to bypass shaping.
-Replay invokes the normal pipeline with pinned resources, then compares paragraph,
-breaks, font bindings, frozen runs/geometry, and glyph proofs. A behavioral change
-produces an error instead of silently claiming the same result. Initializing a new
-randomized shaping feature is outside this version's supported input surface.
+## What remains pinned
 
-## Storage and failure behavior
+`Result.FontSnapshot` retains immutable resources for configured defaults, rules
+and ordered fallback candidates, including unused candidates. Save reads those
+bytes, never original paths. Font records retain SHA-256, byte size, parsed names,
+provenance-scoped ResourceID and origin/request evidence. Load validates all stored
+fonts and gives only referenced entries to the resolver. Resource content and
+selection ordering remain unchanged by this format transition.
 
-Save writes font-store/<lowercase SHA-256> objects and a new JSON manifest. Files
-are published atomically without replacing existing files; the store deduplicates
-content and rejects existing corrupt objects. Incomplete saves may leave valid,
-unreferenced font objects. The manifest and each font read are limited to 64 MiB.
-This bounds individual files, not the total size of a case with many fonts.
+Selection provenance includes requested paths, descriptor requests, provider
+names, generic mappings and diagnostics. Load/save preserves these records but
+never executes them as discovery requests. Provider implementations, runtime
+faces/services, credentials and environment settings are not serialized.
 
-Load accepts only the supported schema/version and units. It verifies every
-font's hash, byte size, parsed identity, and references before layout. Missing,
-corrupt, or mismatched fonts fail with identifying errors. It does not open recorded
-paths, consult registry caches, try another face, or contact providers. Changing
-an installed font or provider policy cannot change a pinned replay.
+The manifest retains plain input or original HTML and selected DOM locator,
+extracted text/styles, source maps and bidi isolates. HTML hashes are checked;
+retained extraction is used without reparsing HTML or fetching stylesheets.
+Plain whitespace normalization runs normally and its processed text is verified.
+Wire styles retain document colors; pipeline execution rebuilds color-free
+shaping input and separate paint. Frozen output and placements remain immutable
+rendering inputs.
 
-A JSON manifest alone is descriptive when its font objects are unavailable. For
-portability, copy the referenced hash-named objects to a local store at the receiving
-end. This change does not automatically distribute fonts or produce license-cleared
-bundles. Include license/provenance when authorized to share font bytes; otherwise
-the receiving end must provide matching external bytes. No automatic garbage
-collection or remote download is implemented.
+CaptureRevisions records HEAD and dirty status for tytui and its nine paragraph
+pipeline sibling dependencies; unversioned module directories are labelled.
+Capture at layout time. This metadata and the recorded Go runtime describe the
+environment, not an archived patch, reproducible binary or executable checkout
+instruction. Explicit equivalent revision records may be supplied by a caller.
 
-## Tests
+## Verification and failures
 
-`replay/replay_test.go` checks both breakers at narrow/wide soft-hyphen widths,
-Hebrew coverage and discretionary identities, unused font retention, file replacement
-and deletion, source/style/map round trips, synthetic replay, discovery-policy and
-diagnostic retention without provider calls, and rejection of missing/tampered
-bytes, hashes, references, versions, source hashes, and proof evidence. Existing
-pipeline and immutable-resource regressions remain active.
+Load reruns the normal pipeline with pinned resources. It compares processed text,
+break positions, font bindings, placements, frozen lines/knots, shaped runs and
+OpenType glyph proof evidence. Category-specific evidence errors expose drift;
+Load never updates expected output. Diagnostic prose is retained as information,
+not compared as a layout contract.
 
-Shared-style extraction preserves existing version-1 style field names and IDs.
-Non-DOM styled cases use optional `Input.Styles` (processed UTF-8 byte coordinates);
-plain and DOM cases omit it and retain their old shape. Current readers accept old
-cases. Older readers with strict unknown-field checks cannot read new shared-style
-cases; use the recorded revisions when replaying them. Revision capture also lists
-the local typography checkout (directories without .git are explicitly recorded as `unversioned`, dirty;
-missing modules and Git errors still fail).
+Save publishes a new manifest without overwriting existing files and deduplicates
+font objects by lowercase SHA-256. Existing corrupt objects fail. Partial saves
+may leave valid unreferenced objects. Manifest and individual font reads are
+bounded to 64 MiB; this is not a total-case size limit. Missing/tampered bytes,
+invalid references, unknown fields, invalid units and mismatched identities fail
+without substitution or provider access. Cancellation and retained-resource
+lifetime contracts remain in effect.
 
+To share a case, provide its referenced hash-named objects subject to font
+licenses. JSON alone cannot reproduce missing fonts. No automatic font download,
+redistribution, garbage collection or discovery is introduced.
 
-Typography extraction step 5 preserves manifest version 1. Explicit serialization records
-remain the wire boundary; neutral discovery/render services are not serialized.
-Frozen evidence obtains identity from Result.Identity, and glyph proofs use the
-retained Renderer. Save reads pinned bytes through FontSource; Load validates the
-content store through the configured backend without invoking providers or reopening
-provenance paths. Static pre-step-5 manifests in replay/testdata exercise both
-breakers and mixed Latin/pointed Hebrew with external fixture fonts. Treat these
-files as compatibility inputs, not regenerated golden output.
+## Regression cases and deliberate changes
 
+See [the regression inventory](REPLAY_REGRESSION_INVENTORY.md) and
+[fixture notes](../replay/testdata/README.md). The 16 step-1 SVG/placement controls
+are unchanged. New version-4 fi fixtures for both breakers match those controls
+and exercise load/save/load. Historical JSON files remain unchanged as version
+rejection cases; they are no longer loaded to execute historical behavior.
 
-Step 6 introduces a semantic format version: new cases record version 2 and
-`Input.PaintPolicy="glyph-boundary-v1"`. Version-1 cases omit that field and load
-with legacy style-boundary shaping and knot paint. Resaving a legacy result keeps
-version 1 and omits the field again; there is no automatic migration. To deliberately
-rerun under the new policy, change Input.PaintPolicy and run the pipeline afresh.
-Unknown or inconsistent version/policy combinations fail before layout. Font IDs
-and DTO encoding are unchanged. The static pre-step6-paint.json fixture protects
-old red-f/blue-i output; new output has a single red fi glyph when the font ligates.
+For an old case that needs continued investigation, use its pre-change checkout
+to recover input and pinned fonts, then deliberately run the current policy and
+review new evidence. Save a new case with current provenance; do not claim that
+its historical output was reproduced. No permanent converter is provided.
 
+An intentional algorithm change requires reviewing affected evidence and explicitly
+updating fixtures. An incompatible format/semantic-contract change increments the
+version and replaces support. Tests never automatically regenerate expectations.
+The [simplification plan](REPLAY_SIMPLIFICATION_PLAN.md) is complete. Historical
+milestone documents link here; their old format promises are superseded.
 
-Typography extraction step 7 removes runtime `fontbackend` wrappers. Font records
-in `replay/wire.go` explicitly retain the version-1/version-2 JSON field names and
-numeric provenance codes; these records are independent of runtime adapter types.
-Save reads pinned `typography.Settings` from Result.FontSnapshot and discovery
-metadata from Result.Input.Fonts (`discovery.Resolution`). Load reconstructs that
-resolution from validated local resources without discovery. It preserves legacy
-policy and resource identities. Wire tests and unchanged static fixtures cover this
-boundary; moving types introduced no manifest version change.
+## Creating and reviewing a fresh case
 
-Rendering colors still bypass the typesetter: replay input retains document styles,
-while Run rebuilds color-free typesetter styles and a detached renderer snapshot.
-Proof generation uses that snapshot and retained services, not mutable replay input.
+1. Preserve the failing input, selected node/extraction, width, breaker, assembly
+   values and pinned font resources. Record checkout revisions at execution time;
+   a dirty flag does not preserve the patch itself.
+2. Reproduce the finding through the normal pipeline. For a historical manifest,
+   use an appropriate old checkout to recover input/resources if necessary, then
+   construct a new current input. Do not edit its version number to bypass rejection.
+3. Inspect the frozen glyph/source correspondence and numeric placements. Compare
+   a retained SVG proof and the relevant independent expectations (for example,
+   the HarfBuzz or hand-calculated geometry tests). Explain any intentional change
+   in glyphs, colors, breaks or baselines before accepting new evidence.
+4. Call Save with a new manifest path and the retained result/resources. Verify
+   Load and load/save/load using the local store, including after removal of the
+   original font files. Review the manifest/fixture diff and record the input,
+   font hashes, provenance and reason for the expectation in the fixture README.
+5. Run `go test ./replay ./pipeline ./documentlayout -count=1`, then the affected
+   modules' suites. Keep the unchanged controls as controls; update only evidence
+   justified by the reviewed behavior change. Load never blesses its own mismatch.
 
-
-Paragraph-engine step 2 retains the compatibility vlist in completed results.
-Load rebuilds it through pipeline.Run; Save continues to write only the existing
-v1/v2 records and proof evidence. No placement or vertical-policy field is added.
-The glyph proof reads retained baselines/line extents, paint spans and paint policy,
-so changing inspection Input does not reflow or recolor an existing proof. To change
-layout or paint semantics, construct new input and run the pipeline again before
-saving. Static legacy manifests now also have load/resave/reload coverage for
-identical geometry, colors, identities and versions. New v2 round trips compare
-rebuilt placements. Successful diagnostic records retain their existing shape;
-assembly failures return StageAssemble without producing a replayable result.
-
-
-Paragraph-engine step 3 moves bidi preparation and encode/break/freeze/assembly
-into the public `typography/paragraph.Run` API. Pipeline.Run prepares input and
-injects services, then maps the neutral result into the existing application
-records. Replay still reaches this same path through pipeline.Run: v1/v2 wire
-values, identities, successful diagnostic messages, ProofCompatibility geometry
-and separate paint snapshots are unchanged. No fixtures were regenerated.
-
-
-## Explicit line-height cases (version 3)
-
-`pipeline.Input.LineLayout` opts into the CSS-inspired baseline line-box policy.
-Save selects `LineHeightVersion` (3) for these results, using the detached policy
-retained at layout time. `Version` (2) remains the default compatibility format;
-legacy paint with compatibility geometry still saves as version 1. Old records
-and their static fixture evidence are unchanged.
-
-Version 3 requires Input.LineLayout with a Default line-height and optional Runs
-(ordered normalized UTF-8 byte ranges), an explicit glyph-boundary or legacy paint
-policy, and Evidence.Layout with box and line placement numbers. Line-height kinds
-are `normal`, `factor` and `length`; lengths use DU, factors are unitless. This
-version fixes `normal` to ascent+descent+max(0,font gap) and uses half-leading with
-baseline alignment and no trailing kern. Strut metrics come from the same pinned
-backend font/size defaults used for layout. It adds no provider calls or live fonts.
-
-Versions 1/2 must omit LineLayout and Layout evidence; version 3 must include both.
-The loader reconstructs placements and compares evidence even for synthetic cases
-without a glyph proof. Invalid or missing policy values, incompatible versions,
-changed metrics/placements and tampered line-height values fail explicitly. Both
-paint policies are independent of the spacing policy and retain their old meaning.
-Round-trip/resave regressions cover both breakers and backends. No VList or service
-objects are serialized; rendering still reads separate retained paint and geometry.
+There is no blanket fixture regeneration command. Font licenses/provenance still
+apply to any shared bytes. JSON field ordering alone is not a compatibility
+promise, while resource identity codes, selected order, source correspondence and
+the recorded layout evidence have concrete regression checks.

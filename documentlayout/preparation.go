@@ -3,7 +3,6 @@ package documentlayout
 import (
 	box "github.com/npillmayer/css-box-layout/layout"
 	"github.com/npillmayer/khipu"
-	"github.com/npillmayer/typography"
 	"github.com/npillmayer/typography/paragraph"
 )
 
@@ -47,7 +46,7 @@ func (i *invocation) prepareGroup(group *box.LayoutNode, owner box.BoxID) (*prep
 		return nil, err
 	}
 	r := i.config.Resolver
-	text, _, err := r.ItemizeInline(i.ctx, g.Text, g.Styles, g.Anchors, typography.GlyphBoundary)
+	text, _, err := r.ItemizeInline(i.ctx, g.Text, g.Styles, g.Anchors)
 	if err != nil {
 		return nil, err
 	}

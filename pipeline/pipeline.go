@@ -38,7 +38,7 @@ const (
 // be a positive finite layout dimension, not terminal cells. Direction defaults
 // to left-to-right. Fonts must already be loaded; Run performs no discovery or I/O.
 type Input struct {
-	PaintPolicy typography.PaintPolicy `json:",omitempty"`
+
 	// LineLayout opts into CSS-inspired line boxes. Nil preserves proof geometry.
 	// Runs address normalized paragraph bytes; font/size strut uses backend defaults.
 	// Values bypass shaping styles and are retained independently for replay.
@@ -81,9 +81,9 @@ type Diagnostic struct {
 // line fit diagnostics and retained glyphs.
 // No mutable encoder or elastic paragraph is exposed.
 type Result struct {
-	lineLayout      *parlayout.LineLayout       // Detached policy input; nil means compatibility.
-	vlist           *parlayout.VList            // Retained placement; never serialized or recalculated by rendering.
-	paintPolicy     typography.PaintPolicy      // Retained rendering policy, independent of inspection/replay Input.
+	lineLayout *parlayout.LineLayout // Detached policy input; nil means compatibility.
+	vlist      *parlayout.VList      // Retained placement; never serialized or recalculated by rendering.
+
 	paint           []typography.PaintSpan      // Detached rendering input; never passed to layout.
 	Identity        typography.IdentityProvider `json:"-"`
 	Renderer        render.Backend              `json:"-"`
@@ -162,12 +162,7 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 	if err := ctx.Err(); err != nil {
 		return fail(StageInput, err)
 	}
-	if input.PaintPolicy == "" {
-		input.PaintPolicy = typography.GlyphBoundary
-	}
-	if input.PaintPolicy != typography.GlyphBoundary && input.PaintPolicy != typography.LegacyStyleBoundary {
-		return fail(StageInput, fmt.Errorf("%w: unknown paint policy", ErrInvalidInput))
-	}
+
 	if input.Width <= 0 || input.Width >= dimen.Fil {
 		return fail(StageInput, fmt.Errorf("%w: width must be positive and finite", ErrInvalidInput))
 	}
@@ -247,7 +242,7 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 		if err != nil {
 			return fail(StageFonts, err)
 		}
-		text, bindings, err = resolver.ItemizePolicy(ctx, paragraphText, spans, input.PaintPolicy)
+		text, bindings, err = resolver.Itemize(ctx, paragraphText, spans)
 		if err != nil {
 			return fail(StageFonts, &fontselection.ResolutionError{Stage: "coverage", Err: err})
 		}
@@ -261,7 +256,7 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 		backend = "OpenType (core/Hebrew)"
 	}
 	if input.Fonts == nil && spans != nil {
-		shaping, err := typography.ProjectStyles(paragraphText, spans, syntheticStyleResolver{}, config.Streaming.Defaults, input.PaintPolicy)
+		shaping, err := typography.ProjectStyles(paragraphText, spans, syntheticStyleResolver{}, config.Streaming.Defaults)
 		if err != nil {
 			return fail(StageParagraph, err)
 		}
@@ -294,10 +289,9 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 	}
 
 	return &Result{
-		vlist: completed.VList, lineLayout: lineLayout, paintPolicy: input.PaintPolicy,
+		vlist: completed.VList, lineLayout: lineLayout,
 		fontProvenance: fontProvenance, paint: paint, Identity: identity, Renderer: renderer, FontSnapshot: fontSnapshot, FontDiagnostics: fontDiagnostics, ParagraphText: paragraphText, TextSpans: textSpans, Fonts: fonts, FontBindings: bindings, Input: input, Text: text, BreakPositions: completed.BreakPositions, Frozen: completed.Frozen, BidiRuns: completed.BidiRuns,
 		Diagnostics: []Diagnostic{
-			// Preserve the successful stage transcript serialized by replay v1/v2.
 			// Assembly failures have their own StageAssemble error; no partial result
 			// is published. VList exposes successful assembly independently.
 			{StageInput, fmt.Sprintf("Accepted %d UTF-8 bytes", len(input.Text))},

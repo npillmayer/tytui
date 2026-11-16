@@ -32,8 +32,7 @@ func BuildGlyphProof(result *Result) (*GlyphProof, error) {
 	}
 	proof, err := render.BuildParagraphProof(context.Background(), render.ParagraphInput{
 		Frozen: result.Frozen, VList: result.vlist, Text: result.ParagraphText,
-		Paint: result.paint, PaintPolicy: result.paintPolicy,
-	}, render.Services{Backend: result.Renderer, Identity: result.Identity})
+		Paint: result.paint}, render.Services{Backend: result.Renderer, Identity: result.Identity})
 	if err != nil {
 		return nil, err
 	}

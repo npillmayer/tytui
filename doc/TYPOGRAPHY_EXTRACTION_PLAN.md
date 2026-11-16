@@ -1,5 +1,11 @@
 # Incremental typography extraction plan
 
+Replay update (2026-11-16): historical version/policy statements below record
+past milestones, not current compatibility requirements. The completed
+[replay simplification](REPLAY_SIMPLIFICATION_PLAN.md) supports only experimental
+version 4 and one glyph-boundary shaping/color behavior. See
+[the current contract and case-review workflow](OFFLINE_REPLAY.md).
+
 Proposed 2026-11-11, following [type-integr.md](type-integr.md). This plan extracts
 shared style definitions, typography resolution (M), and the OpenType adapter (A)
 from tytui. It does not implement the paragraph engine's boxed vlist, CSS block

@@ -16,7 +16,7 @@ import (
 	"tytui/pipeline"
 )
 
-// These records freeze the version-1/version-2 font wire contract. They are
+// These records describe font provenance independently of runtime types. They are
 // serialization values only, never runtime wrappers around extracted services.
 // Request codes are provenance codes (-3..5 weights), not CSS numeric weights.
 type wireRequest struct {
@@ -95,22 +95,22 @@ func diagnosticsNative(ds []wireDiagnostic) []fontselection.FontDiagnostic {
 // wireInput freezes the paragraph input shape; Fonts must remain null on disk.
 // Runtime selections, faces and services must never be decoded from a manifest.
 type wireInput struct {
-	PaintPolicy typography.PaintPolicy `json:",omitempty"`
-	LineLayout  *paragraph.LineLayout  `json:",omitempty"`
-	Styles      []style.Span           `json:",omitempty"`
-	Fonts       json.RawMessage
-	Text        string
-	Width       dimen.DU
-	Direction   bidi.Direction
-	Breaker     pipeline.Breaker
-	Source      *htmlinput.Extraction
+	Assembly   paragraph.SpacingPolicy
+	LineLayout *paragraph.LineLayout `json:",omitempty"`
+	Styles     []style.Span          `json:",omitempty"`
+	Fonts      json.RawMessage
+	Text       string
+	Width      dimen.DU
+	Direction  bidi.Direction
+	Breaker    pipeline.Breaker
+	Source     *htmlinput.Extraction
 }
 
 func inputWire(in pipeline.Input) wireInput {
-	return wireInput{PaintPolicy: in.PaintPolicy, LineLayout: in.LineLayout, Styles: in.Styles, Text: in.Text, Width: in.Width, Direction: in.Direction, Breaker: in.Breaker, Source: in.Source}
+	return wireInput{LineLayout: in.LineLayout, Styles: in.Styles, Text: in.Text, Width: in.Width, Direction: in.Direction, Breaker: in.Breaker, Source: in.Source}
 }
 func (in wireInput) native() pipeline.Input {
-	return pipeline.Input{PaintPolicy: in.PaintPolicy, LineLayout: in.LineLayout, Styles: in.Styles, Text: in.Text, Width: in.Width, Direction: in.Direction, Breaker: in.Breaker, Source: in.Source}
+	return pipeline.Input{LineLayout: in.LineLayout, Styles: in.Styles, Text: in.Text, Width: in.Width, Direction: in.Direction, Breaker: in.Breaker, Source: in.Source}
 }
 func (in wireInput) hasFonts() bool {
 	return len(in.Fonts) > 0 && !bytes.Equal(bytes.TrimSpace(in.Fonts), []byte("null"))

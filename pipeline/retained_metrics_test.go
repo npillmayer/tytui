@@ -76,7 +76,7 @@ func TestRenderingDoesNotRemeasureRetainedLines(t *testing.T) {
 			t.Fatal(err)
 		}
 		placements := frozen.VList
-		r := &Result{vlist: placements, Frozen: frozen.Frozen, paintPolicy: typography.GlyphBoundary, ParagraphText: "ab", Renderer: emptyProofBackend{}, Identity: emptyProofBackend{}}
+		r := &Result{vlist: placements, Frozen: frozen.Frozen, ParagraphText: "ab", Renderer: emptyProofBackend{}, Identity: emptyProofBackend{}}
 		face.deny = true
 		proof, err := BuildGlyphProof(r)
 		if err != nil || len(proof.Lines) != 1 || proof.Lines[0].Baseline != baseline || proof.Lines[0].Height != height {

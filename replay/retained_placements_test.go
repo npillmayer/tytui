@@ -1,55 +1,60 @@
 package replay
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/npillmayer/typography/paragraph"
+	"tytui/pipeline"
 )
 
-func TestLegacyPlacementEvidenceSurvivesResave(t *testing.T) {
+func TestCurrentFixturesSurviveResave(t *testing.T) {
 	store := t.TempDir()
-	for _, name := range []string{"GentiumPlus-R.ttf", "NotoSansHebrew-Regular.ttf"} {
-		data, err := os.ReadFile(filepath.Join("../../opentype/testdata/fonts", name))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err = put(store, digest(data), data); err != nil {
-			t.Fatal(err)
-		}
+	data, err := os.ReadFile(latin)
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, name := range []string{"pre-step5-firstfit.json", "pre-step5-knuth-plass.json", "pre-step6-paint.json"} {
-		t.Run(name, func(t *testing.T) {
-			path := filepath.Join("testdata", name)
+	if err := put(store, digest(data), data); err != nil {
+		t.Fatal(err)
+	}
+	for _, b := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
+		t.Run(string(b), func(t *testing.T) {
+			path := filepath.Join("testdata", "current-fi-"+string(b)+".json")
 			original := readManifest(t, path)
 			result, err := Load(t.Context(), path, store)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if result.VList() == nil || result.VList().Frozen() != result.Frozen {
-				t.Fatal("placements not rebuilt")
-			}
-			saved := filepath.Join(t.TempDir(), "resaved.json")
-			if err = Save(t.Context(), result, saved, store, revisions()); err != nil {
-				t.Fatal(err)
-			}
-			got := readManifest(t, saved)
-			if got.Version != original.Version || got.Input.PaintPolicy != original.Input.PaintPolicy || !reflect.DeepEqual(got.Evidence, original.Evidence) || !reflect.DeepEqual(got.Bindings, original.Bindings) || !reflect.DeepEqual(got.Fonts, original.Fonts) {
-				t.Fatal("legacy geometry, paint, identity or wire version changed")
-			}
-			data, err := os.ReadFile(saved)
+			proof, err := pipeline.BuildGlyphProof(result)
 			if err != nil {
 				t.Fatal(err)
 			}
-			for _, field := range []string{`"VList"`, `"Placements"`, `proof-compatibility-v1`} {
-				if bytes.Contains(data, []byte(field)) {
-					t.Fatalf("in-memory placement leaked into manifest: %s", field)
-				}
+			if len(proof.Glyphs) != 1 || proof.Glyphs[0].Color != "red" || proof.Glyphs[0].Cluster != 0 {
+				t.Fatalf("current ligature changed: %+v", proof.Glyphs)
+			}
+			want := currentControls(t)[string(b)+"/compatibility/ligature"]
+			if got := control(t, result); !reflect.DeepEqual(got, want) {
+				t.Fatalf("fixture differs from step-1 control: %+v", got)
+			}
+			// Retained policies must be authoritative even if inspection metadata changes.
+
+			result.Input.LineLayout = &paragraph.LineLayout{}
+			saved := filepath.Join(t.TempDir(), "case.json")
+			if err := Save(t.Context(), result, saved, store, revisions()); err != nil {
+				t.Fatal(err)
+			}
+			m := readManifest(t, saved)
+			if m.Version != Version || m.Input.Assembly != paragraph.ProofCompatibility || m.Input.LineLayout != nil || !reflect.DeepEqual(m.Evidence, original.Evidence) || !reflect.DeepEqual(m.Selection, original.Selection) || !reflect.DeepEqual(m.Fonts, original.Fonts) {
+				t.Fatal("current resave changed layout or selection")
 			}
 			again, err := Load(t.Context(), saved, store)
-			if err != nil || again.VList().Box() != result.VList().Box() || !reflect.DeepEqual(again.VList().Lines(), result.VList().Lines()) {
-				t.Fatal("resaved placements changed", err)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(control(t, again), want) {
+				t.Fatal("load/save/load changed retained proof")
 			}
 		})
 	}

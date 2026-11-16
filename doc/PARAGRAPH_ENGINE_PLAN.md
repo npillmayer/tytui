@@ -1,5 +1,11 @@
 # Paragraph engine: extraction review and boxed-vlist plan
 
+Replay update (2026-11-16): historical version/policy statements below record
+past milestones, not current compatibility requirements. The completed
+[replay simplification](REPLAY_SIMPLIFICATION_PLAN.md) supports only experimental
+version 4 and one glyph-boundary shaping/color behavior. See
+[the current contract and case-review workflow](OFFLINE_REPLAY.md).
+
 Proposed 2026-11-12, following [type-integr.md](type-integr.md) and the completed
 [typography extraction plan](TYPOGRAPHY_EXTRACTION_PLAN.md). This document records
 the review findings and implementation sequence. Steps 1–3 and step 4's

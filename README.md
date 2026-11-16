@@ -139,7 +139,7 @@ See the document subset for format, size and sizing limits.
 
 These are diagnostic document proofs, not pagination or full CSS painting.
 Document replay remains deferred; Ctrl+S exports SVG, and the existing headless
-paragraph replay v1/v2/v3 contracts are unchanged. The
+paragraph replay uses experimental version 4. The
 [TUI integration tests](document_workbench_test.go) reproduce all four existing
 [nested-auto proofs](documentlayout/testdata/README.md) byte-for-byte.
 
@@ -268,20 +268,20 @@ result, err := pipeline.Run(ctx, pipeline.Input{
 
 This replaces `discovery.Resolution` and root `LoadSettings`/`Settings`; typography's
 old discovery/fontfind packages are removed. Replay's explicit input, policy,
-descriptor and font records in `replay/wire.go` preserve versions 1, 2 and 3.
+descriptor and font records in `replay/wire.go` describe version 4.
 Replay uses retained bytes and stored origins; requested paths and descriptors
-never trigger discovery. Static pre-migration fixtures remain unchanged.
+never trigger discovery. Historical fixtures remain unchanged as rejection cases.
 
 New layouts use glyph-boundary colors: paint changes preserve shaping, ligatures
 remain one color, and independently anchored marks may have their own color.
-Original paint spans are retained. New replay cases use version 2; version-1 cases
-retain their original shaping and paint behavior rather than silently changing.
+Original paint spans are retained. Replay accepts only version 4; it never silently reinterprets historical cases.
+Legacy shaping/color selectors have been removed from typography and pipeline.
 
 Color now bypasses the paragraph typesetter. M's `typography.ProjectStyles` owns
 the projection into color-free typesetter styles; the renderer receives a separate
 snapshot of logical color spans. `Result.PaintSpans()` returns a detached copy.
 Document colors remain in the existing inspection/replay fields, so the replay
-formats and glyph-color policy are unchanged.
+format retains source colors independently of glyph-color assignment.
 
 The headless `typography/paragraph.Run` API consumes prepared `styled.Text`, base
 direction and zero-byte bidi markup, with explicit width/breaker/assembly parameters
@@ -290,8 +290,8 @@ freezes and assembles a boxed vertical list. `paragraph.Assemble` remains availa
 for callers that already have frozen lines. Its compatibility
 policy preserves proof geometry. Completed results expose detached placements via
 `Result.VList()`; glyph rendering consumes those placements without remeasuring
-line metrics. Colors remain separate, and replay versions 1–2 rebuild placements
-without new wire fields. See the
+line metrics. Colors remain separate, and replay version 4 verifies rebuilt
+placements for both assembly modes. See the
 [paragraph-engine plan](doc/PARAGRAPH_ENGINE_PLAN.md).
 
 
@@ -303,5 +303,5 @@ trailing gap. Normal and resolved-length values are also supported; optional
 byte ranges override line-height without splitting shaping or carrying paint.
 TUI defaults remain unchanged. The separate `documentlayout` CSS box-engine bridge
 currently supports normal line height; other CSS line-height declarations remain
-unsupported there. Explicit single-paragraph line-height cases use replay version 3 with
-placement evidence; compatibility layouts continue to save as version 1 or 2.
+unsupported there. Both explicit single-paragraph line-height and compatibility
+layouts use replay version 4 with explicit assembly mode and placement evidence.

@@ -1,5 +1,11 @@
 # Deferred proposal: paragraph annotation API contract
 
+Replay update (2026-11-16): historical version/policy statements below record
+past milestones, not current compatibility requirements. The completed
+[replay simplification](REPLAY_SIMPLIFICATION_PLAN.md) supports only experimental
+version 4 and one glyph-boundary shaping/color behavior. See
+[the current contract and case-review workflow](OFFLINE_REPLAY.md).
+
 **Status: deferred, 2026-11-11. Not an implementation contract or extraction
 prerequisite.** No APIs in this document have been implemented.
 

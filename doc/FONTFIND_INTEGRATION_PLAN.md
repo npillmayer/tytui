@@ -1,5 +1,11 @@
 # Incremental fontfind integration plan
 
+Replay update (2026-11-16): historical version/policy statements below record
+past milestones, not current compatibility requirements. The completed
+[replay simplification](REPLAY_SIMPLIFICATION_PLAN.md) supports only experimental
+version 4 and one glyph-boundary shaping/color behavior. See
+[the current contract and case-review workflow](OFFLINE_REPLAY.md).
+
 Source review: 2026-11-11, refreshed against `1b6583b`, sibling `../fontfind` (module
 `github.com/npillmayer/fontfind`). Steps 1–4 are implemented; later steps remain proposed. Public API and implementation references below are relative to that
 checkout unless prefixed with `tytui/`. The step 1 implementation wires the sibling dependency for offline resource adapters.

@@ -1,6 +1,7 @@
 # Simplify replay for an experimental integration laboratory
 
-Proposed, 2026-11-15. This is a plan, not an implemented format change.
+Completed 2026-11-16: all four steps are implemented. Replay
+now supports only experimental version 4. Legacy shaping/color policies have been removed from typography and tytui.
 The current behavior remains documented in [OFFLINE_REPLAY.md](OFFLINE_REPLAY.md).
 Implementation should recheck the evolving sibling checkouts and preserve unrelated
 work, including the current migration to application-owned `fontselection`.
@@ -48,6 +49,14 @@ requires a version change; there is no enduring multi-version reader requirement
 
 ## 1. Establish current-behavior regression cases
 
+**Implemented (2026-11-15).** See the
+[regression inventory](REPLAY_REGRESSION_INVENTORY.md) for the test classification,
+historical fixture successors and independent correctness oracles. New direct-input
+tests capture 16 current OpenType SVG/placement controls and hand-calculated
+synthetic placements under both breakers/vertical policies. They verify replay
+and retained rendering after removing source font files, including unused font
+selection retention. Historical fixtures and tests remain unchanged.
+
 Inventory replay tests and classify their purpose: current correctness, resource
 lifetime/integrity, source correspondence, or historical compatibility alone.
 Identify each legacy fixture's integration question before removing any test.
@@ -80,6 +89,19 @@ change in this step.
 
 ## 2. Replace version dispatch with the current format
 
+**Implemented (2026-11-15).** Version 4 is the only reader/writer format. It fixes
+glyph-boundary semantics, omits a paint selector, and requires explicit assembly
+mode plus placement evidence for both modes/backends. Save rejects retained legacy
+results before I/O, even if inspection metadata was edited. Unsupported versions
+fail before current schema decoding/font loading. Requested-path provenance now
+survives load/save without becoming an executable discovery request.
+
+The two new current-fi manifests match step 1's unchanged proof/placement controls
+and pass load/save/load checks. Historical fixture bytes remain unchanged but now
+test rejection; their useful integration cases are covered by current regressions.
+No permanent converter or legacy reader was added. See
+[OFFLINE_REPLAY.md](OFFLINE_REPLAY.md) for the implemented contract.
+
 Implement version 4 in `tytui/replay`: one schema, explicit assembly mode, current
 paint semantics, and placement evidence for every result. Remove version selection
 based on paint policy or presence of line-height input. Keep the font store and
@@ -108,6 +130,16 @@ and evidence mismatch tests remain. The replay package no longer needs historica
 layout/color output to pass its suite.
 
 ## 3. Retire legacy policies in their owning modules
+
+**Implemented (2026-11-15).** Removed PaintPolicy/constants, ItemizePolicy,
+policy parameters on ProjectStyles/ItemizeInline, ParagraphInput's selector, and
+pipeline input/result policy state. Replay's intermediate legacy-result guard and
+legacy-only tests are removed. Current-policy branches are now the sole paths;
+feature domains, object barriers, resource identities and both assembly modes are
+unchanged. Renderer failure precedence is preserved without knot-based coloring.
+The sibling consumer search found these API users only in typography and tytui;
+no deprecated wrappers or changes to khipu/css-box-layout were required.
+
 
 Coordinate the typography API removal with tytui call-site updates in one passing
 cross-module change. Search all sibling consumers before removing exported symbols;
@@ -141,6 +173,20 @@ atomic, bidi, discretionary and rendering-bypass tests pass in their owning modu
 
 ## 4. Finish the documentation and test cleanup
 
+**Implemented (2026-11-16).** Current guidance now consistently documents version 4
+and the sole glyph-boundary behavior. Historical extraction/review plans link to
+the superseding contract. OFFLINE_REPLAY.md gives a concrete fresh-case and evidence
+review workflow, with no automatic fixture regeneration.
+
+Replay tests no longer freeze incidental JSON field ordering or whole-record
+null/empty spelling. They still check fixed resource identity codes, provenance,
+selection order, immutable ownership, strict rejection and exact retained output.
+Duplicate test-local manifest readers/writers were replaced by existing helpers.
+All production wire adapters were audited: they remain used for current resource,
+selection, source or provenance data, so no additional adapter removal was warranted.
+The earlier steps already removed historical execution tests and legacy selectors.
+No production behavior or fixture bytes changed in this final cleanup.
+
 Remove tests whose sole purpose is executing/resaving old versions. Retain concise
 version-rejection tests and the replacement correctness cases. Remove unused wire
 compatibility helpers; retain resource and source evidence with a concrete use.
@@ -170,6 +216,13 @@ proof controls and retained-resource lifetime tests. Run affected sibling consum
 checks when the API inventory identifies them; khipu changes require their own
 focused upstream regressions rather than a tytui workaround.
 
-This document changes no code or fixture and records no new test results. The
-first implementation task is step 1; retiring old readers and policies follows
-only after reproducible current-behavior cases are in place.
+Step 1 validation passed: focused `go test ./replay ./pipeline ./documentlayout
+-count=1` in tytui; full `go test ./... -count=1`, `go test -race ./... -count=1`,
+`go build ./...` and `go vet ./...` in both tytui and typography. No sibling code
+was changed. Khipu's independent suite was not rerun; its integration is exercised
+through these suites. Step 2 verification is recorded in the regression inventory.
+Step 3 verification is recorded in the regression inventory. Legacy readers and
+typography/pipeline policy selectors are retired. Step 4 verification (2026-11-16):
+full ordinary/race suites, build and vet passed in both modules; focused replay
+checks passed as well. All fixture JSON hashes match the pre-cleanup snapshot.
+The plan is complete; no document replay or pagination work is scheduled by it.

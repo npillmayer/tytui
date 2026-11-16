@@ -1,5 +1,11 @@
 # DOM/CSS line-height integration plan
 
+Replay update (2026-11-16): historical version/policy statements below record
+past milestones, not current compatibility requirements. The completed
+[replay simplification](REPLAY_SIMPLIFICATION_PLAN.md) supports only experimental
+version 4 and one glyph-boundary shaping/color behavior. See
+[the current contract and case-review workflow](OFFLINE_REPLAY.md).
+
 Proposed 2026-11-12. This is an implementation plan, not an API already delivered.
 It follows [the paragraph engine](PARAGRAPH_ENGINE_PLAN.md),
 [DOM integration](DOM_INTEGRATION.md), and [offline replay](OFFLINE_REPLAY.md).
@@ -23,7 +29,7 @@ paragraph/replay migration remain unimplemented. See the
 | `htmlinput/extraction.go` emits normalized bytes and source mappings; collapsed whitespace uses the first pending text unit's style. | Layout ranges must follow this same emission and whitespace ownership, independently of typography-span merging. |
 | `paragraph.LineLayout` already represents normal, factors, lengths and optional byte overrides. These do not enter styled.Text. | Reuse this narrow boundary; no annotation system or additional shaping-style field is needed. |
 | CSSLineHeight currently takes its strut from `Streaming.Defaults.Font/EmSize`. | Backend defaults may differ from the selected paragraph's computed font/size, particularly when it contains only differently styled children. Resolve the paragraph's own typography explicitly. |
-| Replay v3 persists typed line-height and numeric placements; v1/v2 preserve compatibility geometry. | Preserve old meanings. DOM-derived strut selection may need a new wire version rather than silently changing v3. |
+| Replay v4 records explicit assembly mode and numeric placements for both vertical policies. | Preserve current controls; a new strut contract may require an experimental format version bump. No historical-reader support is required. |
 
 These are source-inspection findings. Missing upstream capabilities below are
 candidates to characterize with tests, not assertions that new upstream bugs have

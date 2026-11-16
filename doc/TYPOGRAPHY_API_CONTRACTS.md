@@ -1,5 +1,11 @@
 # Typography extraction: proposed API contracts
 
+Replay update (2026-11-16): historical version/policy statements below record
+past milestones, not current compatibility requirements. The completed
+[replay simplification](REPLAY_SIMPLIFICATION_PLAN.md) supports only experimental
+version 4 and one glyph-boundary shaping/color behavior. See
+[the current contract and case-review workflow](OFFLINE_REPLAY.md).
+
 Current font-input guidance is in [Current selected-font API](#current-selected-font-api).
 Earlier sections record the extraction milestones; their loader/discovery APIs
 were superseded by the FONT_INTF migration.
@@ -8,7 +14,7 @@ Step 1 of [the extraction plan](TYPOGRAPHY_EXTRACTION_PLAN.md), 2026-11-11.
 Steps 1–7 are implemented. The original sketches and milestone sections below
 record the migration history; the final step-7 contract supersedes temporary
 aliases and forwarding APIs.
-Step 6 implements the agreed glyph-boundary policy, with legacy replay preserved.
+Step 6 originally retained legacy replay; that path was removed by replay simplification.
 The [rendering bypass](type-integr.md#style-projections-and-the-rendering-bypass)
 is implemented for color: M projects typography styles for the paragraph
 typesetter; colors reach the renderer separately through application wiring and
@@ -188,10 +194,10 @@ conversion and rejects unsupported requests. Generic-family mappings, ordered
 providers, substitution permission, reasons, and failures remain explicit. Cache
 hits preserve diagnostic evidence. No implicit system/network provider is installed.
 
-Keep replay version 1 as a wire contract separate from internal Go types. The
+Keep the current replay wire contract separate from internal Go types. The
 current resource ID hashes a quoted sequence of provider, name, path, request
 pattern, numeric fontfind style/weight, and content hash. Moving to neutral request
-values must retain a version-1 encoder, or deliberately version the identity and
+values must retain that resource-identity encoding, or deliberately version the identity and
 manifest format. Do not hash a new struct's JSON and call it the same identity.
 No credentials or provider closures belong in serialized policy.
 
@@ -210,9 +216,8 @@ feature domains remain separate when nonempty; document Style equality still
 includes every field. Explicit soft-hyphen replacement '-' takes the marker's paint,
 while surrounding replacement text keeps its own source paint.
 
-Replay version 2 records glyph-boundary policy. Version-1 manifests retain the old
-style-boundary shaping and knot paint through an explicit legacy path. No old case
-is silently reinterpreted. See the concrete step-6 contract below.
+Replay version 4 fixes glyph-boundary behavior without a selector. Historical
+versions are rejected, not reinterpreted; no legacy shaping/color path remains.
 
 ## Baselines and validation scope
 
@@ -480,9 +485,9 @@ shaping suites pass. Full ordinary/race suites, build and vet pass in both modul
 
 ## Implemented step-6 API
 
-`typography.PaintPolicy` defines GlyphBoundary (`glyph-boundary-v1`) and
-LegacyStyleBoundary (`style-boundary-v1`). Resolver.Itemize defaults to the new
-policy; ItemizePolicy selects legacy behavior explicitly. CoalesceStyles resolves
+Updated by replay simplification step 3: glyph-boundary color is the sole behavior.
+PaintPolicy, its constants and ItemizePolicy are removed. Resolver.Itemize and
+ItemizeInline accept no policy selector. CoalesceStyles resolves
 adjacent spans before grouping: same opaque face identity and equivalent resolved
 parameters can share a shaping span even if document requests or colors differ.
 It does not inspect backend font state. Direction/unicode-bidi remain significant,
@@ -514,26 +519,20 @@ reconstructed text against ReplacementText and rejects unsupported transformatio
 instead of inventing provenance. No khipu owning-package change was needed for this
 supported producer; arbitrary future hyphenation replacements need explicit maps.
 
-`pipeline.Input.PaintPolicy` defaults to GlyphBoundary and is retained in results.
 Synthetic and OpenType paths coalesce compatible paint spans; the OpenType proof
 walker assigns paint per glyph, not per knot, through original source offsets.
 No outline clipping or additional paint-conflict diagnostics are introduced.
 Source maps, style spans and glyph/cluster records remain detached snapshots.
 
-Replay Version is now 2. Save records the new policy explicitly. Load accepts version
-1 only with its original absent policy field and selects LegacyStyleBoundary;
-version 2 requires GlyphBoundary. A loaded legacy result saves as version 1 with the
-policy field omitted. Unknown/ambiguous combinations fail. Resource IDs and font
-DTOs are unchanged. Static pre-step6-paint.json proves that old red-f/blue-i output
-retains two glyphs while a new run shapes one red fi ligature. New cases round-trip
-with their effective glyph paint, and existing pre-step-5 fixtures are unchanged.
+Replay accepts version 4 only and has no paint selector. The pipeline no longer
+has a PaintPolicy input/accessor or retained policy field; the intermediate Save
+guard is unnecessary because legacy results cannot be constructed. Historical
+JSON files remain unchanged as rejection cases. Current fi fixtures and all 16
+SVG/placement controls are unchanged. See [offline replay](OFFLINE_REPLAY.md).
 
-Verification: owning coalescing/source-map/legacy/feature-domain tests; integration
-proofs for Latin ligatures and marks, pointed Hebrew with shared anchors, RTL
-fallback and selected/unselected soft hyphens under both breakers; original paint
-span ownership; static legacy and new-policy replay tests. Full ordinary/race tests,
-build and vet pass in typography and tytui.
-
+Validation retains independent glyph expectations, source-anchor paint, feature
+origins around atomics, both breakers, retained-service failure ordering and
+font/source-removal lifetime tests.
 
 ## Implemented rendering bypass
 
@@ -541,8 +540,7 @@ M owns the projection from computed document values to typesetter values:
 
 ```go
 func ProjectStyles(text string, spans []style.Span,
-    resolver contracts.StyleResolver, defaults contracts.ResolvedRunStyle,
-    policy PaintPolicy) ([]TypographySpan, error)
+    resolver contracts.StyleResolver, defaults contracts.ResolvedRunStyle) ([]TypographySpan, error)
 
 type TypographySpan struct {
     Start, End uint64 // Processed UTF-8 byte coordinates.
@@ -554,17 +552,16 @@ type TypographySpan struct {
 
 The shared `Style.Typography()` vocabulary defines the retained properties; X
 computes their CSS values, while M owns projection/coalescing. TypographyStyle
-contains no Color/Paint field. Itemize/ItemizePolicy use ProjectStyles internally
+contains no Color/Paint field. Itemize uses ProjectStyles internally; ItemizeInline applies the same rules around objects
 and retain only these values plus selected resource/script in their run styles.
-ResolveStyle accepts both projected and legacy document styles. Synthetic layout
+ResolveStyle accepts both projected and document styles. Synthetic layout
 uses the same projection with its injected resolver. Paragraph-level properties
 outside font/shaping remain P's responsibility.
 
 Modern equivalent typography coalesces across color differences. Nonempty relative
 feature domains retain explicit boundaries even when their colors are identical.
-Legacy replay preserves the original document-style boundaries using private
-domain identities; no color values enter the typesetter even on this path.
-Identical adjacent legacy document styles still share a run. Document Style.Equals
+Private domain identities preserve feature origins, not historical paint boundaries.
+Document Style.Equals
 and serialized document fields remain unchanged. CoalesceStyles remains a low-level
 compatibility grouping API; use ProjectStyles to build typesetter input safely.
 
@@ -577,12 +574,11 @@ Original Input.Source/Styles remain the inspection and replay representation, no
 typesetter styles. Extraction.StyledText remains a document-style compatibility
 helper; the pipeline no longer uses it to prepare typesetter input.
 
-Replay still writes version 2 and preserves version-1 legacy saves. Load rebuilds
-the separate renderer snapshot from the existing document colors; no new wire
-field, resource identity, or version is needed. Callers must continue treating a
+Replay version 4 rebuilds the separate renderer snapshot from document colors.
+The removal of legacy APIs did not change that format or resource identities. Callers must continue treating a
 completed result's retained replay Input as read-only when saving a case.
 
-Focused regressions cover projection without color fields, ordinary/legacy run
+Focused regressions cover projection without color fields, coalesced run
 boundaries, relative feature domains, both synthetic/OpenType paths and breakers,
 DOM/non-DOM normalization, detached paint ownership, and wire-color/replayed-proof
 compatibility. Existing fixtures cover ligatures, combining marks, pointed Hebrew,
@@ -634,9 +630,9 @@ bytes, keeps canonical font ordering and repeats in role lists, and reparses for
 identity validation. Load validates every stored entry, includes only referenced
 faces in the selected table, and never executes requested paths/descriptors.
 Preserve Fonts:null, numeric provenance codes (including unknown codes), nil/empty
-normalization, and existing requested-path removal on load/resave. Version 1 keeps
-legacy paint; version 2 keeps glyph-boundary paint; version 3 keeps explicit
-line-height and numeric placement evidence. Static fixtures are unchanged.
+normalization, and requested-path provenance on load/resave. Version 4 records
+explicit assembly mode and numeric placements for both vertical policies. Current
+controls are unchanged; historical fixtures are rejection cases.
 
 Typography owns constructor/mapping/resource/parser/stream/render regressions;
 tytui/fontselection owns provider, policy/cache, cancellation and prepare tests.

@@ -1,0 +1,333 @@
+{
+  "GoVersion": "go1.25.6",
+  "Evidence": {
+    "Layout": {
+      "Width": 100,
+      "Extent": 19.978125,
+      "Baseline": 13.18359375,
+      "HasBaseline": true,
+      "Lines": [
+        {
+          "X": 0,
+          "Top": 0,
+          "Baseline": 13.18359375,
+          "Ascent": 13.18359375,
+          "Descent": 4.39453125,
+          "Gap": 2.4000000000000004,
+          "Height": 19.978125
+        }
+      ]
+    },
+    "Lines": [
+      {
+        "FirstKnot": 0,
+        "KnotCount": 2,
+        "Width": 6553600,
+        "TargetWidth": 6553600,
+        "Residual": 0,
+        "LeftSkip": 0,
+        "RightSkip": 0,
+        "Source": {
+          "Start": 0,
+          "End": 2
+        },
+        "Fit": 0,
+        "Ratio": 0,
+        "Badness": 0,
+        "FillOrder": 2147483645
+      }
+    ],
+    "Knots": [
+      {
+        "W": 457728,
+        "Kind": 2,
+        "Flags": 0,
+        "Source": {
+          "Bytes": {
+            "Start": 0,
+            "End": 2
+          },
+          "ScalarStart": 0,
+          "ScalarEnd": 2
+        },
+        "Material": 0
+      },
+      {
+        "W": 6095872,
+        "Kind": 1,
+        "Flags": 0,
+        "Source": {
+          "Bytes": {
+            "Start": 2,
+            "End": 2
+          },
+          "ScalarStart": 2,
+          "ScalarEnd": 2
+        },
+        "Material": 3
+      }
+    ],
+    "Runs": [
+      {
+        "Knot": 0,
+        "ResourceID": "sha256:ad690c7de1e0f27e4f37655da44109accbbdb65620327fc8a884156d7c4cef61",
+        "SHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8",
+        "Replacement": false,
+        "ReplacementText": "",
+        "EmSize": 786432,
+        "Direction": 0,
+        "Script": "Latn",
+        "Language": "en",
+        "Features": null,
+        "Glyphs": [
+          {
+            "GlyphID": 737,
+            "Cluster": 0,
+            "XAdvance": 1192,
+            "YAdvance": 0,
+            "XOffset": 0,
+            "YOffset": 0
+          }
+        ],
+        "Clusters": [
+          {
+            "Input": {
+              "Bytes": {
+                "Start": 0,
+                "End": 2
+              },
+              "ScalarStart": 0,
+              "ScalarEnd": 2
+            },
+            "FirstGlyph": 0,
+            "GlyphCount": 1
+          }
+        ]
+      }
+    ],
+    "Proof": {
+      "Glyphs": [
+        {
+          "Line": 0,
+          "Knot": 0,
+          "GlyphID": 737,
+          "Cluster": 0,
+          "X": 0,
+          "Y": 13.18359375,
+          "Scale": 0.005859375,
+          "Color": "red",
+          "Path": "M817 -1454 Q817 -1446 802 -1430 Q788 -1414 768 -1397 Q748 -1380 726 -1365 Q705 -1350 690 -1343 Q666 -1364 641 -1379 Q617 -1395 594 -1405 Q572 -1415 552 -1420 Q533 -1425 520 -1425 Q494 -1425 464 -1407 Q435 -1390 409 -1344 Q384 -1298 367 -1219 Q350 -1140 350 -1016 L350 -930 L608 -930 L637 -901 Q628 -887 614 -871 Q601 -855 587 -841 Q574 -827 561 -815 Q548 -804 539 -800 Q516 -812 473 -823 Q430 -835 350 -835 L350 -102 Q350 -96 360 -90 Q371 -84 396 -77 Q421 -71 460 -62 Q500 -54 559 -43 L559 0 L60 0 L60 -43 Q129 -55 164 -72 Q200 -90 200 -102 L200 -835 L66 -835 L45 -863 L123 -930 L200 -930 L200 -961 Q200 -1079 216 -1159 Q232 -1240 259 -1295 Q287 -1351 323 -1388 Q359 -1426 399 -1458 Q426 -1480 458 -1497 Q490 -1514 521 -1526 Q553 -1538 581 -1544 Q610 -1550 629 -1550 Q660 -1550 693 -1538 Q726 -1526 753 -1510 Q781 -1495 799 -1479 Q817 -1463 817 -1454 M707 0 L707 -43 Q775 -57 811 -73 Q847 -90 847 -104 L847 -670 Q847 -721 845 -752 Q843 -784 830 -801 Q817 -819 788 -827 Q760 -835 707 -840 L707 -880 Q738 -886 772 -894 Q807 -903 841 -913 Q875 -924 906 -936 Q937 -948 963 -960 L997 -960 L997 -104 Q997 -92 1030 -74 Q1064 -57 1137 -43 L1137 0 L707 0 M1027 -1261 Q1027 -1233 1018 -1208 Q1009 -1183 993 -1164 Q978 -1146 957 -1135 Q936 -1124 911 -1124 Q866 -1124 846 -1149 Q827 -1174 827 -1220 Q827 -1248 836 -1273 Q845 -1298 861 -1316 Q877 -1335 897 -1345 Q918 -1356 942 -1356 Q1027 -1356 1027 -1261 ",
+          "FaceSHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8"
+        }
+      ],
+      "Lines": [
+        {
+          "X": 0,
+          "Baseline": 13.18359375,
+          "Top": 0,
+          "Height": 19.978125,
+          "Width": 100,
+          "TargetWidth": 100
+        }
+      ],
+      "MinX": 0,
+      "MinY": 0,
+      "MaxX": 100,
+      "MaxY": 19.978125
+    }
+  },
+  "Version": 4,
+  "Units": "65536 DU per big point; 72 big points per inch",
+  "Input": {
+    "Assembly": "proof-compatibility-v1",
+    "Styles": [
+      {
+        "Start": 0,
+        "End": 1,
+        "Style": {
+          "Family": "serif",
+          "EmSize": 786432,
+          "Weight": 400,
+          "Slant": "normal",
+          "Color": "red",
+          "Language": "en",
+          "WhiteSpace": "normal",
+          "UnicodeBidi": "normal",
+          "Direction": 0
+        }
+      },
+      {
+        "Start": 1,
+        "End": 2,
+        "Style": {
+          "Family": "serif",
+          "EmSize": 786432,
+          "Weight": 400,
+          "Slant": "normal",
+          "Color": "blue",
+          "Language": "en",
+          "WhiteSpace": "normal",
+          "UnicodeBidi": "normal",
+          "Direction": 0
+        }
+      }
+    ],
+    "Fonts": null,
+    "Text": "fi",
+    "Width": 6553600,
+    "Direction": 0,
+    "Breaker": "knuth-plass",
+    "Source": null
+  },
+  "Fonts": [
+    {
+      "Info": {
+        "ResourceID": "sha256:ad690c7de1e0f27e4f37655da44109accbbdb65620327fc8a884156d7c4cef61",
+        "Origin": {
+          "Provider": "file",
+          "Name": "",
+          "Location": "../../opentype/testdata/fonts/GentiumPlus-R.ttf",
+          "Request": {
+            "Pattern": "",
+            "Style": 0,
+            "Weight": 0
+          }
+        },
+        "Path": "../../opentype/testdata/fonts/GentiumPlus-R.ttf",
+        "Family": "Gentium Plus",
+        "Subfamily": "Regular",
+        "SHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8",
+        "Warnings": [
+          "[WARNING] DSIG at offset 444: table not interpreted",
+          "[WARNING] Feat at offset 452: table not interpreted",
+          "[WARNING] Glat at offset 90304: table not interpreted",
+          "[WARNING] Gloc at offset 172404: table not interpreted",
+          "[WARNING] LTSH at offset 189904: table not interpreted",
+          "[WARNING] Silf at offset 194364: table not interpreted",
+          "[WARNING] Sill at offset 404004: table not interpreted",
+          "[WARNING] Silt at offset 404104: table not interpreted",
+          "[WARNING] VDMX at offset 416080: table not interpreted",
+          "[WARNING] cvt  at offset 460852: table not interpreted",
+          "[WARNING] fpgm at offset 460892: table not interpreted",
+          "[WARNING] gasp at offset 461264: table not interpreted",
+          "[WARNING] glyf at offset 461280: table not interpreted",
+          "[WARNING] hdmx at offset 1697756: table not interpreted",
+          "[WARNING] name at offset 1833136: table not interpreted",
+          "[WARNING] post at offset 1867316: table not interpreted",
+          "[WARNING] prep at offset 1918296: table not interpreted"
+        ]
+      },
+      "Bytes": 1918536
+    }
+  ],
+  "Selection": {
+    "Policy": null,
+    "Default": "sha256:ad690c7de1e0f27e4f37655da44109accbbdb65620327fc8a884156d7c4cef61",
+    "RequestedPath": "../../opentype/testdata/fonts/GentiumPlus-R.ttf",
+    "Rules": null,
+    "Fallbacks": null,
+    "RequestedFallbackPaths": null,
+    "Descriptors": null,
+    "Size": 786432,
+    "Diagnostics": null
+  },
+  "Bindings": [
+    {
+      "Start": 0,
+      "End": 2,
+      "Path": "../../opentype/testdata/fonts/GentiumPlus-R.ttf",
+      "SHA256": "fa09788adcc651d77eba7d96f8cc3a600d6484c58e3b4ff79c2b2464dbfea6f8",
+      "ResourceID": "sha256:ad690c7de1e0f27e4f37655da44109accbbdb65620327fc8a884156d7c4cef61",
+      "Origin": {
+        "Provider": "file",
+        "Name": "",
+        "Location": "../../opentype/testdata/fonts/GentiumPlus-R.ttf",
+        "Request": {
+          "Pattern": "",
+          "Style": 0,
+          "Weight": 0
+        }
+      },
+      "EmSize": 786432,
+      "Script": "Latn"
+    }
+  ],
+  "Revisions": [
+    {
+      "Module": "tytui",
+      "Commit": "57a874c1ac1fa7956b3d24be20b5e06060029931",
+      "Dirty": true
+    },
+    {
+      "Module": "cords",
+      "Commit": "58b65a5bc6e7dfe74c338f8f197276c5c9c94867",
+      "Dirty": true
+    },
+    {
+      "Module": "khipu",
+      "Commit": "d4f0a084af9f8a6b8f4675b8635274fc33a69a63",
+      "Dirty": false
+    },
+    {
+      "Module": "uax",
+      "Commit": "c92d5c4593263cec69aeffd7ecc0257fe77c2d8f",
+      "Dirty": false
+    },
+    {
+      "Module": "opentype",
+      "Commit": "b16d15181fd1a9b744eb24248d46f02599dbe57d",
+      "Dirty": false
+    },
+    {
+      "Module": "w3c-dom",
+      "Commit": "fbbe7f2fc8802bcc59cfa7262e02d878e7730be6",
+      "Dirty": false
+    },
+    {
+      "Module": "tree",
+      "Commit": "167ff46c52dbede92dbc905be30704f76e7af3dc",
+      "Dirty": false
+    },
+    {
+      "Module": "schuko",
+      "Commit": "287adb3427da6b042e3224be3f6ef52b68ff0551",
+      "Dirty": false
+    },
+    {
+      "Module": "fontfind",
+      "Commit": "1b6583bd29f20139f9a57112c11faa52eb8e5757",
+      "Dirty": false
+    },
+    {
+      "Module": "typography",
+      "Commit": "77bef3655721fa0a4667bcd9abff6cf94adc31a4",
+      "Dirty": false
+    }
+  ],
+  "Diagnostics": [
+    {
+      "Stage": "input",
+      "Message": "Accepted 2 UTF-8 bytes"
+    },
+    {
+      "Stage": "paragraph",
+      "Message": "Prepared 2 shared style spans"
+    },
+    {
+      "Stage": "encode",
+      "Message": "Encoded 2 knots with the OpenType (core/Hebrew) backend"
+    },
+    {
+      "Stage": "break",
+      "Message": "Selected 1 knuth-plass line breaks"
+    },
+    {
+      "Stage": "freeze",
+      "Message": "Froze 1 lines"
+    }
+  ],
+  "ParagraphText": "fi",
+  "BreakPositions": [
+    2
+  ]
+}
