@@ -13,8 +13,8 @@ import (
 	typestyle "github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
 
+	csstext "github.com/npillmayer/css-box-layout/text"
 	"tytui/htmlinput"
-	"tytui/paragraphtext"
 )
 
 // TextSpan maps processed UTF-8 bytes to decoded DOM text. BoxID identifies the
@@ -147,7 +147,7 @@ func (d *Document) Extract(ctx context.Context, id box.BoxID) (*InlineGroup, err
 	}
 	// Reuse the established whitespace transform. Markers are non-whitespace,
 	// so pending spaces flush at atomic boundaries without entering interiors.
-	text, transforms := paragraphtext.Normalize(raw.String())
+	text, transforms := csstext.NormalizeNormal(raw.String())
 	g.Text = text
 	appendStyle := func(start, end uint64, s typestyle.Style) {
 		if start == end {
@@ -197,9 +197,6 @@ func (d *Document) Extract(ctx context.Context, id box.BoxID) (*InlineGroup, err
 		}
 		start, end, found := projectRange(transforms, r.start, r.end)
 		if !found {
-			if metricStyle(r.source.Style) != metricStyle(entry.Paragraph.Style) {
-				return nil, unsupported(r.source.Locator.Path + ": metric-bearing empty inline")
-			}
 			continue
 		}
 		if r.isolate {
@@ -240,7 +237,7 @@ func (g *InlineGroup) appendSource(s TextSpan) {
 
 // Project original inline scopes using the same first-unit ownership as emitted
 // whitespace. A collapsed character is not duplicated into later source scopes.
-func projectRange(transforms []paragraphtext.Span, from, to uint64) (start, end uint64, found bool) {
+func projectRange(transforms []csstext.Span, from, to uint64) (start, end uint64, found bool) {
 	i := sort.Search(len(transforms), func(i int) bool { return transforms[i].SourceEnd > from })
 	for _, tr := range transforms[i:] {
 		if tr.SourceStart >= to {
@@ -265,14 +262,4 @@ func projectRange(transforms []paragraphtext.Span, from, to uint64) (start, end 
 		}
 	}
 	return
-}
-
-type fontRequest struct {
-	family, slant, language string
-	size                    int32
-	weight                  int
-}
-
-func metricStyle(s typestyle.Style) fontRequest {
-	return fontRequest{s.Family, s.Slant, s.Language, int32(s.EmSize), s.Weight}
 }

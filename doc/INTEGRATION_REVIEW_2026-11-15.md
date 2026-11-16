@@ -1,3 +1,7 @@
+Current whitespace update: document CSSLineHeight now suppresses lines for empty
+processed text; empty font-only inline wrappers no longer fail or create height.
+The historical observations below describe the earlier strut policy.
+
 # Integration review and next document experiments
 
 Replay update (2026-11-16): historical version/policy statements below record

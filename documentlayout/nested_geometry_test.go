@@ -264,14 +264,14 @@ func TestNestedEmptyAutoGeometry(t *testing.T) {
 			}
 			root, outer, inner := geometryGroup(t, out, 0), geometryGroup(t, out, 1), geometryGroup(t, out, 2)
 			g := out.Geometry()
-			requireRect(t, "empty inner content", g[inner.Input.OwnerID].Content, box.Rect{X: 5, Y: 3, H: 20})
-			requireRect(t, "empty inner border", g[inner.Input.OwnerID].Frame, box.Rect{X: 2, W: 6, H: 26})
-			requireRect(t, "empty outer content", g[outer.Input.OwnerID].Content, box.Rect{X: 3, Y: 3, W: 10, H: 30})
-			requireRect(t, "empty outer border", g[outer.Input.OwnerID].Frame, box.Rect{W: 16, H: 36})
-			requireRect(t, "empty root", g[root.Input.OwnerID].Frame, box.Rect{H: 40})
+			requireRect(t, "empty inner content", g[inner.Input.OwnerID].Content, box.Rect{X: 5, Y: 13, H: 0})
+			requireRect(t, "empty inner border", g[inner.Input.OwnerID].Frame, box.Rect{X: 2, Y: 10, W: 6, H: 6})
+			requireRect(t, "empty outer content", g[outer.Input.OwnerID].Content, box.Rect{X: 3, Y: 3, W: 10, H: 20})
+			requireRect(t, "empty outer border", g[outer.Input.OwnerID].Frame, box.Rect{W: 16, H: 26})
+			requireRect(t, "empty root", g[root.Input.OwnerID].Frame, box.Rect{H: 30})
 			requireTargets(t, inner, 0)
 			requireTargets(t, outer, 10*49152)
-			requireSingleAtomic(t, outer, 10*49152, 1.5, 0)
+			requireSingleAtomic(t, outer, 10*49152, 1.5, 7.5)
 			requireSingleAtomic(t, root, 16*49152, 0, 0)
 		}
 	}
@@ -332,21 +332,21 @@ func TestNestedGeometryPrimitiveRounding(t *testing.T) {
 				requireTargets(t, inner, 0)
 				requireTargets(t, outer, 6)
 				requireTargets(t, root, 0)
-				requireSingleAtomic(t, outer, 6, -1/bp, -1/bp)
+				requireSingleAtomic(t, outer, 6, -1/bp, 12-2/bp)
 				requireSingleAtomic(t, root, 13, 2/bp, 0)
 				outerLine := outer.Paragraph.VList.Lines()[0]
 				rootLine := root.Paragraph.VList.Lines()[0]
-				if outerLine.Baseline != 15+1/bp || outerLine.Height != 18+1/bp || rootLine.Baseline != 18+1/bp || rootLine.Height != 21+1/bp {
+				if outerLine.Baseline != 12 || outerLine.Height != 15 || rootLine.Baseline != 15 || rootLine.Height != 18 {
 					t.Fatal("signed vertical primitive rounding", outerLine, rootLine)
 				}
-				if ig.Frame.H != 20 {
-					t.Fatal("empty normal strut changed", ig.Frame.H)
+				if ig.Frame.H != 0 {
+					t.Fatal("empty inner content acquired a strut", ig.Frame.H)
 				}
-				requireGeometryBudget(t, "outer height", float64(og.Frame.H), 24+duCSS, cssHalfULP(24+duCSS))
-				requireGeometryBudget(t, "root height", float64(rg.Frame.H), 28+duCSS, cssHalfULP(28+duCSS))
+				requireGeometryBudget(t, "outer height", float64(og.Frame.H), 20, cssHalfULP(20))
+				requireGeometryBudget(t, "root height", float64(rg.Frame.H), 24, cssHalfULP(24))
 				requireGeometryBudget(t, "outer border x", float64(og.Frame.X), 2*duCSS, cssHalfULP(2*duCSS))
 				requireGeometryBudget(t, "inner border x", float64(ig.Frame.X), -duCSS, cssHalfULP(duCSS))
-				requireGeometryBudget(t, "inner border y", float64(ig.Frame.Y), -duCSS, cssHalfULP(duCSS))
+				requireGeometryBudget(t, "inner border y", float64(ig.Frame.Y), 16-2*duCSS, cssHalfULP(16-2*duCSS))
 				// Outer content adds exactly 1.5 DU of CSS padding to a narrowed 2 DU
 				// origin; inner content adds 1.5 DU to a narrowed -1 DU origin.
 				outerOriginBudget := cssHalfULP(2*duCSS) + cssHalfULP(3.5*duCSS)
@@ -366,7 +366,7 @@ func TestNestedGeometryPrimitiveRounding(t *testing.T) {
 						// The proof composes the CSS owner-content origin with the precise
 						// retained atomic placement. It must not reuse the narrowed child X.
 						requireGeometryBudget(t, "precise composed atomic x", a.X, 2.5/bp, outerOriginBudget*.75)
-						if a.Y != -1/bp {
+						if a.Y != 12-2/bp {
 							t.Fatal("precise signed y", a)
 						}
 					} else {

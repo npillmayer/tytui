@@ -104,7 +104,8 @@ The callback uses normal `CSSLineHeight`, the explicit owner's typography for th
 strut, `NoHyphenation`, `AlignBottomMarginEdge` and zero horizontal side skips for
 both breakers. Fixed-pixel and auto-width inline-blocks are supported. Positive
 overfull output is valid; unsupported negative completed line widths are errors.
-Empty atomic interiors currently reserve their normal paragraph strut.
+Empty atomic interiors have zero content height; the atomic box still participates
+in its containing line, whose nonempty line retains the owner strut.
 
 The document hyphenation policy is fixed, not inferred per run. `Build` accepts
 default/`hyphens:manual` text without U+00AD, but rejects authored soft hyphens
@@ -186,9 +187,8 @@ Initial policy is bounded:
   automatic hyphenation and richer policies are rejected. Border width/style
   longhands and their supported four-side shorthands work; the existing DOM
   parser does not support the combined `border` shorthand.
-- Ordinary inline edges must be zero. An inline with no emitted content and a
-  font request different from the paragraph strut is rejected as a metric-bearing
-  empty inline. Same-font empty wrappers may disappear. Coincident nested bidi
+- Ordinary inline edges must be zero. Empty wrappers without edges produce no
+  line regardless of font. Coincident nested bidi
   boundaries remain unsupported by the existing zero-byte markup contract.
 - `LineLayout` contains normal values over emitted ranges, including markers;
   paragraph assembly uses atomic geometry instead of applying text leading there.
@@ -298,7 +298,7 @@ Typed CSS input and equivalent HTML exercise public `Document.Layout` with both
 breakers at zero, narrow, intermediate and wide widths. Hand-calculated expectations
 cover nested shrink-to-fit, signed margins, border/content rectangles, paragraph
 targets and advances, retained baselines, and absolute atomic/glyph transforms.
-Empty interiors preserve the normal strut; a mixed fixed/auto fixture checks text
+Empty interiors have zero line height; a mixed fixed/auto fixture checks text
 neighbors, block stacking and anonymous owners. Line choices may differ by breaker.
 
 The fractional fixture preserves an inner 4.5 DU CSS border while independently
@@ -392,8 +392,8 @@ replaced by rectangles.
 CSS core snapshots `RenderNode.Replaced` and owns intrinsic/final border sizing.
 Tytui keeps the immutable alt label separately; `RectangleLabel` and `Proof.Leaves`
 expose diagnostic payload/source identity. SVG renders the content rectangle from
-retained absolute geometry. Empty inline-blocks retain their existing strut policy;
-a replaced leaf has no strut, including at zero size. Existing paragraph mode,
+retained absolute geometry. Empty inline-block interiors and replaced leaves have
+no internal strut, including at zero size. Existing paragraph mode,
 rendering bypass and replay are unchanged.
 
 Explicit-leaf validation (2026-11-15): full ordinary/race suites, build and vet
@@ -448,21 +448,32 @@ No upstream API or replay format changed for this extension.
 
 ## Block margin collapsing (2026-11-16)
 
-CSS core now collapses adjoining sibling and eligible parent/child margins.
-The adapter reports `InlineResult.AllowsMarginCollapse` only for retained output
-with no lines, no height, and no atomic participants. It does not infer this from
-empty source text: the current paragraph profile deliberately reserves a normal
-line-height strut for empty input. Those paragraphs remain separators. General
-CSS empty-line suppression is not introduced by this adapter migration.
+CSS core collapses adjoining sibling and eligible parent/child margins. The
+adapter reports `InlineResult.AllowsMarginCollapse` from retained output with no
+lines, no height, and no atomic participants. Typography's CSSLineHeight assembly
+now produces no line for empty CSS-processed text. Explicit empty paragraphs keep
+their principal block boxes, edges and margins; their margins can collapse through
+where CSS permits. The standalone paragraph workbench uses ProofCompatibility and
+retains its separate empty-line behavior.
 
-`margin_collapse_test.go` checks both breakers with synthetic and real OpenType
-services, reserved empty lines, signed gaps, parent boundaries, auto inline-block
-interiors, resize/replay, and immutable SVG proof output.
-`margin_permission_test.go` checks permission for line-free zero-height results.
-The existing empty-strut, atomic, font-lifetime, and replay controls remain intact.
+Core derives anonymous-box suppression from `ComputedStyle.WhiteSpace`, readable
+source ranges (`BuildOptions.ReadText`) and inline edges. There are no adapter
+suppression flags. Font differences alone cannot create an empty line. The
+adapter supplies computed values and source access without modifying core's tree.
+Document extraction uses CSS normal-whitespace transformation with byte provenance;
+NBSP and Unicode separators are not treated as collapsible ASCII whitespace.
+The document profile still rejects non-normal whitespace and decorated inline
+boxes until their text/line layout is implemented; core supports the whitespace
+values for box generation without claiming support in an inline layouter.
+
+`whitespace_test.go` covers the checked-in `/tmp/,b.html` fixture, paragraph margins,
+both breakers, flow-root/atomic interiors, NBSP and empty paragraphs.
+`margin_collapse_test.go` checks signed gaps through empty-block chains, parent
+boundaries, auto inline-block interiors, resize/replay and retained real-font proofs.
+`margin_permission_test.go` checks line-free permission and missing atomics.
 
 `display_test.go` covers normalized aliases and cascade values, rejected display
 models and rollback errors, block flow-root parent/sibling margins, normal auto
-widths, nested fixed/auto inline-blocks, empty struts, source correspondence and
+widths, nested fixed/auto inline-blocks, empty blocks, source correspondence and
 retained SVG geometry through both breakers. TUI candidacy and the CLI use the
 same normalized display boundary; the CLI also checks real-font flow-root proofs.

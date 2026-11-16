@@ -511,7 +511,8 @@ Geometry remains fractional big points, with finite-range and accumulated-overfl
 checks. Unknown kinds, negative/nonfinite values, extra fields for the wrong kind,
 overlapping/out-of-range spans and non-UTF-8 boundaries are errors. Missing CSS
 services/options and CSS values under ProofCompatibility are rejected explicitly.
-The engine preserves khipu's blank line for empty input and gives it the strut;
+Historical policy (superseded for CSSLineHeight): the engine preserved khipu's
+blank line for empty input and gave it the strut;
 a genuinely zero-line frozen result remains an empty box in Assemble.
 
 ### Source and shaping boundary

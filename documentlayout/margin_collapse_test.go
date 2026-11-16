@@ -12,7 +12,7 @@ import (
 	"tytui/documentlayout"
 )
 
-func TestDocumentMarginCollapseReservedEmptyLines(t *testing.T) {
+func TestDocumentMarginCollapseThroughEmptyParagraphs(t *testing.T) {
 	for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
 		t.Run(string(breaker), func(t *testing.T) {
 			d, _, _ := build(t, `<div id="root" style="font-size:10px"><div style="margin-bottom:5px">a</div><div style="margin-top:7px;margin-bottom:30px"><span> </span></div><div style="margin-top:-12px;margin-bottom:3px"></div><div style="margin-top:50px">b</div></div>`)
@@ -20,12 +20,12 @@ func TestDocumentMarginCollapseReservedEmptyLines(t *testing.T) {
 			r := runDocument(t, d, 200, breaker, cfg)
 			nodes := d.Root().Children
 			g := r.Geometry()
-			for j, y := range []float32{0, 17, 45, 105} {
+			for j, y := range []float32{0, 17, 28, 48} {
 				if g[nodes[j].BoxID].Frame.Y != y {
 					t.Fatalf("child %d: %+v, want Y=%g", j, g[nodes[j].BoxID], y)
 				}
 			}
-			if g[d.Root().BoxID].Content.H != 115 {
+			if g[d.Root().BoxID].Content.H != 58 {
 				t.Fatal("pending group counted more than once", g)
 			}
 			empty := 0
@@ -33,8 +33,8 @@ func TestDocumentMarginCollapseReservedEmptyLines(t *testing.T) {
 				group, _ := r.Group(entry.GroupID)
 				if group.Input.Text == "" {
 					empty++
-					if len(group.Paragraph.VList.Lines()) != 1 || group.Paragraph.VList.Box().Extent != 7.5 || g[entry.OwnerID].Frame.H != 10 {
-						t.Fatal("empty paragraph lost its reserved strut")
+					if len(group.Paragraph.VList.Lines()) != 0 || group.Paragraph.VList.Box().Extent != 0 || g[entry.OwnerID].Frame.H != 0 {
+						t.Fatal("empty paragraph created a line")
 					}
 				}
 			}
@@ -56,7 +56,7 @@ func TestDocumentMarginCollapseReservedEmptyLines(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(proof.Lines) != 4 || proof.Lines[3].Top != 78.75 {
+			if len(proof.Lines) != 2 || proof.Lines[1].Top != 36 {
 				t.Fatalf("proof restacked collapsed positions: %+v", proof.Lines)
 			}
 		})
@@ -99,11 +99,11 @@ func TestRealDocumentCollapsedProofReplay(t *testing.T) {
 			nodes := d.Root().Children
 			g := first.Geometry()
 			a, b := g[nodes[0].BoxID], g[nodes[2].BoxID]
-			if b.Frame.Y != a.Frame.H+5+g[nodes[1].BoxID].Frame.H+10 {
-				t.Fatalf("real-font gap=%g, expected two gaps plus reserved empty line", b.Frame.Y-a.Frame.H)
+			if b.Frame.Y != a.Frame.H+5 {
+				t.Fatalf("real-font gap=%g, expected max(13,10,7)-8 = 5px collapsed gap", b.Frame.Y-a.Frame.H)
 			}
-			if g[nodes[1].BoxID].Frame.H <= 0 {
-				t.Fatal("real-font empty block lost reserved space")
+			if g[nodes[1].BoxID].Frame.H != 0 {
+				t.Fatal("real-font empty block created line height")
 			}
 			var before bytes.Buffer
 			if err := documentlayout.WriteSVG(t.Context(), &before, first, services); err != nil {

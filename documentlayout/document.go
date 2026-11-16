@@ -219,7 +219,16 @@ func Build(ctx context.Context, input *htmlinput.Document, selected int) (*Docum
 	if err != nil {
 		return nil, err
 	}
-	d.root, err = box.BuildLayoutTree(renderRoot, box.BuildOptions{})
+	d.root, err = box.BuildLayoutTree(renderRoot, box.BuildOptions{ReadText: func(ref boxtext.TextRef) (string, error) {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		source, ok := d.sources[ref.Source]
+		if !ok || ref.Range.Start > ref.Range.End || !boundary(source.Text, ref.Range.Start) || !boundary(source.Text, ref.Range.End) {
+			return "", invalid("invalid text reference")
+		}
+		return source.Text[ref.Range.Start:ref.Range.End], nil
+	}})
 	if err != nil {
 		return nil, err
 	}

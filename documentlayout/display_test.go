@@ -213,16 +213,16 @@ func TestDocumentFlowRootInsideAtomic(t *testing.T) {
 	}
 }
 
-func TestDocumentFlowRootKeepsEmptyParagraphStrut(t *testing.T) {
+func TestDocumentFlowRootContainsEmptyParagraphMargins(t *testing.T) {
 	for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
 		d, _, _ := build(t, `<div id="root" style="font-size:10px"><section style="display:flow-root;margin-top:13px;margin-bottom:5px"><div style="margin-top:20px;margin-bottom:7px"></div></section></div>`)
 		r := runDocument(t, d, 200, breaker, layoutConfig(t))
 		parent := d.Root().Children[0]
 		child := parent.Children[0]
 		g := r.Geometry()
-		if g[parent.BoxID].Frame.Y != 13 || g[parent.BoxID].Content.H != 37 || g[child.BoxID].Frame.Y != 20 ||
-			g[child.BoxID].Content.H != 10 || g[d.Root().BoxID].Content.H != 55 {
-			t.Fatal("flow-root containment changed the reserved empty strut", g)
+		if g[parent.BoxID].Frame.Y != 13 || g[parent.BoxID].Content.H != 20 || g[child.BoxID].Frame.Y != 20 ||
+			g[child.BoxID].Content.H != 0 || g[d.Root().BoxID].Content.H != 38 {
+			t.Fatal("flow-root must contain the collapsed empty-child margin group", g)
 		}
 	}
 }

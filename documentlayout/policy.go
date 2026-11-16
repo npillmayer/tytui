@@ -93,6 +93,8 @@ func pixelLength(value string, auto, signed bool) (box.Length, error) {
 
 func boxStyle(d *htmlinput.Document, id int, display box.Display, s typestyle.Style, leaf bool) (box.ComputedStyle, error) {
 	result := box.DefaultComputedStyle()
+	// Build validates the currently supported white-space:normal profile.
+	result.WhiteSpace = box.WhiteSpaceNormal
 	result.FontSizePx = float32(float64(s.EmSize) / float64(dimen.BP) * 4 / 3)
 	get := func(key string) (string, error) { return d.Property(id, key) }
 	for _, policy := range []struct{ key, want string }{

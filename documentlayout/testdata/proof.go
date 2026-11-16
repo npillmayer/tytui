@@ -57,11 +57,11 @@ func run() error {
 		return err
 	}
 	s := ot.Services{}
-	selected, err := fontselection.Prepare(ctx, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: "../opentype/testdata/fonts/GentiumPlus-R.ttf", Fallbacks: []string{"../opentype/testdata/fonts/NotoSansHebrew-Regular.ttf"}, Size: 15 * dimen.BP}})
+	fonts, err := fontselection.Prepare(ctx, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: "../opentype/testdata/fonts/GentiumPlus-R.ttf", Fallbacks: []string{"../opentype/testdata/fonts/NotoSansHebrew-Regular.ttf"}, Size: 15 * dimen.BP}})
 	if err != nil {
 		panic(err)
 	}
-	resolver, err := typography.NewResolver(ctx, selected.Fonts, s)
+	resolver, err := typography.NewResolver(ctx, fonts.Fonts, s)
 	if err != nil {
 		return err
 	}

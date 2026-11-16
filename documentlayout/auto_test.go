@@ -337,7 +337,7 @@ func TestEmptyAutoAtomic(t *testing.T) {
 	}
 	child := i.document.order[1]
 	g := out.Geometry()[child.OwnerID]
-	if g.Content.W != 0 || g.Content.H != 20 {
-		t.Fatal("empty auto sizing/strut", g)
+	if g.Content.W != 0 || g.Content.H != 0 {
+		t.Fatal("empty auto sizing", g)
 	}
 }

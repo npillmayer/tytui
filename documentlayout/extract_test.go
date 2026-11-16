@@ -341,8 +341,6 @@ func TestUnsupportedDocumentPolicies(t *testing.T) {
 		`<span style="display:inline-block;width:20em">x</span>`,
 		`<span style="display:inline-block;width:20%">x</span>`,
 		`<span style="padding:1px">x</span>`,
-		`<span style="font-size:30px"></span>`,
-		`<span style="font-size:30px"> </span>`,
 		`<span style="line-height:2">x</span>`,
 		`<span style="white-space:pre">x</span>`,
 		`<span style="unicode-bidi:bidi-override">x</span>`,

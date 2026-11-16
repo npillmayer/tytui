@@ -218,8 +218,8 @@ func inlineSummary(g *InlineGroup, result *paragraph.Result) (box.InlineResult, 
 	if len(pending) != 0 {
 		return box.InlineResult{}, invalid("missing paragraph atomic placement")
 	}
-	// Grant permission only for line-free output. The current paragraph profile
-	// reserves a strut even for empty text, so those results remain separators.
+	// Empty CSS-processed paragraphs have no lines. Atomic content and
+	// preserved text still participate, even when their advance is zero.
 	out.AllowsMarginCollapse = len(result.VList.Lines()) == 0 && out.Extent.H == 0 && len(g.AtomicSources) == 0
 	return out, nil
 }

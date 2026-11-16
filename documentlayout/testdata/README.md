@@ -82,3 +82,8 @@ paragraph replay checks. No SVG or replay fixture was regenerated for validation
 The fixtures demonstrate the bounded profile described above, not full CSS
 baseline/painting or hyphenation conformance. Broader policies and result-cache
 invalidation remain deferred; glyph coverage remains caller-owned.
+
+Whitespace/empty-line update: the four nested-auto controls were regenerated after
+removing the empty inline-block's artificial line strut. Its principal box remains;
+its content height is zero. Numeric empty-atomic and primitive-rounding regressions
+in `nested_geometry_test.go` independently check the new geometry.

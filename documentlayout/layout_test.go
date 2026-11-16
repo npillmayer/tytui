@@ -140,7 +140,7 @@ func TestDocumentZeroWidthAndOverfullAtomics(t *testing.T) {
 			}
 			for _, source := range g.Input.AtomicSources {
 				a, ok := r.Geometry()[source.BoxID]
-				if !ok || !seen[source.ID] || a.RelativeTo != g.Input.OwnerID || a.Frame.H != 20 {
+				if !ok || !seen[source.ID] || a.RelativeTo != g.Input.OwnerID || a.Frame.H != 0 {
 					t.Fatal("atomic correspondence", source, a)
 				}
 			}
