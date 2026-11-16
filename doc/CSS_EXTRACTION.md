@@ -114,6 +114,11 @@ including checked fractional scaling. Tytui converts its scaled-big-point result
 to khipu DU and enforces positive finite font sizes. Relative em/rem/percent,
 keywords, parent/root computation, and inherited computed sizes remain local.
 Non-CSS bp/sp, unitless sizes, and unsupported relative units remain rejected.
-Descendant display checks use upstream resolved properties and HTML defaults,
-including inherit/initial/unset; the supported paragraph/inline tag allowlists
-remain independent eligibility constraints.
+Display decisions use `htmlinput.Document.Display`, delegating to w3c-dom's
+`css.GetDisplay` for normalized values, HTML defaults and inherit/initial/unset.
+Equivalent legacy/multi-keyword spellings are accepted. Descendant paragraph
+content remains ordinary inline flow or contents; block/flow-root/atomic modes
+remain excluded. The supported paragraph/inline tag allowlists are independent
+eligibility constraints. Visibility checks propagate display resolution errors
+with their DOM locator, including unsupported cascade rollback. Raw resolved
+property spelling remains available through `Document.Property` for inspection.

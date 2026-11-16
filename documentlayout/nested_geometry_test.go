@@ -29,12 +29,12 @@ func typedNestedGeometry(t *testing.T, outerStyle, innerStyle box.ComputedStyle,
 	outerStyle.FontSizePx, innerStyle.FontSizePx = 20, 20
 	rootStyle.Width = box.Length{Kind: box.LenAuto}
 	textNode := &box.RenderNode{ID: 4, HTML: &html.Node{Type: html.TextNode, Data: text}, Text: &boxtext.TextRef{Source: 4, Range: boxtext.TextRange{End: uint64(len(text))}}}
-	inner := &box.RenderNode{ID: 3, HTML: &html.Node{Type: html.ElementNode, Data: "span"}, Style: &innerStyle, Styles: map[string]string{"display": "inline-block"}}
+	inner := &box.RenderNode{ID: 3, HTML: &html.Node{Type: html.ElementNode, Data: "span"}, Style: &innerStyle, Display: box.Display{Kind: box.DisplayBox, Outer: box.OuterInline, Inner: box.InnerFlowRoot}}
 	if text != "" {
 		inner.ChildrenNodes = []*box.RenderNode{textNode}
 	}
-	outer := &box.RenderNode{ID: 2, HTML: &html.Node{Type: html.ElementNode, Data: "span"}, Style: &outerStyle, Styles: map[string]string{"display": "inline-block"}, ChildrenNodes: []*box.RenderNode{inner}}
-	root, err := box.BuildLayoutTree(&box.RenderNode{ID: 1, HTML: &html.Node{Type: html.ElementNode, Data: "div"}, Style: &rootStyle, Styles: map[string]string{"display": "block"}, ChildrenNodes: []*box.RenderNode{outer}}, box.BuildOptions{})
+	outer := &box.RenderNode{ID: 2, HTML: &html.Node{Type: html.ElementNode, Data: "span"}, Style: &outerStyle, Display: box.Display{Kind: box.DisplayBox, Outer: box.OuterInline, Inner: box.InnerFlowRoot}, ChildrenNodes: []*box.RenderNode{inner}}
+	root, err := box.BuildLayoutTree(&box.RenderNode{ID: 1, HTML: &html.Node{Type: html.ElementNode, Data: "div"}, Style: &rootStyle, Display: box.Display{Kind: box.DisplayBox, Outer: box.OuterBlock, Inner: box.InnerFlow}, ChildrenNodes: []*box.RenderNode{outer}}, box.BuildOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

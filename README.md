@@ -102,7 +102,9 @@ To reproduce the nested auto-width experiment:
    mode also works, subject to the selected fonts' coverage.
 2. Open **F4**, load `documentlayout/testdata/nested-auto.html`, select the
    `div` with `id="root"`, then press Enter. This selects a read-only block subtree,
-   including nested blocks and inline-blocks. Ctrl+R performs full profile
+   including nested blocks, flow-roots and inline-blocks. Both `display:block`
+   and `display:flow-root` elements are document-root candidates, including
+   equivalent multi-keyword CSS spellings. Ctrl+R performs full profile
    validation and layout asynchronously; the browser only checks root candidacy.
 3. Run with **420 CSS px**, then **100 CSS px**. Enter from the width field also
    runs. CSS pixels differ from paragraph mode's big points; zero is permitted.

@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"encoding/xml"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -45,6 +47,61 @@ func TestPipeline(t *testing.T) {
 					t.Fatal(log.String())
 				}
 			})
+		}
+	}
+}
+
+func TestFlowRootPipeline(t *testing.T) {
+	dir := t.TempDir()
+	input := filepath.Join(dir, "flow-root.html")
+	css := filepath.Join(dir, "flow-root.css")
+	// The invalid inline declaration must not displace the valid stylesheet.
+	source := `<div id="root" style="display:bogus!important;font-size:10px"><section id="inner" style="margin-top:13px;margin-bottom:5px"><div style="margin-top:20px;margin-bottom:7px">x</div></section></div>`
+	if err := os.WriteFile(input, []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, breaker := range []string{"firstfit", "knuth-plass"} {
+		var canonical []byte
+		for _, display := range []string{"flow-root", "block flow-root", "FLOW-ROOT BLOCK"} {
+			if err := os.WriteFile(css, []byte(`#root, #inner {display:`+display+`}`), 0600); err != nil {
+				t.Fatal(err)
+			}
+			var out, log bytes.Buffer
+			if err := run(t.Context(), options{input: input, css: css, root: "root", fonts: "examples/fonts.yaml", output: "-", width: "200", breaker: breaker, log: "quiet"}, &out, &log); err != nil {
+				t.Fatalf("%s/%s: %v", breaker, display, err)
+			}
+			if canonical == nil {
+				canonical = bytes.Clone(out.Bytes())
+			} else if !bytes.Equal(canonical, out.Bytes()) {
+				t.Fatal("equivalent display spelling changed CLI output")
+			}
+			decoder := xml.NewDecoder(&out)
+			found := false
+			for {
+				token, err := decoder.Token()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				if el, ok := token.(xml.StartElement); ok {
+					if el.Name.Local == "path" || el.Name.Local == "text" || el.Name.Local == "image" {
+						t.Fatal("non-box output", el.Name)
+					}
+					if el.Name.Local == "rect" {
+						for _, a := range el.Attr {
+							// Child's absolute top = 13 + 20 CSS px = 24.75 bp.
+							if a.Name.Local == "y" && a.Value == "24.75" {
+								found = true
+							}
+						}
+					}
+				}
+			}
+			if !found || log.Len() != 0 {
+				t.Fatalf("flow-root child placement missing or quiet mode produced diagnostics: %s", log.String())
+			}
 		}
 	}
 }
@@ -101,5 +158,20 @@ func TestCLIProcess(t *testing.T) {
 	}
 	if !bytes.HasPrefix(out, []byte("<svg ")) || !bytes.Contains(out, []byte("data-parent=")) {
 		t.Fatalf("not an SVG: %s", out)
+	}
+}
+
+func TestStylesFixtureParagraphsWithoutCSSOverride(t *testing.T) {
+	for _, root := range []string{"bidi", "verse"} {
+		for _, breaker := range []string{"firstfit", "knuth-plass"} {
+			var out, log bytes.Buffer
+			err := run(t.Context(), options{input: "../testdata/html/styles.html", root: root, fonts: "examples/fonts.yaml", output: "-", width: "420", breaker: breaker, log: "quiet"}, &out, &log)
+			if err != nil {
+				t.Fatalf("root=%s breaker=%s: %v", root, breaker, err)
+			}
+			if !bytes.HasPrefix(out.Bytes(), []byte("<svg ")) {
+				t.Fatal("missing SVG")
+			}
+		}
 	}
 }

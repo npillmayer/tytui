@@ -522,3 +522,33 @@ func TestDocumentWorkbenchLocalImageLifetime(t *testing.T) {
 		t.Fatal("export reopened image or used new state", err)
 	}
 }
+
+func TestDocumentCandidateParagraphDisplay(t *testing.T) {
+	for _, tc := range []struct {
+		style string
+		want  bool
+	}{
+		{"", true}, {"display:block", true}, {"display:block flow", true},
+		{"display:flow-root", true}, {"display:block flow-root", true},
+		{"display:FLOW-ROOT BLOCK", true}, {`display:\66 low-root`, true},
+		{"display:bogus", true}, // Invalid declarations do not replace the UA block default.
+		{"display:inline", false}, {"display:inline flow", false},
+		{"display:inline-block", false}, {"display:inline flow-root", false},
+		{"display:none", false}, {"display:contents", false},
+		{"display:block grid", false}, {"display:list-item", false},
+		{"display:block flow-root list-item", false}, {"display:table-cell", false},
+		{"display:initial", false}, {"display:unset", false}, {"display:revert", false},
+	} {
+		d, err := htmlinput.Parse("paragraph.html", strings.NewReader(`<p style="`+tc.style+`">text</p>`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, n := range d.Nodes {
+			if n.Name == "p" {
+				if got := documentCandidate(d, n.ID) == nil; got != tc.want {
+					t.Fatalf("style %q candidate=%v want %v", tc.style, got, tc.want)
+				}
+			}
+		}
+	}
+}

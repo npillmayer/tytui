@@ -145,12 +145,16 @@ func Build(ctx context.Context, input *htmlinput.Document, selected int) (*Docum
 		if err := visible(input, id); err != nil {
 			return nil, err
 		}
-		display, err := input.Property(id, "display")
+		display, err := input.Display(id)
 		if err != nil {
 			return nil, err
 		}
-		if id == selected && display != "block" {
-			return nil, unsupported(n.Path + ": root must be display:block")
+		r.Display, err = projectDisplay(display)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", n.Path, err)
+		}
+		if id == selected && r.Display.Outer != box.OuterBlock {
+			return nil, unsupported(n.Path + ": root must be block flow or block flow-root")
 		}
 		payload, src, err := parseLeaf(n)
 		leaf := payload.Kind != ""
@@ -160,17 +164,12 @@ func Build(ctx context.Context, input *htmlinput.Document, selected int) (*Docum
 		if !leaf && !supportedElement(n.Name) {
 			return nil, unsupported(n.Path + ": unsupported <" + n.Name + ">")
 		}
-		if display != "block" && display != "inline" && display != "inline-block" {
-			return nil, unsupported(n.Path + ": display " + display)
-		}
-		boxDisplay := display
 		if leaf {
-			if display != "inline" && display != "inline-block" {
+			if r.Display.Outer != box.OuterInline {
 				return nil, unsupported(n.Path + ": leaf must be inline")
 			}
-			boxDisplay = "inline-block"
 		}
-		computed, err := boxStyle(input, id, boxDisplay, s, leaf)
+		computed, err := boxStyle(input, id, r.Display, s, leaf)
 		if err != nil {
 			return nil, err
 		}
@@ -205,7 +204,6 @@ func Build(ctx context.Context, input *htmlinput.Document, selected int) (*Docum
 			d.leaves[nodeID] = payload
 		}
 		r.Style = &computed
-		r.Styles = map[string]string{"display": display}
 		for _, child := range n.Children {
 			c, err := render(child)
 			if err != nil {

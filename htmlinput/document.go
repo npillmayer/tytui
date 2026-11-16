@@ -20,6 +20,7 @@ import (
 	domcss "github.com/npillmayer/w3c-dom/style/css"
 	"github.com/npillmayer/w3c-dom/style/cssom"
 	"github.com/npillmayer/w3c-dom/style/cssom/douceuradapter"
+	domdisplay "github.com/npillmayer/w3c-dom/style/display"
 	"github.com/npillmayer/w3c-dom/styledtree"
 	"golang.org/x/net/html"
 )
@@ -238,6 +239,25 @@ func (d *Document) Property(id int, key string) (string, error) {
 	return string(value), nil
 }
 
+// Display returns w3c-dom's normalized, cascade-resolved display for an element.
+// It does not impose a layout profile or borrow a parent's value for text nodes.
+// Property(id, "display") remains available for inspecting the original spelling.
+// Upstream errors retain their identity and include the DOM locator.
+func (d *Document) Display(id int) (domdisplay.Value, error) {
+	if d == nil || id < 0 || id >= len(d.Nodes) {
+		return domdisplay.Value{}, fmt.Errorf("unknown DOM node %d", id)
+	}
+	n := d.Nodes[id]
+	if n.Type != html.ElementNode {
+		return domdisplay.Value{}, fmt.Errorf("%s: display requires an element node", n.Path)
+	}
+	v, err := domcss.GetDisplay(n.styled)
+	if err != nil {
+		return domdisplay.Value{}, fmt.Errorf("%s: %w", n.Path, err)
+	}
+	return v, nil
+}
+
 var inlineTags = strings.Fields("a abbr b bdi cite code del dfn em i ins kbd mark q s samp small span strong sub sup time u var")
 var rootTags = strings.Fields("p div li dt dd h1 h2 h3 h4 h5 h6 blockquote figcaption pre")
 
@@ -260,9 +280,12 @@ func (d *Document) checkVisibility(id int) error {
 			return fmt.Errorf("%s: hidden content is not supported", n.Path)
 		}
 	}
-	display, _ := d.Property(id, "display")
+	display, err := d.Display(id)
+	if err != nil {
+		return err
+	}
 	visibility, _ := d.Property(id, "visibility")
-	if display == "none" || visibility == "hidden" || visibility == "collapse" {
+	if display.Kind() == domdisplay.None || visibility == "hidden" || visibility == "collapse" {
 		return fmt.Errorf("%s: hidden content is not supported", n.Path)
 	}
 	return nil

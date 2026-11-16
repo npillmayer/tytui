@@ -7,6 +7,7 @@ import (
 
 	typestyle "github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
+	domdisplay "github.com/npillmayer/w3c-dom/style/display"
 	"golang.org/x/net/html"
 
 	"tytui/paragraphtext"
@@ -64,12 +65,13 @@ func (d *Document) Extract(id int) (*Extraction, error) {
 				return err
 			}
 			if current != id {
-				value, err := d.Property(current, "display")
+				value, err := d.Display(current)
 				if err != nil {
 					return err
 				}
-				if value != "inline" && value != "contents" {
-					return fmt.Errorf("%s: display %q is not inline content", n.Path, value)
+				ordinaryInline := value.Kind() == domdisplay.Box && !value.IsListItem() && value.Outer() == domdisplay.Inline && value.Inner() == domdisplay.Flow
+				if !ordinaryInline && value.Kind() != domdisplay.Contents {
+					return fmt.Errorf("%s: display %q is not inline content", n.Path, value.CSS())
 				}
 			}
 			if s.UnicodeBidi != "normal" && s.UnicodeBidi != "isolate" {

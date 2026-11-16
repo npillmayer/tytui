@@ -24,7 +24,9 @@ uses licensed fixtures already in the sibling OpenType repository.
   Inline declarations keep their normal precedence. Linked CSS is not fetched.
 - `--fonts FILE`: required YAML mapping. Local fonts only; no discovery/downloads.
 - `--root ID`: select an element by its HTML ID (without `#`); defaults to `body`.
-  The selected element must satisfy documentlayout's block-root profile.
+  The selected element must satisfy documentlayout's block-root profile:
+  `display:block` or `display:flow-root`, including their normalized multi-keyword
+  forms `block flow` and `block flow-root`.
 - `--width N`: containing width in CSS pixels (default 800; zero is allowed).
 - `--breaker firstfit|knuth-plass`: default firstfit.
 - `--output FILE` / `-o FILE`: default `boxes.svg`; `-` writes SVG to stdout.

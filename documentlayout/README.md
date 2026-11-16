@@ -8,6 +8,11 @@ typography's prepared paragraph engine. CSS core schedules and sizes nested atom
 interiors. Geometry, retained paragraphs, sources and paint are published together
 after whole-document success. No glyph coverage validation or font discovery is added.
 
+Ordinary `<p>` elements work as selected roots and as descendant blocks. The
+DOM supplies the standard `block` default; inline groups are derived by normal
+box normalization. No paragraph-specific display translation is needed, and
+authored display overrides still apply.
+
 The TUI's F7 document experiment now drives this API with F5 OpenType services;
 see the [walkthrough](../README.md#document-experiment). It keeps block selection,
 CSS-pixel width, breaker and history separate from paragraph mode. Build/layout
@@ -157,13 +162,15 @@ Use both tables when accounting for output coverage.
 
 `htmlinput.Document.ResolvedStyles` supplies existing typography, relative font
 sizes, language and direction. `paragraphtext.Normalize` supplies the whitespace
-transform, and `htmlinput` supplies isolate markup construction. The legacy
-single-paragraph extractor and replay formats are unchanged.
+transform, and `htmlinput` supplies isolate markup construction. The paragraph
+extractor shares normalized display resolution; extraction and replay data
+formats are unchanged.
 
 Initial policy is bounded:
 
-- Select a supported `display:block` element. Descendants may be supported block,
-  inline or inline-block elements. Hidden content, explicit breaks, replaced
+- Select a supported `block flow` or `block flow-root` element (`display:block` or
+  `display:flow-root`). Descendants may be supported block, flow-root, inline or
+  inline-block elements. Hidden content, explicit breaks, replaced
   elements (except the explicit diagnostic leaf below), tables, list-item and other display modes are rejected.
 - Inline-block and block widths may be definite nonnegative px or auto.
   Box margins, padding and visible border widths use px (unitless zero is
@@ -173,6 +180,7 @@ Initial policy is bounded:
   the LTR right-margin rule. Font sizing retains htmlinput's existing
   relative and absolute-unit support. CSS geometry remains in CSS pixels; the
   callback performs checked px/DU conversion at the paragraph boundary.
+
 - Normal whitespace, normal line-height, normal/isolate bidi, static flow and
   ordinary spacing/wrapping are supported. Height/min/max constraints, floats,
   automatic hyphenation and richer policies are rejected. Border width/style
@@ -184,6 +192,27 @@ Initial policy is bounded:
   boundaries remain unsupported by the existing zero-byte markup contract.
 - `LineLayout` contains normal values over emitted ranges, including markers;
   paragraph assembly uses atomic geometry instead of applying text leading there.
+
+Display decisions use `htmlinput.Document.Display`, backed by w3c-dom's
+`css.GetDisplay`. Legacy and multi-keyword spellings normalize identically;
+CSS defaults, inherit/initial/unset, and invalid-declaration filtering are owned
+by w3c-dom. Winning revert/revert-layer values return source-located errors that
+preserve `css.ErrUnsupportedDisplayCascade`. `Document.Property(id, "display")`
+continues to expose the original resolved spelling for inspection.
+
+The adapter explicitly projects supported outer/inner pairs into
+`css-box-layout.RenderNode.Display`; text nodes leave display zero. It neither
+parses display strings nor supplies `Styles["display"]`. The obsolete w3c-dom
+bitmask display API and CSS core string accessor/tree-view proposal are removed. Valid but unsupported
+values (including list-item, contents, flex/grid, table/ruby and run-in) fail at
+this boundary with a DOM locator. The existing hidden-content rejection policy
+also applies to normalized `none` values; no subtree is silently discarded.
+
+Block flow-root retains normal block widths and outer margin participation.
+CSS core's `EstablishesBFC` contains descendant margins, preserving sibling
+collapse inside and outside the boundary. Tytui does not reproduce those rules.
+Inline flow-root remains atomic inline-block, including its existing sizing and
+paragraph callbacks. Floats and other unsupported layout policies remain rejected.
 
 Build consumes a stable `htmlinput.Document` and retains detached source/style
 values, not its DOM pointers or mutable slices. The caller may release that input
@@ -431,3 +460,9 @@ services, reserved empty lines, signed gaps, parent boundaries, auto inline-bloc
 interiors, resize/replay, and immutable SVG proof output.
 `margin_permission_test.go` checks permission for line-free zero-height results.
 The existing empty-strut, atomic, font-lifetime, and replay controls remain intact.
+
+`display_test.go` covers normalized aliases and cascade values, rejected display
+models and rollback errors, block flow-root parent/sibling margins, normal auto
+widths, nested fixed/auto inline-blocks, empty struts, source correspondence and
+retained SVG geometry through both breakers. TUI candidacy and the CLI use the
+same normalized display boundary; the CLI also checks real-font flow-root proofs.

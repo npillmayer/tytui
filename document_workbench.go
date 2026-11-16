@@ -16,6 +16,7 @@ import (
 	ot "github.com/npillmayer/typography/adapter/opentype"
 	"github.com/npillmayer/typography/paragraph"
 	"github.com/npillmayer/typography/render"
+	domdisplay "github.com/npillmayer/w3c-dom/style/display"
 	"golang.org/x/net/html"
 
 	"tytui/documentlayout"
@@ -195,12 +196,13 @@ func documentCandidate(d *htmlinput.Document, id int) error {
 	if d == nil || id < 0 || id >= len(d.Nodes) || d.Nodes[id].Type != html.ElementNode {
 		return fmt.Errorf("select a block element")
 	}
-	display, err := d.Property(id, "display")
+	display, err := d.Display(id)
 	if err != nil {
 		return err
 	}
-	if display != "block" {
-		return fmt.Errorf("select a display:block element (got %s)", display)
+	if display.Kind() != domdisplay.Box || display.IsListItem() || display.Outer() != domdisplay.Block ||
+		(display.Inner() != domdisplay.Flow && display.Inner() != domdisplay.FlowRoot) {
+		return fmt.Errorf("select a block flow or block flow-root element (got %s)", display.CSS())
 	}
 	return nil
 }

@@ -19,8 +19,10 @@ The default inline subset is a, abbr, b, bdi, cite, code, del, dfn, em, i, ins, 
 mark, q, s, samp, small, span, strong, sub, sup, time, u, and var. Additional roots
 are p, div, li, dt, dd, h1–h6, blockquote, figcaption, and pre. A pre element is
 eligible only when its effective white-space is explicitly normal; preserving
-whitespace modes remain rejected. Resolved non-inline
-display on descendants is rejected, including inherited block and inline-block. Hidden ancestors
+whitespace modes remain rejected. Display checks use w3c-dom's normalized
+`GetDisplay` API through `htmlinput.Document.Display`. Non-inline display on
+descendants is rejected, including inherited block, flow-root and inline-block;
+the existing contents policy remains supported. Hidden ancestors
 are checked even when selecting a descendant directly. The extraction allowlist remains an explicit application policy; upstream now
 provides corrected HTML display defaults.
 

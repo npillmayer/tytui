@@ -10,6 +10,7 @@ import (
 	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/khipu/dimen"
 	typestyle "github.com/npillmayer/typography/style"
+	domdisplay "github.com/npillmayer/w3c-dom/style/display"
 	"golang.org/x/net/html"
 
 	"tytui/htmlinput"
@@ -56,14 +57,16 @@ func visible(d *htmlinput.Document, id int) error {
 			return unsupported(n.Path + ": hidden content")
 		}
 	}
-	for _, key := range []string{"display", "visibility"} {
-		v, err := d.Property(id, key)
-		if err != nil {
-			return err
-		}
-		if v == "none" || v == "hidden" || v == "collapse" {
-			return unsupported(n.Path + ": hidden content")
-		}
+	display, err := d.Display(id)
+	if err != nil {
+		return err
+	}
+	visibility, err := d.Property(id, "visibility")
+	if err != nil {
+		return err
+	}
+	if display.Kind() == domdisplay.None || visibility == "hidden" || visibility == "collapse" {
+		return unsupported(n.Path + ": hidden content")
 	}
 	return nil
 }
@@ -88,7 +91,7 @@ func pixelLength(value string, auto, signed bool) (box.Length, error) {
 	return box.Length{Kind: box.LenPx, Value: float32(n)}, nil
 }
 
-func boxStyle(d *htmlinput.Document, id int, display string, s typestyle.Style, leaf bool) (box.ComputedStyle, error) {
+func boxStyle(d *htmlinput.Document, id int, display box.Display, s typestyle.Style, leaf bool) (box.ComputedStyle, error) {
 	result := box.DefaultComputedStyle()
 	result.FontSizePx = float32(float64(s.EmSize) / float64(dimen.BP) * 4 / 3)
 	get := func(key string) (string, error) { return d.Property(id, key) }
@@ -165,7 +168,7 @@ func boxStyle(d *htmlinput.Document, id int, display string, s typestyle.Style, 
 				return result, err
 			}
 		}
-		if display == "inline" {
+		if !leaf && display.Outer == box.OuterInline && display.Inner == box.InnerFlow {
 			for _, edge := range []*box.Length{side.margin, side.padding, side.border} {
 				if edge.Kind != box.LenPx || edge.Value != 0 {
 					return result, unsupported(d.Nodes[id].Path + ": nonzero ordinary-inline edges")
