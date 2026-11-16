@@ -4,9 +4,13 @@ import (
 	"bytes"
 	"encoding/xml"
 	"io"
+	"math"
+	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 
+	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/typography/paragraph"
 	"tytui/documentlayout"
 )
@@ -50,5 +54,126 @@ func TestBoxesSVGCoordinates(t *testing.T) {
 		if !found {
 			t.Fatal("missing independently positioned child border")
 		}
+	}
+}
+
+func TestBoxesSVGKindsAndTextFragments(t *testing.T) {
+	d, _, _ := build(t, `<div id="root" style="padding:7px;font-size:10px">before <span style="display:inline-block;width:30px;padding:2px">inside</span> after<section style="display:flow-root;margin-top:11px;padding:3px"><div dir="rtl">אבג abc אבג abc אבג abc אבג abc</div></section></div>`)
+	for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
+		t.Run(string(breaker), func(t *testing.T) {
+			r := runDocument(t, d, 75, breaker, layoutConfig(t))
+			before := r.Geometry()
+			proof, err := documentlayout.BuildProof(t.Context(), r, cells())
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Use retained proof lines as the independent absolute-coordinate
+			// reference, including nested owner transforms and wrapped RTL lines.
+			want := map[[3]uint64][4]float64{}
+			wrapped, atomic := false, false
+			for _, entry := range r.Groups() {
+				g, _ := r.Group(entry.GroupID)
+				var lines []documentlayout.ProofLine
+				for _, l := range proof.Lines {
+					if l.GroupID == entry.GroupID {
+						lines = append(lines, l)
+					}
+				}
+				wrapped = wrapped || len(lines) > 1
+				for i, placed := range g.Paragraph.VList.Lines() {
+					x := lines[i].X + placed.Horizontal.LeftSkip.Points()
+					for k := placed.Horizontal.FirstKnot; k < placed.Horizontal.FirstKnot+placed.Horizontal.KnotCount; k++ {
+						knot, _ := g.Paragraph.Frozen.Knot(k)
+						if knot.Kind == khipu.KTTextBox {
+							want[[3]uint64{uint64(entry.GroupID), uint64(placed.Index), uint64(k)}] = [4]float64{x, lines[i].Top, knot.W.Points(), lines[i].Height}
+						}
+						atomic = atomic || knot.Kind == khipu.KTAtomic
+						x += knot.W.Points()
+					}
+				}
+			}
+			if !wrapped || !atomic {
+				t.Fatal("fixture must include wrapped text and an atomic")
+			}
+			var out bytes.Buffer
+			if err := documentlayout.WriteBoxesSVG(t.Context(), &out, r); err != nil {
+				t.Fatal(err)
+			}
+			original := out.String()
+			dec := xml.NewDecoder(strings.NewReader(original))
+			colors := map[string]string{"block": "#6366f1", "flow-root": "#0d9488", "inline-block": "#d97706"}
+			seen := map[string]int{}
+			rects, pairs, fragments := 0, 0, 0
+			for {
+				tok, err := dec.Token()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				el, ok := tok.(xml.StartElement)
+				if !ok {
+					continue
+				}
+				a := map[string]string{}
+				for _, attr := range el.Attr {
+					a[attr.Name.Local] = attr.Value
+				}
+				if kind := a["data-kind"]; kind != "" {
+					if a["stroke"] != colors[kind] {
+						t.Fatal("incorrect box color", a)
+					}
+					seen[kind]++
+					pairs++
+					rects = 0
+					if a["data-box"] == strconv.FormatUint(uint64(d.Root().BoxID), 10) && kind != "block" {
+						t.Fatal("root containment was mistaken for flow-root display")
+					}
+				}
+				if a["id"] == "text-fragments" && a["stroke"] != "#d1d5db" {
+					t.Fatal("incorrect text color")
+				}
+				if el.Name.Local != "rect" {
+					continue
+				}
+				if a["data-knot"] == "" {
+					rects++
+					if (rects == 1 && a["stroke-dasharray"] != "") || (rects == 2 && a["stroke-dasharray"] != "2 2") || rects > 2 {
+						t.Fatal("incorrect border/content styles", a)
+					}
+					continue
+				}
+				var key [3]uint64
+				for i, name := range []string{"data-group", "data-line", "data-knot"} {
+					key[i], err = strconv.ParseUint(a[name], 10, 64)
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+				w, ok := want[key]
+				if !ok {
+					t.Fatal("unexpected or duplicate fragment", key)
+				}
+				for i, name := range []string{"x", "y", "width", "height"} {
+					v, err := strconv.ParseFloat(a[name], 64)
+					if err != nil || math.Abs(v-w[i]) > 1e-6 {
+						t.Fatalf("fragment %v %s=%s; want %g", key, name, a[name], w[i])
+					}
+				}
+				delete(want, key)
+				fragments++
+			}
+			if len(seen) != 3 || pairs != len(before) || fragments == 0 || len(want) != 0 {
+				t.Fatal("missing box kinds or fragments", seen, len(want))
+			}
+			out.Reset()
+			if err := documentlayout.WriteBoxesSVG(t.Context(), &out, r); err != nil {
+				t.Fatal(err)
+			}
+			if out.String() != original || !reflect.DeepEqual(before, r.Geometry()) {
+				t.Fatal("export mutated retained output")
+			}
+		})
 	}
 }

@@ -3,7 +3,7 @@
 A CLI companion to the paragraph/document TUI. It runs the implemented document
 pipeline: styled HTML → normalized CSS boxes → font itemization → shaping and
 khipu preparation → intrinsic measurement and CSS flow → frozen paragraphs.
-The SVG contains only positioned CSS border and content outlines. Fonts still
+The SVG contains colored CSS box outlines and light-gray text-fragment outlines. Fonts still
 matter: their shaped advances and line metrics determine the box geometry.
 
 From the tytui module root:
@@ -59,13 +59,24 @@ wildcards. Unmatched styles use `default`; `fallbacks` provide missing coverage.
 CSS determines font sizes. Unknown YAML fields, duplicate keys and multiple YAML
 documents are rejected.
 
-Solid indigo rectangles are border boxes; dashed gray rectangles are content
-boxes. SVG coordinates are big points (CSS px × 0.75), with downward Y. Each
+Box colors distinguish ordinary blocks (indigo), block flow-roots (teal), and
+inline-blocks, including replaced leaves (orange). Anonymous block wrappers use
+indigo; a supplied ordinary block root stays indigo despite root containment.
+Solid rectangles mark border boxes; dashed rectangles mark content boxes, using
+the same color. Flow-root outlines are three times thicker (1.5 big points versus
+0.5 for other boxes). Each pair also has a `data-kind` attribute.
+
+Thin light-gray rectangles mark frozen text fragments, with their final advance
+width and containing line's height. They follow line breaks and visual bidi order,
+including text inside inline-blocks. These are diagnostic fragment extents, not
+glyph ink bounds or exact CSS inline-element boxes; spaces and atomic boxes do
+not get text outlines. No shaping or layout is repeated during export.
+
+SVG coordinates are big points (CSS px × 0.75), with downward Y. Each
 pair carries `data-box` and `data-parent` attributes; parent IDs identify the
 content-coordinate reference used to compose absolute positions. These are the
-CSS engine's retained geometry entries, not rectangles for every DOM node or
-individual inline text fragment. No glyph paths, text labels, images, baselines
-or CSS painting are emitted.
+CSS engine's retained geometry entries, not rectangles for every DOM node.
+No glyph paths, text labels, images, baselines or CSS painting are emitted.
 
 The supported CSS/layout subset and explicit failure policies are those of
 [documentlayout](../documentlayout/README.md). Unsupported inputs and font errors
