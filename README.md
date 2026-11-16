@@ -312,7 +312,8 @@ layouts use replay version 4 with explicit assembly mode and placement evidence.
 
 [`tycli`](tycli/README.md) runs the headless document pipeline with HTML/CSS,
 explicit YAML font mappings, CSS-pixel width and selectable diagnostics. It
-exports positioned CSS box outlines without glyphs and leaves the TUI intact:
+exports positioned CSS box outlines; add `--show-glyphs` to overlay final glyph
+outlines or `--hide-boxes` for a clean glyph proof. The TUI is unchanged:
 
 ```sh
 go run ./tycli documentlayout/testdata/nested.html --root root \

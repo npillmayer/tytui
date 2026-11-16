@@ -3,7 +3,7 @@
 A CLI companion to the paragraph/document TUI. It runs the implemented document
 pipeline: styled HTML → normalized CSS boxes → font itemization → shaping and
 khipu preparation → intrinsic measurement and CSS flow → frozen paragraphs.
-The SVG contains colored CSS box outlines and light-gray text-fragment outlines. Fonts still
+By default the SVG contains colored CSS box outlines and light-gray text-fragment outlines. Fonts still
 matter: their shaped advances and line metrics determine the box geometry.
 
 From the tytui module root:
@@ -31,6 +31,9 @@ uses licensed fixtures already in the sibling OpenType repository.
 - `--breaker firstfit|knuth-plass`: default firstfit.
 - `--output FILE` / `-o FILE`: default `boxes.svg`; `-` writes SVG to stdout.
   Files are replaced only after successful layout and SVG serialization.
+- `--show-glyphs`: overlay final glyph outlines on the colored boxes.
+- `--hide-boxes`: clean glyph proof; implies `--show-glyphs` and hides both CSS
+  boxes and text-fragment outlines.
 - `--log quiet|info|trace`: stderr verbosity, default info. Quiet suppresses
   progress and warnings, but failures still report an error. Info reports stages
   and group line/knot counts. Trace additionally reports CSS flow, group
@@ -76,7 +79,12 @@ SVG coordinates are big points (CSS px × 0.75), with downward Y. Each
 pair carries `data-box` and `data-parent` attributes; parent IDs identify the
 content-coordinate reference used to compose absolute positions. These are the
 CSS engine's retained geometry entries, not rectangles for every DOM node.
-No glyph paths, text labels, images, baselines or CSS painting are emitted.
+Glyphs are opt-in: add `--show-glyphs` to the command above for an overlay, or
+`--hide-boxes` for a clean typeset proof. Outlines use the frozen glyph selection,
+positions and supported text colors, including nested inline-blocks and bidi text.
+They are SVG paths: the viewer needs no fonts installed. Export does not reshape,
+remeasure or break lines again. Text labels, images, baselines and general CSS
+painting are not emitted; this remains a diagnostic typesetting proof.
 
 The supported CSS/layout subset and explicit failure policies are those of
 [documentlayout](../documentlayout/README.md). Unsupported inputs and font errors

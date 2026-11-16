@@ -177,3 +177,67 @@ func TestBoxesSVGKindsAndTextFragments(t *testing.T) {
 		})
 	}
 }
+
+// Glyph paths must match the existing frozen document renderer exactly, including
+// bidi, nested owner transforms, paint, and both line breakers.
+func TestLayoutSVGGlyphs(t *testing.T) {
+	d, _, _ := build(t, `<div id="root" style="padding:7px;color:#123456">office <span style="display:inline-block;width:35px">café</span><section style="display:flow-root;padding:3px" dir="rtl">אבג abc אבג abc</section></div>`)
+	paths := func(data []byte) []xml.StartElement {
+		t.Helper()
+		dec := xml.NewDecoder(bytes.NewReader(data))
+		var result []xml.StartElement
+		for {
+			tok, err := dec.Token()
+			if err == io.EOF {
+				return result
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if el, ok := tok.(xml.StartElement); ok && el.Name.Local == "path" {
+				for _, a := range el.Attr {
+					if a.Name.Local == "data-gid" {
+						result = append(result, el.Copy())
+						break
+					}
+				}
+			}
+		}
+	}
+	for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
+		r := runDocument(t, d, 90, breaker, layoutConfig(t))
+		var reference bytes.Buffer
+		if err := documentlayout.WriteSVG(t.Context(), &reference, r, cells()); err != nil {
+			t.Fatal(err)
+		}
+		want := paths(reference.Bytes())
+		if len(want) == 0 {
+			t.Fatal("missing reference glyphs")
+		}
+		for _, opts := range []documentlayout.LayoutSVGOptions{{ShowGlyphs: true}, {HideBoxes: true}, {ShowGlyphs: true, HideBoxes: true}} {
+			var out, again bytes.Buffer
+			if err := documentlayout.WriteLayoutSVG(t.Context(), &out, r, cells(), opts); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(paths(out.Bytes()), want) {
+				t.Fatal("changed retained glyph outlines or placements")
+			}
+			if opts.HideBoxes && (strings.Contains(out.String(), "<rect") || strings.Contains(out.String(), "<circle")) {
+				t.Fatal("clean proof contains diagnostics")
+			}
+			if err := documentlayout.WriteLayoutSVG(t.Context(), &again, r, cells(), opts); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(out.Bytes(), again.Bytes()) {
+				t.Fatal("export changed retained result")
+			}
+		}
+		var after bytes.Buffer
+		if err := documentlayout.WriteSVG(t.Context(), &after, r, cells()); err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(reference.Bytes(), after.Bytes()) {
+			t.Fatal("glyph export mutated frozen layout")
+		}
+	}
+}

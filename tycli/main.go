@@ -18,6 +18,7 @@ import (
 	"github.com/npillmayer/typography"
 	ot "github.com/npillmayer/typography/adapter/opentype"
 	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/render"
 	"github.com/thatisuday/commando"
 	"gopkg.in/yaml.v3"
 	"tytui/documentlayout"
@@ -25,7 +26,10 @@ import (
 	"tytui/htmlinput"
 )
 
-type options struct{ input, css, fonts, root, output, width, breaker, log string }
+type options struct {
+	input, css, fonts, root, output, width, breaker, log string
+	showGlyphs, hideBoxes                                bool
+}
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -47,9 +51,13 @@ func main() {
 	for _, name := range []string{"css", "root", "fonts"} {
 		cmd.Flags[name].IsRequired = false
 	}
+	cmd.AddFlag("show-glyphs", "Overlay final glyph outlines", commando.Bool, nil)
+	cmd.AddFlag("hide-boxes", "Show glyphs without box or fragment outlines", commando.Bool, nil)
 	cmd.SetAction(func(args map[string]commando.ArgValue, flags map[string]commando.FlagValue) {
 		value := func(k string) string { s, _ := flags[k].GetString(); return s }
-		err := run(ctx, options{args["html"].Value, value("css"), value("fonts"), value("root"), value("output"), value("width"), value("breaker"), value("log")}, os.Stdout, os.Stderr)
+		showGlyphs, _ := flags["show-glyphs"].GetBool()
+		hideBoxes, _ := flags["hide-boxes"].GetBool()
+		err := run(ctx, options{input: args["html"].Value, css: value("css"), fonts: value("fonts"), root: value("root"), output: value("output"), width: value("width"), breaker: value("breaker"), log: value("log"), showGlyphs: showGlyphs, hideBoxes: hideBoxes}, os.Stdout, os.Stderr)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "tycli:", err)
 			os.Exit(1)
@@ -216,7 +224,7 @@ func run(ctx context.Context, o options, stdout, stderr io.Writer) error {
 		}
 	}
 	var svg bytes.Buffer
-	if err := documentlayout.WriteBoxesSVG(ctx, &svg, result); err != nil {
+	if err := documentlayout.WriteLayoutSVG(ctx, &svg, result, render.Services{Backend: ot.Services{}, Identity: ot.Services{}}, documentlayout.LayoutSVGOptions{ShowGlyphs: o.showGlyphs, HideBoxes: o.hideBoxes}); err != nil {
 		return err
 	}
 	if o.output == "-" {
@@ -227,7 +235,7 @@ func run(ctx context.Context, o options, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	info("wrote box SVG: " + o.output)
+	info("wrote SVG: " + o.output)
 	return nil
 }
 

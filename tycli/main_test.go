@@ -147,17 +147,30 @@ func TestFailurePreservesOutput(t *testing.T) {
 func TestCLIProcess(t *testing.T) {
 	if os.Getenv("TYCLI_TEST_PROCESS") == "1" {
 		os.Args = []string{"tycli", "../documentlayout/testdata/nested.html", "--root", "root", "--fonts", "examples/fonts.yaml", "--width", "420", "--output", "-", "--log", "quiet"}
+		os.Args = append(os.Args, strings.Fields(os.Getenv("TYCLI_TEST_FLAGS"))...)
 		main()
 		os.Exit(0)
 	}
-	cmd := exec.Command(os.Args[0], "-test.run=^TestCLIProcess$")
-	cmd.Env = append(os.Environ(), "TYCLI_TEST_PROCESS=1")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%v: %s", err, out)
-	}
-	if !bytes.HasPrefix(out, []byte("<svg ")) || !bytes.Contains(out, []byte("data-parent=")) {
-		t.Fatalf("not an SVG: %s", out)
+	for _, flags := range []string{"", "--show-glyphs", "--hide-boxes", "--show-glyphs --hide-boxes"} {
+		cmd := exec.Command(os.Args[0], "-test.run=^TestCLIProcess$")
+		cmd.Env = append(os.Environ(), "TYCLI_TEST_PROCESS=1", "TYCLI_TEST_FLAGS="+flags)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("%s: %v: %s", flags, err, out)
+		}
+		if !bytes.HasPrefix(out, []byte("<svg ")) {
+			t.Fatalf("not an SVG: %s", out)
+		}
+		if got := bytes.Contains(out, []byte("data-gid=")); got != (flags != "") {
+			t.Fatalf("%s: glyphs=%v", flags, got)
+		}
+		hidden := strings.Contains(flags, "--hide-boxes")
+		if got := bytes.Contains(out, []byte("data-parent=")); got == hidden {
+			t.Fatalf("%s: boxes=%v", flags, got)
+		}
+		if got := bytes.Contains(out, []byte(`id="text-fragments"`)); got == hidden {
+			t.Fatalf("%s: fragments=%v", flags, got)
+		}
 	}
 }
 

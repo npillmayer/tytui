@@ -42,9 +42,7 @@ func WriteSVG(ctx context.Context, w io.Writer, result *Result, services render.
 		fmt.Fprintf(&b, `<circle data-group="%d" data-owner="%d" data-box="%d" data-atomic="%d" data-node="%d" cx="%.6f" cy="%.6f" r="0.75"/>`, a.GroupID, a.OwnerID, a.BoxID, a.ID, a.Locator.NodeID, a.X, a.Y)
 	}
 	b.WriteString(`</g><g id="glyphs">`)
-	for _, g := range p.Glyphs {
-		fmt.Fprintf(&b, `<path data-group="%d" data-owner="%d" data-line="%d" data-knot="%d" data-gid="%d" data-cluster="%d" data-byte="%d" data-font="%s" fill="%s" transform="translate(%.6f %.6f) scale(%.9f)" d="%s"/>`, g.GroupID, g.OwnerID, g.Line, g.Knot, g.GlyphID, g.Cluster, g.SourceByte, escape(g.FaceSHA256), escape(g.Color), g.X, g.Y, g.Scale, escape(g.Path))
-	}
+	writeGlyphPaths(&b, p.Glyphs)
 	b.WriteString(`</g>`)
 	if len(p.Leaves) > 0 {
 		b.WriteString(`<g id="leaves">`)
@@ -68,4 +66,12 @@ func WriteSVG(ctx context.Context, w io.Writer, result *Result, services render.
 		return io.ErrShortWrite
 	}
 	return err
+}
+
+// Shared by document diagnostics and the CLI proof; positions are already frozen.
+func writeGlyphPaths(b *bytes.Buffer, glyphs []ProofGlyph) {
+	escape := func(s string) string { var out bytes.Buffer; _ = xml.EscapeText(&out, []byte(s)); return out.String() }
+	for _, g := range glyphs {
+		fmt.Fprintf(b, `<path data-group="%d" data-owner="%d" data-line="%d" data-knot="%d" data-gid="%d" data-cluster="%d" data-byte="%d" data-font="%s" fill="%s" transform="translate(%.6f %.6f) scale(%.9f)" d="%s"/>`, g.GroupID, g.OwnerID, g.Line, g.Knot, g.GlyphID, g.Cluster, g.SourceByte, escape(g.FaceSHA256), escape(g.Color), g.X, g.Y, g.Scale, escape(g.Path))
+	}
 }
