@@ -5,7 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing/paragraph"
+
 	"tytui/documentlayout"
 )
 

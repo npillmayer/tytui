@@ -6,9 +6,10 @@ import (
 	"testing"
 
 	box "github.com/npillmayer/css-box-layout/layout"
-	ot "github.com/npillmayer/typography/adapter/opentype"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 	"github.com/npillmayer/typography/render"
+	renderot "github.com/npillmayer/typography/render/adapter/opentype"
+
 	"tytui/documentlayout"
 )
 
@@ -94,7 +95,7 @@ func TestRealDocumentCollapsedProofReplay(t *testing.T) {
 		t.Run(string(breaker), func(t *testing.T) {
 			d, _, _ := build(t, `<div id="root" style="font-size:20px"><div style="margin-bottom:13px">a</div><div style="margin-top:-8px;margin-bottom:10px"></div><div style="margin-top:7px">b</div></div>`)
 			cfg := realConfig(t)
-			services := render.Services{Backend: ot.Services{}, Identity: ot.Services{}}
+			services := render.Services{Backend: renderot.New(), Identity: renderot.New()}
 			first := runDocument(t, d, 200, breaker, cfg)
 			nodes := d.Root().Children
 			g := first.Geometry()

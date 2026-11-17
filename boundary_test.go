@@ -13,7 +13,7 @@ import (
 func TestApplicationDependencyBoundaries(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "go", "list", "-deps", "-json", "github.com/npillmayer/typography/paragraph").CombinedOutput()
+	out, err := exec.CommandContext(ctx, "go", "list", "-deps", "-json", "github.com/npillmayer/typography/glyphing/paragraph").CombinedOutput()
 	if err != nil {
 		t.Fatalf("dependency inspection: %v: %s", err, out)
 	}
@@ -26,7 +26,7 @@ func TestApplicationDependencyBoundaries(t *testing.T) {
 		if err != nil {
 			t.Fatalf("dependency inspection: %v: %s", err, out)
 		}
-		for _, blocked := range []string{"tytui", "github.com/npillmayer/typography/adapter", "github.com/npillmayer/opentype", "github.com/npillmayer/fontfind", "github.com/npillmayer/w3c-dom"} {
+		for _, blocked := range []string{"tytui", "github.com/npillmayer/typography/glyphing/adapter", "github.com/npillmayer/typography/render", "github.com/npillmayer/opentype", "github.com/npillmayer/fontfind", "github.com/npillmayer/w3c-dom"} {
 			if pkg.ImportPath == blocked || strings.HasPrefix(pkg.ImportPath, blocked+"/") {
 				t.Fatalf("layout core acquired dependency %s", pkg.ImportPath)
 			}
@@ -39,7 +39,7 @@ func TestApplicationDependencyBoundaries(t *testing.T) {
 	if strings.Contains(string(out), "tytui/fontbackend") || strings.Contains(string(out), "tytui/pipeline/internal/layout") {
 		t.Fatal("compatibility backend or local paragraph engine reintroduced")
 	}
-	for _, removed := range []string{"github.com/npillmayer/typography/discovery", "github.com/npillmayer/typography/adapter/fontfind"} {
+	for _, removed := range []string{"github.com/npillmayer/typography/discovery", "github.com/npillmayer/typography/adapter", "github.com/npillmayer/typography/paragraph"} {
 		if strings.Contains(string(out), removed) {
 			t.Fatalf("retired import: %s", removed)
 		}

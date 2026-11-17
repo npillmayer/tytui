@@ -10,8 +10,8 @@ import (
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/khipu/helpers"
-	"github.com/npillmayer/typography"
-	"github.com/npillmayer/typography/paragraph"
+	fontmeta "github.com/npillmayer/typography/font"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 	"github.com/npillmayer/typography/render"
 	"github.com/npillmayer/uax/bidi"
 	xbidi "golang.org/x/text/unicode/bidi"
@@ -40,8 +40,8 @@ func (s guardedStream) Shape(ctx context.Context, p contracts.ShapeParams, r con
 
 type emptyProofBackend struct{}
 
-func (emptyProofBackend) Identify(contracts.FontFace) (typography.Info, error) {
-	return typography.Info{}, nil
+func (emptyProofBackend) Identify(contracts.FontFace) (fontmeta.Info, error) {
+	return fontmeta.Info{}, nil
 }
 func (emptyProofBackend) Outline(contracts.FontFace, uint32) (render.Outline, error) {
 	return render.Outline{}, nil

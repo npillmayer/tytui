@@ -3,22 +3,22 @@ package pipeline_test
 import (
 	"context"
 
-	"github.com/npillmayer/typography"
 	"github.com/npillmayer/typography/fontresource"
+	"github.com/npillmayer/typography/glyphing"
 
 	"tytui/fontselection"
 )
 
 type testServices struct {
 	Loader interface {
-		Load(context.Context, string, *fontresource.Resource) (typography.FaceEntry, error)
+		Load(context.Context, string, *fontresource.Resource) (glyphing.FaceEntry, error)
 	}
-	Coverage typography.Coverage
+	Coverage glyphing.Coverage
 }
 
 // loadResolver builds selected fixture faces before entering the typography engine.
-func loadResolver(ctx context.Context, s fontselection.Settings, svc testServices) (*typography.Resolver, error) {
-	fonts := typography.SelectedFonts{Size: s.Size}
+func loadResolver(ctx context.Context, s fontselection.Settings, svc testServices) (*glyphing.Resolver, error) {
+	fonts := glyphing.SelectedFonts{Size: s.Size}
 	seen := map[string]bool{}
 	load := func(path string, r *fontresource.Resource) (string, error) {
 		e, err := svc.Loader.Load(ctx, path, r)
@@ -42,7 +42,7 @@ func loadResolver(ctx context.Context, s fontselection.Settings, svc testService
 		if err != nil {
 			return nil, err
 		}
-		fonts.Rules = append(fonts.Rules, typography.SelectedRule{Family: rule.Family, Weight: rule.Weight, Slant: rule.Slant, ResourceID: id})
+		fonts.Rules = append(fonts.Rules, glyphing.SelectedRule{Family: rule.Family, Weight: rule.Weight, Slant: rule.Slant, ResourceID: id})
 	}
 	for _, p := range s.Fallbacks {
 		id, err := load(p, nil)
@@ -58,5 +58,5 @@ func loadResolver(ctx context.Context, s fontselection.Settings, svc testService
 		}
 		fonts.Fallbacks = append(fonts.Fallbacks, id)
 	}
-	return typography.NewResolver(ctx, fonts, svc.Coverage)
+	return glyphing.NewResolver(ctx, fonts, svc.Coverage)
 }

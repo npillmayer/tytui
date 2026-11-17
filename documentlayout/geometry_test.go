@@ -12,9 +12,10 @@ import (
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/khipu/helpers"
-	"github.com/npillmayer/typography"
+	fontmeta "github.com/npillmayer/typography/font"
 	"github.com/npillmayer/typography/fontresource"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 
 	"tytui/fontselection"
 	"tytui/htmlinput"
@@ -116,15 +117,15 @@ func TestAtomicConversionUsesIndependentPrimitives(t *testing.T) {
 
 type boundaryLoader struct{}
 
-func (boundaryLoader) Load(ctx context.Context, path string, r *fontresource.Resource) (typography.FaceEntry, error) {
+func (boundaryLoader) Load(ctx context.Context, path string, r *fontresource.Resource) (glyphing.FaceEntry, error) {
 	var err error
 	if r == nil {
 		r, err = fontresource.Read(strings.NewReader("boundary-test"), fontresource.Origin{Provider: "test", Location: path})
 	}
 	if err != nil {
-		return typography.FaceEntry{}, err
+		return glyphing.FaceEntry{}, err
 	}
-	return typography.FaceEntry{Face: helpers.NewSyntheticFont(), Resource: r, Info: typography.Info{ResourceID: r.ID(), SHA256: r.SHA256(), Origin: r.Origin(), Path: r.Origin().Location}}, nil
+	return glyphing.FaceEntry{Face: helpers.NewSyntheticFont(), Resource: r, Info: fontmeta.Info{ResourceID: r.ID(), SHA256: r.SHA256(), Origin: r.Origin(), Path: r.Origin().Location}}, nil
 }
 
 func boundaryInvocation(t *testing.T, source ...string) *invocation {
@@ -149,7 +150,7 @@ func boundaryInvocation(t *testing.T, source ...string) *invocation {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{Loader: boundaryLoader{}, Coverage: typography.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(contracts.FontFace, rune) (uint32, error) { return 1, nil }}})
+	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{Loader: boundaryLoader{}, Coverage: glyphing.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(contracts.FontFace, rune) (uint32, error) { return 1, nil }}})
 	if err != nil {
 		t.Fatal(err)
 	}

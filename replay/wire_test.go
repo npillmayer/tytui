@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/npillmayer/typography"
+	fontmeta "github.com/npillmayer/typography/font"
 	"github.com/npillmayer/typography/fontresource"
 
 	"tytui/fontselection"
@@ -46,7 +46,7 @@ func TestWireProvenanceIdentityAndOwnership(t *testing.T) {
 	if !reflect.DeepEqual(diagnosticsNative(diagnosticsWire(diagnostics)), diagnostics) {
 		t.Fatal("diagnostics changed")
 	}
-	info := typography.Info{Warnings: []string{"retained"}}
+	info := fontmeta.Info{Warnings: []string{"retained"}}
 	detached := infoWire(info)
 	info.Warnings[0] = "mutated"
 	if detached.Warnings[0] != "retained" {

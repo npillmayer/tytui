@@ -9,9 +9,9 @@ import (
 	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	otadapter "github.com/npillmayer/typography/adapter/opentype"
-	layout "github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing"
+	otadapter "github.com/npillmayer/typography/glyphing/adapter/opentype"
+	layout "github.com/npillmayer/typography/glyphing/paragraph"
 	"github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
 
@@ -28,7 +28,7 @@ func TestPaintCoalescingPreservesRelativeFeatureDomains(t *testing.T) {
 	red := style.Style{Family: "serif", EmSize: 12 * dimen.BP, Weight: 400, Slant: "normal", Color: "red", Language: "en", WhiteSpace: "normal", UnicodeBidi: "normal"}
 	blue := red
 	blue.Color = "blue"
-	spans, err := typography.ProjectStyles("fifififi", []style.Span{{Start: 0, End: 4, Style: red}, {Start: 4, End: 8, Style: blue}}, r, defaults)
+	spans, err := glyphing.ProjectStyles("fifififi", []style.Span{{Start: 0, End: 4, Style: red}, {Start: 4, End: 8, Style: blue}}, r, defaults)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -11,8 +11,8 @@ import (
 	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	"github.com/npillmayer/typography/paragraph"
+	fontmeta "github.com/npillmayer/typography/font"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 	"github.com/npillmayer/typography/render"
 	"github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
@@ -113,8 +113,8 @@ func requireSingleAtomic(t *testing.T, g GroupResult, width dimen.DU, x, y float
 // parsing. Synthetic glyph advances and line metrics still come from real layout.
 type geometryProofBackend struct{}
 
-func (geometryProofBackend) Identify(contracts.FontFace) (typography.Info, error) {
-	return typography.Info{SHA256: "synthetic"}, nil
+func (geometryProofBackend) Identify(contracts.FontFace) (fontmeta.Info, error) {
+	return fontmeta.Info{SHA256: "synthetic"}, nil
 }
 func (geometryProofBackend) Outline(contracts.FontFace, uint32) (render.Outline, error) {
 	return render.Outline{Path: "M0 0", Points: []render.Point{{}}}, nil

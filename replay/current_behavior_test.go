@@ -10,9 +10,11 @@ import (
 	"testing"
 
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing/paragraph"
+	"github.com/npillmayer/typography/layout"
 	"github.com/npillmayer/typography/render"
 	"github.com/npillmayer/typography/style"
+
 	"tytui/fontselection"
 	"tytui/htmlinput"
 	"tytui/pipeline"
@@ -22,7 +24,7 @@ import (
 // SVG hashes capture outlines/order/color; numeric placements remain inspectable.
 type currentControl struct {
 	SVG   string
-	Box   paragraph.Box
+	Box   layout.Box
 	Lines []LinePlacement
 }
 

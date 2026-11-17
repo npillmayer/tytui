@@ -9,8 +9,9 @@ import (
 	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
-	otadapter "github.com/npillmayer/typography/adapter/opentype"
-	"github.com/npillmayer/typography/paragraph"
+	otadapter "github.com/npillmayer/typography/glyphing/adapter/opentype"
+	"github.com/npillmayer/typography/glyphing/paragraph"
+	renderot "github.com/npillmayer/typography/render/adapter/opentype"
 	"github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
 
@@ -101,11 +102,11 @@ func TestPublicParagraphEngineMatchesDOMWorkbench(t *testing.T) {
 					t.Fatal("glyphs or source correspondence differ", k)
 				}
 				if ok {
-					ix, err := (otadapter.Services{}).Identify(x.Context.Params.Font.Face())
+					ix, err := renderot.New().Identify(x.Context.Params.Font.Face())
 					if err != nil {
 						t.Fatal(err)
 					}
-					iy, err := (otadapter.Services{}).Identify(y.Context.Params.Font.Face())
+					iy, err := renderot.New().Identify(y.Context.Params.Font.Face())
 					if err != nil || ix.ResourceID != iy.ResourceID {
 						t.Fatal("font selection differs", err)
 					}

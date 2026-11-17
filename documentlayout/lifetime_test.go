@@ -15,9 +15,9 @@ import (
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/khipu/helpers"
-	"github.com/npillmayer/typography"
 	"github.com/npillmayer/typography/fontresource"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 
 	"tytui/fontselection"
 	"tytui/htmlinput"
@@ -186,7 +186,7 @@ func (f lifetimeFaultFont) Metrics() (contracts.FontMetrics, error) {
 	}
 	return f.FontFace.Metrics()
 }
-func (l lifetimeFaultLoader) Load(ctx context.Context, path string, resource *fontresource.Resource) (typography.FaceEntry, error) {
+func (l lifetimeFaultLoader) Load(ctx context.Context, path string, resource *fontresource.Resource) (glyphing.FaceEntry, error) {
 	f, err := (boundaryLoader{}).Load(ctx, path, resource)
 	if err == nil {
 		f.Face = &lifetimeFaultFont{FontFace: f.Face, metrics: l.metrics}
@@ -307,7 +307,7 @@ func TestNestedResizeFailureRecoveryAndLifetime(t *testing.T) {
 								}
 							}
 							return nil
-						}}, Coverage: typography.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(contracts.FontFace, rune) (uint32, error) { return 1, nil }},
+						}}, Coverage: glyphing.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(contracts.FontFace, rune) (uint32, error) { return 1, nil }},
 					})
 					if err != nil {
 						t.Fatal(err)

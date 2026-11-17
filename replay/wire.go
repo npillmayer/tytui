@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
+	fontmeta "github.com/npillmayer/typography/font"
 	"github.com/npillmayer/typography/fontresource"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 	"github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
 
@@ -58,10 +59,10 @@ func originWire(o fontresource.Origin) wireOrigin {
 func (o wireOrigin) native() fontresource.Origin {
 	return fontresource.Origin{Provider: o.Provider, Name: o.Name, Location: o.Location, Request: o.Request.native()}
 }
-func infoWire(i typography.Info) wireInfo {
+func infoWire(i fontmeta.Info) wireInfo {
 	return wireInfo{i.ResourceID, originWire(i.Origin), i.Path, i.Family, i.Subfamily, i.SHA256, append([]string(nil), i.Warnings...)}
 }
-func bindingsWire(bindings []typography.Binding) []wireBinding {
+func bindingsWire(bindings []glyphing.Binding) []wireBinding {
 	if bindings == nil {
 		return nil
 	}

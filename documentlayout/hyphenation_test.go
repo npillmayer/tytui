@@ -9,7 +9,7 @@ import (
 
 	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 
 	"tytui/documentlayout"
 )

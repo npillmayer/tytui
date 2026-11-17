@@ -1,12 +1,14 @@
 package documentlayout
 
 import (
-	"github.com/npillmayer/typography/paragraph"
 	"testing"
+
+	"github.com/npillmayer/typography/glyphing/paragraph"
+	"github.com/npillmayer/typography/layout"
 )
 
 func TestInlineSummaryLineFreeCollapsePermission(t *testing.T) {
-	result := &paragraph.Result{VList: &paragraph.VList{}}
+	result := &paragraph.Result{VList: &layout.VList{}}
 	out, err := inlineSummary(&InlineGroup{}, result)
 	if err != nil || !out.AllowsMarginCollapse || out.Extent.H != 0 {
 		t.Fatalf("line-free summary=%+v err=%v", out, err)

@@ -7,8 +7,8 @@ import (
 	box "github.com/npillmayer/css-box-layout/layout"
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 )
 
 // LayoutRequest specifies the containing-block width in CSS pixels, not DU or
@@ -27,7 +27,7 @@ type Config struct {
 	// Trace receives synchronous stage diagnostics; nil disables reporting.
 	Trace func(string)
 
-	Resolver      *typography.Resolver
+	Resolver      *glyphing.Resolver
 	NewShaper     func() (contracts.StreamingShaper, error) // fresh exclusive stream per call
 	BufferOptions contracts.ShapeBufferOptions
 }

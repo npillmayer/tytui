@@ -13,10 +13,13 @@ import (
 	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	otadapter "github.com/npillmayer/typography/adapter/opentype"
-	parlayout "github.com/npillmayer/typography/paragraph"
+	fontmeta "github.com/npillmayer/typography/font"
+	"github.com/npillmayer/typography/glyphing"
+	otadapter "github.com/npillmayer/typography/glyphing/adapter/opentype"
+	parlayout "github.com/npillmayer/typography/glyphing/paragraph"
+	"github.com/npillmayer/typography/layout"
 	"github.com/npillmayer/typography/render"
+	renderot "github.com/npillmayer/typography/render/adapter/opentype"
 	typestyle "github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
 
@@ -82,18 +85,18 @@ type Diagnostic struct {
 // No mutable encoder or elastic paragraph is exposed.
 type Result struct {
 	lineLayout *parlayout.LineLayout // Detached policy input; nil means compatibility.
-	vlist      *parlayout.VList      // Retained placement; never serialized or recalculated by rendering.
+	vlist      *layout.VList         // Retained placement; never serialized or recalculated by rendering.
 
-	paint           []typography.PaintSpan      // Detached rendering input; never passed to layout.
-	Identity        typography.IdentityProvider `json:"-"`
-	Renderer        render.Backend              `json:"-"`
+	paint           []typestyle.PaintSpan     // Detached rendering input; never passed to layout.
+	Identity        fontmeta.IdentityProvider `json:"-"`
+	Renderer        render.Backend            `json:"-"`
 	fontProvenance  fontselection.Provenance
-	FontSnapshot    *typography.SelectedFonts // All configured fonts pinned at layout time.
+	FontSnapshot    *glyphing.SelectedFonts // All configured fonts pinned at layout time.
 	FontDiagnostics []fontselection.FontDiagnostic
 	ParagraphText   string               // Processed text addressed by frozen ranges and glyph clusters.
 	TextSpans       []paragraphtext.Span // Plain input: processed bytes to Input.Text bytes; HTML uses Source.Spans.
-	Fonts           []typography.Info
-	FontBindings    []typography.Binding
+	Fonts           []fontmeta.Info
+	FontBindings    []glyphing.Binding
 	Input           Input
 	Text            styled.Text
 	BreakPositions  []uint64
@@ -105,7 +108,7 @@ type Result struct {
 // VList returns a detached handle to the retained paragraph placements for either
 // backend. Its geometry accessors return copies; Frozen shares immutable content.
 // Replacing the returned handle or changing its returned values cannot alter r.
-func (r *Result) VList() *parlayout.VList {
+func (r *Result) VList() *layout.VList {
 	if r == nil || r.vlist == nil {
 		return nil
 	}
@@ -124,7 +127,7 @@ func (r *Result) LineLayout() *parlayout.LineLayout {
 
 // PaintSpans returns detached logical-byte color ranges for rendering/inspection.
 // Their boundaries need not coincide with the typography styles or glyphs.
-func (r *Result) PaintSpans() []typography.PaintSpan {
+func (r *Result) PaintSpans() []typestyle.PaintSpan {
 	if r == nil {
 		return nil
 	}
@@ -221,24 +224,24 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 	}
 	// Document values remain available for replay, but only typography reaches
 	// the typesetter. Rendering owns an independent copy of the original colors.
-	var paint []typography.PaintSpan
+	var paint []typestyle.PaintSpan
 	for _, span := range spans {
-		paint = append(paint, typography.PaintSpan{Start: span.Start, End: span.End, Paint: span.Style.Paint()})
+		paint = append(paint, typestyle.PaintSpan{Start: span.Start, End: span.End, Paint: span.Style.Paint()})
 	}
 	config := syntheticConfig()
 	backend := "synthetic"
-	var identity typography.IdentityProvider
+	var identity fontmeta.IdentityProvider
 	var renderer render.Backend
-	var fonts []typography.Info
-	var fontSnapshot *typography.SelectedFonts
+	var fonts []fontmeta.Info
+	var fontSnapshot *glyphing.SelectedFonts
 	var fontProvenance fontselection.Provenance
 	var fontDiagnostics []fontselection.FontDiagnostic
-	var bindings []typography.Binding
+	var bindings []glyphing.Binding
 	if input.Fonts != nil {
 		input.Fonts = input.Fonts.Clone()
 		fontProvenance = input.Fonts.Provenance.Clone()
 		fontDiagnostics = append([]fontselection.FontDiagnostic(nil), input.Fonts.Provenance.ResolutionDiagnostics...)
-		resolver, err := typography.NewResolver(ctx, input.Fonts.Fonts, otadapter.Services{})
+		resolver, err := glyphing.NewResolver(ctx, input.Fonts.Fonts, otadapter.Services{})
 		if err != nil {
 			return fail(StageFonts, err)
 		}
@@ -252,11 +255,12 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 			NewShaper: func() (contracts.StreamingShaper, error) { return otadapter.NewStream(64) },
 			Resolver:  resolver, Defaults: resolver.Defaults(),
 		}}
-		identity, renderer = otadapter.Services{}, otadapter.Services{}
+		renderServices := renderot.New()
+		identity, renderer = renderServices, renderServices
 		backend = "OpenType (core/Hebrew)"
 	}
 	if input.Fonts == nil && spans != nil {
-		shaping, err := typography.ProjectStyles(paragraphText, spans, syntheticStyleResolver{}, config.Streaming.Defaults)
+		shaping, err := glyphing.ProjectStyles(paragraphText, spans, syntheticStyleResolver{}, config.Streaming.Defaults)
 		if err != nil {
 			return fail(StageParagraph, err)
 		}

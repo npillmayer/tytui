@@ -10,7 +10,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/npillmayer/typography"
+	fontmeta "github.com/npillmayer/typography/font"
 
 	"tytui/fontselection"
 )
@@ -36,7 +36,7 @@ type fontsLoadedMsg struct {
 	diagnostics  []fontselection.FontDiagnostic
 	id, revision uint64
 	settings     *fontselection.Request
-	infos        []typography.Info
+	infos        []fontmeta.Info
 	err          error
 }
 
@@ -204,7 +204,7 @@ func (m model) updateFonts(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if requests {
 					s, diagnostics, err = resolve(ctx, request)
 				}
-				var infos []typography.Info
+				var infos []fontmeta.Info
 				if err == nil {
 					var selected *fontselection.Selection
 					selected, err = fontselection.Prepare(ctx, s)

@@ -11,8 +11,8 @@ import (
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/khipu/helpers"
-	"github.com/npillmayer/typography"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 
 	"tytui/fontselection"
 )
@@ -23,7 +23,7 @@ func countPreparation(t *testing.T, i *invocation) *preparationCalls {
 	t.Helper()
 	calls := new(preparationCalls)
 	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{
-		Loader: boundaryLoader{}, Coverage: typography.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(contracts.FontFace, rune) (uint32, error) {
+		Loader: boundaryLoader{}, Coverage: glyphing.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(contracts.FontFace, rune) (uint32, error) {
 			calls.coverage++
 			return 1, nil
 		}},

@@ -10,7 +10,7 @@ import (
 
 	box "github.com/npillmayer/css-box-layout/layout"
 	"github.com/npillmayer/khipu"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 	domcss "github.com/npillmayer/w3c-dom/style/css"
 
 	"tytui/documentlayout"

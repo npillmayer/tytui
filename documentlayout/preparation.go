@@ -2,9 +2,10 @@ package documentlayout
 
 import (
 	"fmt"
+
 	box "github.com/npillmayer/css-box-layout/layout"
 	"github.com/npillmayer/khipu"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 )
 
 // preparedGroup is private to one invocation and immutable after insertion.

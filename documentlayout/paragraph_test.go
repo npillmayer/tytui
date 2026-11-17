@@ -9,33 +9,34 @@ import (
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/khipu/helpers"
-	"github.com/npillmayer/typography"
+	fontmeta "github.com/npillmayer/typography/font"
 	"github.com/npillmayer/typography/fontresource"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 
 	"tytui/fontselection"
 )
 
 type syntheticLoader struct{}
 
-func (syntheticLoader) Load(ctx context.Context, path string, r *fontresource.Resource) (typography.FaceEntry, error) {
+func (syntheticLoader) Load(ctx context.Context, path string, r *fontresource.Resource) (glyphing.FaceEntry, error) {
 	if err := ctx.Err(); err != nil {
-		return typography.FaceEntry{}, err
+		return glyphing.FaceEntry{}, err
 	}
 	var err error
 	if r == nil {
 		r, err = fontresource.Read(strings.NewReader("synthetic-test"), fontresource.Origin{Provider: "test", Location: path})
 		if err != nil {
-			return typography.FaceEntry{}, err
+			return glyphing.FaceEntry{}, err
 		}
 	}
-	return typography.FaceEntry{Face: helpers.NewSyntheticFont(), Resource: r, Info: typography.Info{ResourceID: r.ID(), SHA256: r.SHA256(), Origin: r.Origin(), Path: r.Origin().Location}}, nil
+	return glyphing.FaceEntry{Face: helpers.NewSyntheticFont(), Resource: r, Info: fontmeta.Info{ResourceID: r.ID(), SHA256: r.SHA256(), Origin: r.Origin(), Path: r.Origin().Location}}, nil
 }
 
 func TestExtractedGroupsFeedPreparedParagraphs(t *testing.T) {
 	d, _, _ := build(t, `<div id="root" style="font-size:20px"><span style="display:inline-block;width:20px;font-size:30px">éאב</span></div>`)
 	var markerQueries int
-	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{Loader: syntheticLoader{}, Coverage: typography.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(_ contracts.FontFace, c rune) (uint32, error) {
+	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{Loader: syntheticLoader{}, Coverage: glyphing.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(_ contracts.FontFace, c rune) (uint32, error) {
 		if c == '\uFFFC' {
 			markerQueries++
 		}

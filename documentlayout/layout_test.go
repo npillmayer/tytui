@@ -11,8 +11,8 @@ import (
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/khipu/helpers"
-	"github.com/npillmayer/typography"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 
 	"tytui/documentlayout"
 	"tytui/fontselection"
@@ -21,7 +21,7 @@ import (
 func layoutConfig(t *testing.T) documentlayout.Config {
 	t.Helper()
 	r, err := loadResolver(t.Context(), fontselection.Settings{DefaultPath: "synthetic", Size: 10 * dimen.BP}, testServices{
-		Loader: syntheticLoader{}, Coverage: typography.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(_ contracts.FontFace, c rune) (uint32, error) {
+		Loader: syntheticLoader{}, Coverage: glyphing.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(_ contracts.FontFace, c rune) (uint32, error) {
 			if c == '\uFFFC' {
 				t.Error("queried coverage of an atomic marker")
 			}

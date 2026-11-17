@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/npillmayer/khipu/dimen"
-	otadapter "github.com/npillmayer/typography/adapter/opentype"
+	otadapter "github.com/npillmayer/typography/glyphing/adapter/opentype"
 
 	"tytui/fontselection"
 )

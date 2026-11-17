@@ -15,12 +15,14 @@ import (
 
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	ot "github.com/npillmayer/typography/adapter/opentype"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing"
+	ot "github.com/npillmayer/typography/glyphing/adapter/opentype"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 	"github.com/npillmayer/typography/render"
+	renderot "github.com/npillmayer/typography/render/adapter/opentype"
 	"github.com/thatisuday/commando"
 	"gopkg.in/yaml.v3"
+
 	"tytui/documentlayout"
 	"tytui/fontselection"
 	"tytui/htmlinput"
@@ -186,7 +188,7 @@ func run(ctx context.Context, o options, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	resolver, err := typography.NewResolver(ctx, selection.Fonts, ot.Services{})
+	resolver, err := glyphing.NewResolver(ctx, selection.Fonts, ot.Services{})
 	if err != nil {
 		return err
 	}
@@ -224,7 +226,8 @@ func run(ctx context.Context, o options, stdout, stderr io.Writer) error {
 		}
 	}
 	var svg bytes.Buffer
-	if err := documentlayout.WriteLayoutSVG(ctx, &svg, result, render.Services{Backend: ot.Services{}, Identity: ot.Services{}}, documentlayout.LayoutSVGOptions{ShowGlyphs: o.showGlyphs, HideBoxes: o.hideBoxes}); err != nil {
+	renderServices := renderot.New()
+	if err := documentlayout.WriteLayoutSVG(ctx, &svg, result, render.Services{Backend: renderServices, Identity: renderServices}, documentlayout.LayoutSVGOptions{ShowGlyphs: o.showGlyphs, HideBoxes: o.hideBoxes}); err != nil {
 		return err
 	}
 	if o.output == "-" {

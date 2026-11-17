@@ -7,7 +7,7 @@ import (
 
 	box "github.com/npillmayer/css-box-layout/layout"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 )
 
 func TestNestedSchedulingThroughParagraphEngine(t *testing.T) {

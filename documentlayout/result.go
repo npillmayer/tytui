@@ -5,7 +5,7 @@ import (
 	"slices"
 
 	box "github.com/npillmayer/css-box-layout/layout"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 )
 
 // GroupResult keeps source, paint and the concrete paragraph together. Geometry

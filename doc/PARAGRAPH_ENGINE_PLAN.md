@@ -1,5 +1,9 @@
 # Paragraph engine: extraction review and boxed-vlist plan
 
+> Package update: this document includes historical API locations.
+> See [current ownership](TYPOGRAPHY_PACKAGES.md) for the glyphing/render split.
+> Old root, paragraph and combined-adapter APIs have been removed.
+
 Replay update (2026-11-16): historical version/policy statements below record
 past milestones, not current compatibility requirements. The completed
 [replay simplification](REPLAY_SIMPLIFICATION_PLAN.md) supports only experimental

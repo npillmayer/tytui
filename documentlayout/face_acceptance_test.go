@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/npillmayer/khipu/contracts"
-	ot "github.com/npillmayer/typography/adapter/opentype"
-	"github.com/npillmayer/typography/paragraph"
+	ot "github.com/npillmayer/typography/glyphing/adapter/opentype"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 )
 
 func TestDocumentRejectsIncompatibleShaperBeforePublishing(t *testing.T) {

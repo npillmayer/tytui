@@ -13,10 +13,11 @@ import (
 
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	ot "github.com/npillmayer/typography/adapter/opentype"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing"
+	ot "github.com/npillmayer/typography/glyphing/adapter/opentype"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 	"github.com/npillmayer/typography/render"
+	renderot "github.com/npillmayer/typography/render/adapter/opentype"
 
 	"tytui/documentlayout"
 	"tytui/fontselection"
@@ -61,7 +62,7 @@ func run() error {
 	if err != nil {
 		panic(err)
 	}
-	resolver, err := typography.NewResolver(ctx, fonts.Fonts, s)
+	resolver, err := glyphing.NewResolver(ctx, fonts.Fonts, s)
 	if err != nil {
 		return err
 	}
@@ -70,7 +71,7 @@ func run() error {
 		return err
 	}
 	var svg bytes.Buffer
-	if err := documentlayout.WriteSVG(ctx, &svg, result, render.Services{Backend: s, Identity: s}); err != nil {
+	if err := documentlayout.WriteSVG(ctx, &svg, result, render.Services{Backend: renderot.New(), Identity: renderot.New()}); err != nil {
 		return err
 	}
 	return os.WriteFile(*out, svg.Bytes(), 0644)

@@ -12,10 +12,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	ot "github.com/npillmayer/typography/adapter/opentype"
-	"github.com/npillmayer/typography/paragraph"
+	fontmeta "github.com/npillmayer/typography/font"
+	"github.com/npillmayer/typography/glyphing"
+	ot "github.com/npillmayer/typography/glyphing/adapter/opentype"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 	"github.com/npillmayer/typography/render"
+	renderot "github.com/npillmayer/typography/render/adapter/opentype"
 	domdisplay "github.com/npillmayer/w3c-dom/style/display"
 	"golang.org/x/net/html"
 
@@ -45,8 +47,8 @@ type documentSnapshot struct {
 	selected               int
 	width                  float32
 	breaker                pipeline.Breaker
-	fonts                  []typography.Info
-	fontSnapshot           *typography.SelectedFonts
+	fonts                  []fontmeta.Info
+	fontSnapshot           *glyphing.SelectedFonts
 	diagnostics            []fontselection.FontDiagnostic
 	warnings               []string
 }
@@ -95,7 +97,7 @@ func runDocumentExperiment(ctx context.Context, input documentJob) (*documentSna
 	if err != nil {
 		return nil, fmt.Errorf("document fonts: %w", err)
 	}
-	resolver, err := typography.NewResolver(ctx, selection.Fonts, services)
+	resolver, err := glyphing.NewResolver(ctx, selection.Fonts, services)
 	if err != nil {
 		return nil, fmt.Errorf("document fonts: %w", err)
 	}
@@ -108,7 +110,8 @@ func runDocumentExperiment(ctx context.Context, input documentJob) (*documentSna
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	return &documentSnapshot{result: result, services: render.Services{Backend: services, Identity: services},
+	renderServices := renderot.New()
+	return &documentSnapshot{result: result, services: render.Services{Backend: renderServices, Identity: renderServices},
 		name: input.source.Name, documentID: input.source.ID, path: input.source.Nodes[input.selected].Path, selected: input.selected,
 		originalHTML: input.source.OriginalHTML, width: input.width, breaker: input.breaker, fonts: resolver.Infos(), fontSnapshot: resolver.Snapshot(),
 		diagnostics: slices.Clone(input.fonts.ResolutionDiagnostics), warnings: slices.Clone(input.source.Warnings)}, nil

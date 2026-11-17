@@ -238,23 +238,25 @@ bytes. `Input.Source` and `Input.Styles` are mutually exclusive; `TextSpans` ret
 the plain-source mapping. See [typography contracts](doc/TYPOGRAPHY_API_CONTRACTS.md).
 
 Immutable resource storage and the OpenType backend now live in
-`typography/fontresource` and `typography/adapter/opentype`. The workbench
+`typography/fontresource` and the separate `typography/glyphing/adapter/opentype`
+and `typography/render/adapter/opentype` packages. The workbench
 `fontbackend` forwarding package has been removed. Parser, identity, fallback and proof
 behavior are unchanged. The backend-independent paragraph engine is
-`typography/paragraph.Run`; pipeline.Run wires the selected backend and prepares
+`typography/glyphing/paragraph.Run`; pipeline.Run wires the selected backend and prepares
 its input. The former `pipeline/internal/layout` package is removed.
 
-The root `typography` resolver receives already loaded fonts: `SelectedFonts`
+The `typography/glyphing` resolver receives already loaded fonts: `SelectedFonts`
 contains a closed table of `FaceEntry` values plus default, style-rule and ordered
 fallback references. `NewResolver(ctx, fonts, coverage)` validates that table and
-performs no loading or discovery. OpenType parsing and retained rendering services
-remain in `typography/adapter/opentype`.
+performs no loading or discovery. OpenType parsing lives in `typography/glyphing/adapter/opentype`; retained rendering
+services live in `typography/render/adapter/opentype`. Completed geometry is shared
+through `typography/layout`; neither branch imports the other.
 
 [`fontselection`](fontselection/README.md) owns application requests, controlled
 fontfind providers, generic mappings, substitution policy and session caches.
 `Prepare(ctx, request)` loads explicit selections before layout. `pipeline.Input.Fonts`
 accepts its `*Selection`; nil selects synthetic. `Result.FontSnapshot` contains
-`*typography.SelectedFonts`, and `FontProvenance()` returns detached application
+`*glyphing.SelectedFonts`, and `FontProvenance()` returns detached application
 evidence. The TUI keeps editable requests and prepares fresh faces per run, so
 previewing a file does not pin that pathname forever.
 
@@ -279,13 +281,13 @@ remain one color, and independently anchored marks may have their own color.
 Original paint spans are retained. Replay accepts only version 4; it never silently reinterprets historical cases.
 Legacy shaping/color selectors have been removed from typography and pipeline.
 
-Color now bypasses the paragraph typesetter. M's `typography.ProjectStyles` owns
+Color now bypasses the paragraph typesetter. M's `glyphing.ProjectStyles` owns
 the projection into color-free typesetter styles; the renderer receives a separate
 snapshot of logical color spans. `Result.PaintSpans()` returns a detached copy.
 Document colors remain in the existing inspection/replay fields, so the replay
 format retains source colors independently of glyph-color assignment.
 
-The headless `typography/paragraph.Run` API consumes prepared `styled.Text`, base
+The headless `typography/glyphing/paragraph.Run` API consumes prepared `styled.Text`, base
 direction and zero-byte bidi markup, with explicit width/breaker/assembly parameters
 and injected `khipu.Config` services. It prepares bidi levels, encodes, breaks,
 freezes and assembles a boxed vertical list. `paragraph.Assemble` remains available
@@ -321,3 +323,5 @@ go run ./tycli documentlayout/testdata/nested.html --root root \
 ```
 
 Font sizing and retained-state ownership are described in [Font instances](doc/FONT_INSTANCE.md).
+
+See [Typography package branches](doc/TYPOGRAPHY_PACKAGES.md) for current service composition.

@@ -6,7 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing/paragraph"
+
 	"tytui/pipeline"
 )
 

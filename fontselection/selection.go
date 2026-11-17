@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	ot "github.com/npillmayer/typography/adapter/opentype"
 	"github.com/npillmayer/typography/fontresource"
+	"github.com/npillmayer/typography/glyphing"
+	ot "github.com/npillmayer/typography/glyphing/adapter/opentype"
 )
 
 // Settings is a detached request. Rules use first-match order; zero/empty fields
@@ -88,7 +88,7 @@ func (p Provenance) Clone() Provenance {
 // Selection contains already loaded fonts and separate application evidence.
 // Faces/resources remain shared and stable for retained results. Never serialize it.
 type Selection struct {
-	Fonts      typography.SelectedFonts
+	Fonts      glyphing.SelectedFonts
 	Provenance Provenance
 }
 
@@ -107,9 +107,9 @@ func Prepare(ctx context.Context, request *Request) (*Selection, error) {
 	return prepare(ctx, request, (ot.Services{}).Load, ot.Services{})
 }
 
-type loadEntry func(context.Context, string, *fontresource.Resource) (typography.FaceEntry, error)
+type loadEntry func(context.Context, string, *fontresource.Resource) (glyphing.FaceEntry, error)
 
-func prepare(ctx context.Context, request *Request, loadEntry loadEntry, coverage typography.Coverage) (*Selection, error) {
+func prepare(ctx context.Context, request *Request, loadEntry loadEntry, coverage glyphing.Coverage) (*Selection, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("nil context")
 	}
@@ -124,7 +124,7 @@ func prepare(ctx context.Context, request *Request, loadEntry loadEntry, coverag
 	if s.Size <= 0 || s.Size >= dimen.Fil {
 		return nil, fmt.Errorf("font size must be positive and finite")
 	}
-	fonts := typography.SelectedFonts{Size: s.Size}
+	fonts := glyphing.SelectedFonts{Size: s.Size}
 	seen := map[string]bool{}
 	load := func(path string, resource *fontresource.Resource) (string, error) {
 		if err := ctx.Err(); err != nil {
@@ -170,7 +170,7 @@ func prepare(ctx context.Context, request *Request, loadEntry loadEntry, coverag
 		if e != nil {
 			return nil, fmt.Errorf("font mapping row %d: %w", i+1, e)
 		}
-		fonts.Rules = append(fonts.Rules, typography.SelectedRule{Family: rule.Family, Weight: rule.Weight, Slant: rule.Slant, ResourceID: id})
+		fonts.Rules = append(fonts.Rules, glyphing.SelectedRule{Family: rule.Family, Weight: rule.Weight, Slant: rule.Slant, ResourceID: id})
 		provenance.RequestedRulePaths = append(provenance.RequestedRulePaths, rule.Path)
 	}
 	for _, path := range s.Fallbacks {
@@ -187,7 +187,7 @@ func prepare(ctx context.Context, request *Request, loadEntry loadEntry, coverag
 		}
 		fonts.Fallbacks = append(fonts.Fallbacks, id)
 	}
-	r, err := typography.NewResolver(ctx, fonts, coverage)
+	r, err := glyphing.NewResolver(ctx, fonts, coverage)
 	if err != nil {
 		return nil, err
 	}

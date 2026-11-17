@@ -12,8 +12,8 @@ import (
 
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	"github.com/npillmayer/typography/paragraph"
+	fontmeta "github.com/npillmayer/typography/font"
+	"github.com/npillmayer/typography/layout"
 	"github.com/npillmayer/typography/render"
 	"github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
@@ -28,8 +28,8 @@ import (
 // Real shaping/mark order remains checked against the existing HarfBuzz fixtures.
 type cellProof struct{}
 
-func (cellProof) Identify(contracts.FontFace) (typography.Info, error) {
-	return typography.Info{SHA256: "synthetic-cells"}, nil
+func (cellProof) Identify(contracts.FontFace) (fontmeta.Info, error) {
+	return fontmeta.Info{SHA256: "synthetic-cells"}, nil
 }
 
 func TestAssemblyFailureReturnsNoPartialResult(t *testing.T) {
@@ -165,7 +165,7 @@ func TestRetainedPlacementsSurviveInputMutationAndSourceRemoval(t *testing.T) {
 				materials[0].Extent = -1
 			}
 			box.Extent = -1
-			*handle = paragraph.VList{}
+			*handle = layout.VList{}
 			paints := r.PaintSpans()
 			if len(paints) > 0 {
 				paints[0].Paint.Color = "invalid"

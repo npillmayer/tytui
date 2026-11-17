@@ -17,10 +17,11 @@ import (
 
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	ot "github.com/npillmayer/typography/adapter/opentype"
-	"github.com/npillmayer/typography/paragraph"
+	fontmeta "github.com/npillmayer/typography/font"
+	ot "github.com/npillmayer/typography/glyphing/adapter/opentype"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 	"github.com/npillmayer/typography/render"
+	renderot "github.com/npillmayer/typography/render/adapter/opentype"
 	xbidi "golang.org/x/text/unicode/bidi"
 
 	"tytui/documentlayout"
@@ -29,8 +30,8 @@ import (
 
 type cellProof struct{ fail error }
 
-func (cellProof) Identify(contracts.FontFace) (typography.Info, error) {
-	return typography.Info{SHA256: "synthetic"}, nil
+func (cellProof) Identify(contracts.FontFace) (fontmeta.Info, error) {
+	return fontmeta.Info{SHA256: "synthetic"}, nil
 }
 func (c cellProof) Outline(contracts.FontFace, uint32) (render.Outline, error) {
 	return render.Outline{Path: "M0 0 L1 1", Points: []render.Point{{}, {X: 1, Y: 1}}}, c.fail
@@ -166,7 +167,7 @@ var nestedFixture string
 func TestRealDocumentFixtureAndSnapshotLifetime(t *testing.T) {
 	d, input, _ := build(t, nestedFixture)
 	cfg := realConfig(t)
-	services := render.Services{Backend: ot.Services{}, Identity: ot.Services{}}
+	services := render.Services{Backend: renderot.New(), Identity: renderot.New()}
 	var baseline *documentlayout.Result
 	var firstSVG []byte
 	for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
@@ -260,7 +261,7 @@ func TestRealGlyphsAgainstIndependentHarfBuzzFixtures(t *testing.T) {
 		d, _, _ := build(t, `<div id="root" style="font-size:24px;padding:4px">a <span style="display:inline-block;width:180px;padding:3px" dir="`+dir+`" lang="`+lang+`">`+c.Text+`</span> z</div>`)
 		for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
 			r := runDocument(t, d, 300, breaker, realConfig(t))
-			p, err := documentlayout.BuildProof(t.Context(), r, render.Services{Backend: ot.Services{}, Identity: ot.Services{}})
+			p, err := documentlayout.BuildProof(t.Context(), r, render.Services{Backend: renderot.New(), Identity: renderot.New()})
 			if err != nil {
 				t.Fatal(err)
 			}

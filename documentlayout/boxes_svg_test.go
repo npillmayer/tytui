@@ -11,7 +11,8 @@ import (
 	"testing"
 
 	"github.com/npillmayer/khipu"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing/paragraph"
+
 	"tytui/documentlayout"
 )
 

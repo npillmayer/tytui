@@ -12,11 +12,12 @@ import (
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/khipu/helpers"
-	"github.com/npillmayer/typography"
+	fontmeta "github.com/npillmayer/typography/font"
 	"github.com/npillmayer/typography/fontresource"
+	"github.com/npillmayer/typography/glyphing"
 )
 
-func fakeEntry(t *testing.T, path string, r *fontresource.Resource) typography.FaceEntry {
+func fakeEntry(t *testing.T, path string, r *fontresource.Resource) glyphing.FaceEntry {
 	t.Helper()
 	if r == nil {
 		var err error
@@ -25,13 +26,13 @@ func fakeEntry(t *testing.T, path string, r *fontresource.Resource) typography.F
 			t.Fatal(err)
 		}
 	}
-	return typography.FaceEntry{Face: helpers.NewSyntheticFont(), Resource: r, Info: typography.Info{ResourceID: r.ID(), SHA256: r.SHA256(), Origin: r.Origin(), Path: r.Origin().Location, Warnings: []string{"warning"}}}
+	return glyphing.FaceEntry{Face: helpers.NewSyntheticFont(), Resource: r, Info: fontmeta.Info{ResourceID: r.ID(), SHA256: r.SHA256(), Origin: r.Origin(), Path: r.Origin().Location, Warnings: []string{"warning"}}}
 }
 func TestPrepareOrderOwnershipAndFailures(t *testing.T) {
 	pinned := fakeEntry(t, "resource", nil).Resource
 	req := &Request{Settings: Settings{DefaultPath: "default", Size: 12 * dimen.BP, Rules: []Rule{{Weight: 700, Path: "rule"}}, Fallbacks: []string{"path", "path"}, FallbackResources: []*fontresource.Resource{pinned}}, DiscoveryPolicy: &DiscoveryPolicy{Providers: []string{"offline"}}, ResolutionDiagnostics: []FontDiagnostic{{Message: "original"}}}
 	var calls []string
-	loader := func(ctx context.Context, path string, r *fontresource.Resource) (typography.FaceEntry, error) {
+	loader := func(ctx context.Context, path string, r *fontresource.Resource) (glyphing.FaceEntry, error) {
 		if r != nil {
 			path = r.Origin().Location
 		}
@@ -63,7 +64,7 @@ func TestPrepareOrderOwnershipAndFailures(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			sentinel := errors.New("loader failure")
-			load := func(context.Context, string, *fontresource.Resource) (typography.FaceEntry, error) {
+			load := func(context.Context, string, *fontresource.Resource) (glyphing.FaceEntry, error) {
 				e := fakeEntry(t, "", pinned)
 				switch mode {
 				case "substitution":
@@ -95,9 +96,9 @@ func TestPrepareOrderOwnershipAndFailures(t *testing.T) {
 	}
 	for _, settings := range []Settings{{Size: 12 * dimen.BP}, {DefaultPath: "path", DefaultResource: pinned, Size: 12 * dimen.BP}, {DefaultPath: "path", Size: 0}} {
 		called := false
-		got, err := prepareSynthetic(t.Context(), &Request{Settings: settings}, func(context.Context, string, *fontresource.Resource) (typography.FaceEntry, error) {
+		got, err := prepareSynthetic(t.Context(), &Request{Settings: settings}, func(context.Context, string, *fontresource.Resource) (glyphing.FaceEntry, error) {
 			called = true
-			return typography.FaceEntry{}, nil
+			return glyphing.FaceEntry{}, nil
 		})
 		if got != nil || err == nil || called {
 			t.Fatal("invalid request performed loading")
@@ -133,10 +134,10 @@ func TestPolicyCacheAndTerminalFailures(t *testing.T) {
 				t.Fatal(err)
 			}
 			generics["serif"] = "changed"
-			d.loader = func(_ context.Context, _ string, r *fontresource.Resource) (typography.FaceEntry, error) {
+			d.loader = func(_ context.Context, _ string, r *fontresource.Resource) (glyphing.FaceEntry, error) {
 				loads++
 				if mode == "parse" {
-					return typography.FaceEntry{}, errors.New("parse failed")
+					return glyphing.FaceEntry{}, errors.New("parse failed")
 				}
 				return fakeEntry(t, "", r), nil
 			}
@@ -178,7 +179,7 @@ func TestPolicyCacheAndTerminalFailures(t *testing.T) {
 
 // This private seam pairs the fake loader with its own explicit coverage contract.
 func prepareSynthetic(ctx context.Context, req *Request, load loadEntry) (*Selection, error) {
-	return prepare(ctx, req, load, typography.CoverageFuncs{
+	return prepare(ctx, req, load, glyphing.CoverageFuncs{
 		Check:  new(helpers.SyntheticStreamingShaper).CheckFace,
 		Lookup: func(contracts.FontFace, rune) (uint32, error) { return 1, nil },
 	})

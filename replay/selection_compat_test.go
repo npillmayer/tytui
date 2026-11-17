@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/npillmayer/khipu/dimen"
-	ot "github.com/npillmayer/typography/adapter/opentype"
 	"github.com/npillmayer/typography/fontresource"
+	ot "github.com/npillmayer/typography/glyphing/adapter/opentype"
 
 	"tytui/fontselection"
 	"tytui/pipeline"

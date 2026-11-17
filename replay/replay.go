@@ -16,10 +16,11 @@ import (
 	"runtime"
 
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	otadapter "github.com/npillmayer/typography/adapter/opentype"
+	fontmeta "github.com/npillmayer/typography/font"
 	"github.com/npillmayer/typography/fontresource"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing"
+	otadapter "github.com/npillmayer/typography/glyphing/adapter/opentype"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 
 	"tytui/fontselection"
 	"tytui/pipeline"
@@ -290,7 +291,7 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 		return nil, fmt.Errorf("HTML source hash mismatch")
 	}
 	input := m.Input.native()
-	resources := map[string]typography.FaceEntry{}
+	resources := map[string]glyphing.FaceEntry{}
 	for _, entry := range m.Fonts {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -324,7 +325,7 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 	}
 	if m.Selection != nil {
 		sel := m.Selection
-		s := &fontselection.Selection{Fonts: typography.SelectedFonts{Default: sel.Default, Size: dimen.DU(sel.Size)}, Provenance: fontselection.Provenance{RequestedPath: sel.RequestedPath, RequestedFallbackPaths: append([]string(nil), sel.RequestedFallbackPaths...), DiscoveryPolicy: sel.Policy.native(), DescriptorInput: sel.Descriptors.native(), ResolutionDiagnostics: diagnosticsNative(sel.Diagnostics)}}
+		s := &fontselection.Selection{Fonts: glyphing.SelectedFonts{Default: sel.Default, Size: dimen.DU(sel.Size)}, Provenance: fontselection.Provenance{RequestedPath: sel.RequestedPath, RequestedFallbackPaths: append([]string(nil), sel.RequestedFallbackPaths...), DiscoveryPolicy: sel.Policy.native(), DescriptorInput: sel.Descriptors.native(), ResolutionDiagnostics: diagnosticsNative(sel.Diagnostics)}}
 		seen := map[string]bool{}
 		use := func(id string) error {
 			entry, ok := resources[id]
@@ -345,7 +346,7 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 				return nil, err
 			}
 			s.Provenance.RequestedRulePaths = append(s.Provenance.RequestedRulePaths, rule.RequestedPath)
-			s.Fonts.Rules = append(s.Fonts.Rules, typography.SelectedRule{Family: rule.Family, Weight: rule.Weight, Slant: rule.Slant, ResourceID: rule.ResourceID})
+			s.Fonts.Rules = append(s.Fonts.Rules, glyphing.SelectedRule{Family: rule.Family, Weight: rule.Weight, Slant: rule.Slant, ResourceID: rule.ResourceID})
 		}
 		for _, id := range sel.Fallbacks {
 			if err := use(id); err != nil {
@@ -385,7 +386,7 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 	return result, nil
 }
 
-func readFontSource(source typography.FontSource) ([]byte, error) {
+func readFontSource(source fontmeta.Source) ([]byte, error) {
 	reader := source.Open()
 	defer reader.Close()
 	return readBounded(reader)

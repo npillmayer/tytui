@@ -1,5 +1,9 @@
 # OpenType fonts and shaping (step 6)
 
+> Package update: this document includes historical API locations.
+> See [current ownership](TYPOGRAPHY_PACKAGES.md) for the glyphing/render split.
+> Old root, paragraph and combined-adapter APIs have been removed.
+
 This documents the current font integration, including step 7 script itemization,
 fallback, and glyph export. See [Multilingual proofs](MULTILINGUAL_PROOFS.md) for
 detailed shaping, rendering, and coverage policies.

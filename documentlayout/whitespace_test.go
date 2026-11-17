@@ -4,10 +4,11 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"tytui/documentlayout"
 
 	box "github.com/npillmayer/css-box-layout/layout"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing/paragraph"
+
+	"tytui/documentlayout"
 )
 
 func TestInterparagraphWhitespaceFixture(t *testing.T) {

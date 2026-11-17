@@ -8,7 +8,7 @@ import (
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/khipu/helpers"
-	"github.com/npillmayer/typography"
+	"github.com/npillmayer/typography/glyphing"
 	typestyle "github.com/npillmayer/typography/style"
 	"golang.org/x/text/language"
 )
@@ -29,7 +29,7 @@ func (syntheticStyleResolver) ResolveStyle(value styled.Style, defaults contract
 	switch v := value.(type) {
 	case typestyle.Style: // Used by M while resolving the input projection.
 		css = v.Typography()
-	case typography.TypographyStyle:
+	case glyphing.TypographyStyle:
 		css = v.Typography
 	default:
 		return contracts.ResolvedRunStyle{}, fmt.Errorf("unknown paragraph style %T", value)

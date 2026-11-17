@@ -8,7 +8,7 @@ import (
 
 	"github.com/npillmayer/khipu"
 	"github.com/npillmayer/khipu/dimen"
-	otadapter "github.com/npillmayer/typography/adapter/opentype"
+	otadapter "github.com/npillmayer/typography/glyphing/adapter/opentype"
 	"github.com/npillmayer/uax/bidi"
 
 	"tytui/fontselection"

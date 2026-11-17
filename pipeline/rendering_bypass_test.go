@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
 	"github.com/npillmayer/typography/style"
 
 	"tytui/fontselection"
@@ -64,7 +63,7 @@ func TestRenderingBypassSeparatesPaintFromTypesetterAndInput(t *testing.T) {
 					if a.Equals(b) != true {
 						t.Fatal("lost modern coalescing or legacy boundary")
 					}
-					want := []typography.PaintSpan{
+					want := []style.PaintSpan{
 						{Start: 0, End: 1, Paint: style.Paint{Color: "red"}},
 						{Start: 1, End: 2, Paint: style.Paint{Color: "blue"}},
 					}

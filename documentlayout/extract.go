@@ -7,13 +7,12 @@ import (
 	"unicode/utf8"
 
 	box "github.com/npillmayer/css-box-layout/layout"
+	csstext "github.com/npillmayer/css-box-layout/text"
 	"github.com/npillmayer/khipu/contracts"
-	"github.com/npillmayer/typography"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 	typestyle "github.com/npillmayer/typography/style"
 	"github.com/npillmayer/uax/bidi"
 
-	csstext "github.com/npillmayer/css-box-layout/text"
 	"tytui/htmlinput"
 )
 
@@ -43,7 +42,7 @@ type InlineGroup struct {
 	Group
 	Text          string
 	Styles        []typestyle.Span
-	Paint         []typography.PaintSpan
+	Paint         []typestyle.PaintSpan
 	LineLayout    paragraph.LineLayout
 	Isolates      []htmlinput.Isolate
 	Anchors       []contracts.AtomicAnchor
@@ -204,7 +203,7 @@ func (d *Document) Extract(ctx context.Context, id box.BoxID) (*InlineGroup, err
 		}
 	}
 	for _, s := range g.Styles {
-		g.Paint = append(g.Paint, typography.PaintSpan{Start: s.Start, End: s.End, Paint: s.Style.Paint()})
+		g.Paint = append(g.Paint, typestyle.PaintSpan{Start: s.Start, End: s.End, Paint: s.Style.Paint()})
 		g.LineLayout.Runs = append(g.LineLayout.Runs, paragraph.LineHeightSpan{Start: s.Start, End: s.End, Height: g.LineLayout.Default})
 	}
 	if _, err := g.BidiMarkup(); err != nil {

@@ -8,7 +8,7 @@ import (
 
 	"github.com/npillmayer/fontfind"
 	"github.com/npillmayer/fontfind/locate/fallbackfont"
-	"github.com/npillmayer/typography"
+	fontmeta "github.com/npillmayer/typography/font"
 	"github.com/npillmayer/typography/fontresource"
 	"golang.org/x/image/font"
 
@@ -92,7 +92,7 @@ func (f *fontEditor) descriptorSettings() (fontselection.DescriptorSettings, err
 	}
 	return input, nil
 }
-func fontReport(infos []typography.Info, diagnostics []fontselection.FontDiagnostic) string {
+func fontReport(infos []fontmeta.Info, diagnostics []fontselection.FontDiagnostic) string {
 	var report strings.Builder
 	for _, d := range diagnostics {
 		label := d.Stage

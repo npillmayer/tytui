@@ -14,11 +14,13 @@ import (
 	boxtext "github.com/npillmayer/css-box-layout/text"
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
-	ot "github.com/npillmayer/typography/adapter/opentype"
+	fontmeta "github.com/npillmayer/typography/font"
 	"github.com/npillmayer/typography/fontresource"
-	"github.com/npillmayer/typography/paragraph"
+	"github.com/npillmayer/typography/glyphing"
+	ot "github.com/npillmayer/typography/glyphing/adapter/opentype"
+	"github.com/npillmayer/typography/glyphing/paragraph"
 	"github.com/npillmayer/typography/render"
+	renderot "github.com/npillmayer/typography/render/adapter/opentype"
 	xbidi "golang.org/x/text/unicode/bidi"
 
 	"tytui/documentlayout"
@@ -32,6 +34,7 @@ var nestedAutoFixture string
 // These guards wrap real OpenType services only in tests. Backend-specific
 // unwrapping stays here; no concrete face assumptions enter documentlayout.
 type proofServiceGuard struct {
+	renderer                                          renderot.Services
 	proofOnly                                         atomic.Bool
 	loads, coverage, metrics, scales, streams, shapes atomic.Int64
 	outlines, identities, conversions                 atomic.Int64
@@ -82,10 +85,10 @@ func unguardProofFace(f contracts.FontFace) contracts.FontFace {
 	}
 	return f
 }
-func (g *proofServiceGuard) Load(ctx context.Context, path string, resource *fontresource.Resource) (typography.FaceEntry, error) {
+func (g *proofServiceGuard) Load(ctx context.Context, path string, resource *fontresource.Resource) (glyphing.FaceEntry, error) {
 	g.loads.Add(1)
 	if g.proofOnly.Load() {
-		return typography.FaceEntry{}, errProofPreparation
+		return glyphing.FaceEntry{}, errProofPreparation
 	}
 	f, err := (ot.Services{}).Load(ctx, path, resource)
 	if err == nil {
@@ -100,16 +103,16 @@ func (g *proofServiceGuard) GlyphIndex(f contracts.FontFace, r rune) (uint32, er
 	}
 	return (ot.Services{}).GlyphIndex(unguardProofFace(f), r)
 }
-func (g *proofServiceGuard) Identify(f contracts.FontFace) (typography.Info, error) {
+func (g *proofServiceGuard) Identify(f contracts.FontFace) (fontmeta.Info, error) {
 	g.identities.Add(1)
-	return (ot.Services{}).Identify(unguardProofFace(f))
+	return g.renderer.Identify(unguardProofFace(f))
 }
 func (g *proofServiceGuard) Outline(f contracts.FontFace, id uint32) (render.Outline, error) {
 	g.outlines.Add(1)
-	return (ot.Services{}).Outline(unguardProofFace(f), id)
+	return g.renderer.Outline(unguardProofFace(f), id)
 }
-func (*proofServiceGuard) VisualOrder(g []contracts.ShapedGlyph, d xbidi.Direction) ([]contracts.ShapedGlyph, error) {
-	return (ot.Services{}).VisualOrder(g, d)
+func (s *proofServiceGuard) VisualOrder(g []contracts.ShapedGlyph, d xbidi.Direction) ([]contracts.ShapedGlyph, error) {
+	return s.renderer.VisualOrder(g, d)
 }
 
 type proofGuardStream struct {

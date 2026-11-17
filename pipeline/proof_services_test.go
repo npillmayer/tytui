@@ -6,7 +6,7 @@ import (
 
 	"github.com/npillmayer/khipu/contracts"
 	"github.com/npillmayer/khipu/dimen"
-	"github.com/npillmayer/typography"
+	fontmeta "github.com/npillmayer/typography/font"
 	"github.com/npillmayer/typography/render"
 
 	"tytui/fontselection"
@@ -14,11 +14,11 @@ import (
 )
 
 type proofIdentity struct {
-	typography.IdentityProvider
+	fontmeta.IdentityProvider
 	calls int
 }
 
-func (s *proofIdentity) Identify(f contracts.FontFace) (typography.Info, error) {
+func (s *proofIdentity) Identify(f contracts.FontFace) (fontmeta.Info, error) {
 	s.calls++
 	i, e := s.IdentityProvider.Identify(f)
 	i.SHA256 = "injected-identity"
