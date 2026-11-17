@@ -22,12 +22,12 @@ type LayoutRequest struct {
 // or coverage policy is installed here. The caller supplies suitable fonts;
 // ItemizeInline's existing checks remain until their separate relocation.
 // Services must be stable during layout and retained font/scale services must
-// remain usable for the result's lifetime. Serialize calls sharing a Resolver.
+// remain usable for the result's lifetime. Serialize calls sharing a StyleMapper.
 type Config struct {
 	// Trace receives synchronous stage diagnostics; nil disables reporting.
 	Trace func(string)
 
-	Resolver      *glyphing.Resolver
+	Resolver      *glyphing.StyleMapper
 	NewShaper     func() (contracts.StreamingShaper, error) // fresh exclusive stream per call
 	BufferOptions contracts.ShapeBufferOptions
 }

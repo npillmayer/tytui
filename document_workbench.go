@@ -97,7 +97,7 @@ func runDocumentExperiment(ctx context.Context, input documentJob) (*documentSna
 	if err != nil {
 		return nil, fmt.Errorf("document fonts: %w", err)
 	}
-	resolver, err := glyphing.NewResolver(ctx, selection.Fonts, services)
+	resolver, err := glyphing.NewStyleMapper(ctx, selection.Fonts, services)
 	if err != nil {
 		return nil, fmt.Errorf("document fonts: %w", err)
 	}

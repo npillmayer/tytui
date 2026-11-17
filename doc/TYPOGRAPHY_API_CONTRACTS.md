@@ -3,6 +3,8 @@
 > Package update: this document includes historical API locations.
 > See [current ownership](TYPOGRAPHY_PACKAGES.md) for the glyphing/render split.
 > Old root, paragraph and combined-adapter APIs have been removed.
+> Historical `Resolver`/`NewResolver` and `Binding` references now correspond
+> to `glyphing.StyleMapper`/`glyphing.NewStyleMapper` and `glyphing.FontTextRun`.
 
 Replay update (2026-11-16): historical version/policy statements below record
 past milestones, not current compatibility requirements. The completed
@@ -595,11 +597,14 @@ replay fixtures were not modified.
 
 ## Current selected-font API
 
-Typography accepts a closed set of preloaded faces. Root `NewResolver(ctx,
-SelectedFonts, Coverage)` replaces LoadSettings and the root loading-service
-bundle. SelectedFonts carries Faces, Default, Rules, Fallbacks and Size; every
+Typography accepts a closed set of preloaded faces.
+`glyphing.NewStyleMapper(ctx, SelectedFonts, Coverage)` constructs a
+`*glyphing.StyleMapper`, replacing the former LoadSettings and root loading-service
+bundle. Itemization returns `glyphing.FontTextRun` records; the field names
+`Itemization.Bindings` and `pipeline.Result.FontBindings` remain unchanged.
+SelectedFonts carries Faces, Default, Rules, Fallbacks and Size; every
 reference is a resource ID. Entries pair contracts.FontFace with Info and an
-immutable resource. NewResolver checks identity metadata and role references,
+immutable resource. NewStyleMapper checks identity metadata and role references,
 requires usable coverage, checks each canonical selected face through
 Coverage.CheckFace, and performs no parsing, I/O or glyph-coverage queries.
 
@@ -610,9 +615,11 @@ table order to default, rules, then fallbacks, deduplicating by resource ID.
 Snapshots detach mutable metadata and share stable face/resource handles.
 Only explicit fallback references are eligible during grapheme itemization.
 
-OpenType Services.Load remains an application entry point; Services supplies
-Coverage, IdentityProvider and render.Backend. Parsing, retained bytes, locks,
-scales, streams, outlines and visual ordering remain adapter-owned. No parsed-font
+The glyphing OpenType adapter’s Services.Load remains an application entry point;
+its Services supplies Coverage. Independent services constructed with
+`typography/render/adapter/opentype.New()` implement font.IdentityProvider and
+render.Backend. Parsing, retained bytes, locks, scales, streams, outlines and
+visual ordering remain owned by their respective adapters. No parsed-font
 accessor or application face wrapper is introduced. Khipu's loader contract remains.
 
 Tytui/fontselection owns Settings/Rule, editable Request values, controlled offline
@@ -626,9 +633,10 @@ Typography/discovery and typography/adapter/fontfind are removed.
 `pipeline.Input.Fonts` is *fontselection.Selection or nil for synthetic. Selection
 contains SelectedFonts and separate Provenance. Result.FontSnapshot retains all
 roles; Result.FontProvenance() returns a detached copy independent of Input.
-Document workers use the same preparation boundary before constructing a resolver.
-Root style mapping, source coordinates, grapheme/script coverage policy, both paint
-policies, private scalar feature domains and paragraph orchestration are unchanged.
+Document workers use the same preparation boundary before constructing a
+StyleMapper. Glyphing owns style mapping, source coordinates, grapheme/script
+coverage policy and private scalar feature domains. Itemization always coalesces
+equivalent shaping across paint changes; rendering retains paint separately.
 
 Replay owns input/policy/request/descriptor/font DTOs in wire.go. Save uses retained
 bytes, keeps canonical font ordering and repeats in role lists, and reparses for
@@ -651,7 +659,7 @@ Run ordinary/race suites, build and vet in both modules after boundary changes.
 `contracts.FontAcceptor.CheckFace(FontFace) error` is embedded in streaming shapers
 and typography `Coverage`. A check validates the prepared instance without
 queries or stream mutation. `CoverageFuncs{Check, Lookup}` replaces the old
-single-callback adapter. Resolver construction checks all distinct configured
+single-callback adapter. StyleMapper construction checks all distinct configured
 entries in canonical order; khipu separately preflights actual resolved runs
 before production and each fresh lazy pre/post replacement stream. Nil/invalid
 instances preserve `ErrIllegalArguments`; unsupported representations expose
@@ -665,4 +673,4 @@ unwrap custom faces must implement the same unwrapping in CheckFace.
 Existing synthetic defaults, paragraph/document/result APIs and replay v4 wire
 records are unchanged. Font-only previews perform no shaping, and acceptance
 does not certify a renderer. No historical replay reader or fixture update is
-introduced. See typography's [implementation plan](../../typography/FONT_SHAPER.md).
+introduced. See typography's [implementation plan](../../typography/doc/FONT_SHAPER.md).

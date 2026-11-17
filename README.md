@@ -245,12 +245,15 @@ behavior are unchanged. The backend-independent paragraph engine is
 `typography/glyphing/paragraph.Run`; pipeline.Run wires the selected backend and prepares
 its input. The former `pipeline/internal/layout` package is removed.
 
-The `typography/glyphing` resolver receives already loaded fonts: `SelectedFonts`
+The `glyphing.StyleMapper` in `typography/glyphing` receives already loaded fonts: `SelectedFonts`
 contains a closed table of `FaceEntry` values plus default, style-rule and ordered
-fallback references. `NewResolver(ctx, fonts, coverage)` validates that table and
+fallback references. `glyphing.NewStyleMapper(ctx, fonts, coverage)` validates that table and
 performs no loading or discovery. OpenType parsing lives in `typography/glyphing/adapter/opentype`; retained rendering
 services live in `typography/render/adapter/opentype`. Completed geometry is shared
-through `typography/layout`; neither branch imports the other.
+through `typography/layout`; neither branch imports the other. Itemization records
+selected fonts and processed-text byte ranges as `glyphing.FontTextRun` values;
+`pipeline.Result.FontBindings` retains these runs. See the
+[current API names and ownership](doc/TYPOGRAPHY_PACKAGES.md).
 
 [`fontselection`](fontselection/README.md) owns application requests, controlled
 fontfind providers, generic mappings, substitution policy and session caches.

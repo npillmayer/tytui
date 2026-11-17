@@ -17,7 +17,7 @@ type testServices struct {
 }
 
 // loadResolver builds selected fixture faces before entering the typography engine.
-func loadResolver(ctx context.Context, s fontselection.Settings, svc testServices) (*glyphing.Resolver, error) {
+func loadResolver(ctx context.Context, s fontselection.Settings, svc testServices) (*glyphing.StyleMapper, error) {
 	fonts := glyphing.SelectedFonts{Size: s.Size}
 	seen := map[string]bool{}
 	load := func(path string, r *fontresource.Resource) (string, error) {
@@ -58,5 +58,5 @@ func loadResolver(ctx context.Context, s fontselection.Settings, svc testService
 		}
 		fonts.Fallbacks = append(fonts.Fallbacks, id)
 	}
-	return glyphing.NewResolver(ctx, fonts, svc.Coverage)
+	return glyphing.NewStyleMapper(ctx, fonts, svc.Coverage)
 }

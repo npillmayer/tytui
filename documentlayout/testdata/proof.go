@@ -62,7 +62,7 @@ func run() error {
 	if err != nil {
 		panic(err)
 	}
-	resolver, err := glyphing.NewResolver(ctx, fonts.Fonts, s)
+	resolver, err := glyphing.NewStyleMapper(ctx, fonts.Fonts, s)
 	if err != nil {
 		return err
 	}

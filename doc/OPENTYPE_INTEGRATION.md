@@ -3,6 +3,8 @@
 > Package update: this document includes historical API locations.
 > See [current ownership](TYPOGRAPHY_PACKAGES.md) for the glyphing/render split.
 > Old root, paragraph and combined-adapter APIs have been removed.
+> Historical `Resolver`/`NewResolver` and `Binding` references now correspond
+> to `glyphing.StyleMapper`/`glyphing.NewStyleMapper` and `glyphing.FontTextRun`.
 
 This documents the current font integration, including step 7 script itemization,
 fallback, and glyph export. See [Multilingual proofs](MULTILINGUAL_PROOFS.md) for
@@ -78,12 +80,17 @@ not saved glyph snapshots. Font hashes identify the actual bytes used at layout
 time, which may differ from an earlier panel validation. Files are local regular
 files, capped at 64 MiB. No fonts are fetched or discovered automatically.
 
-`typography/adapter/opentype` owns Loader, Face, Scale and Stream. The root
-`typography` package owns Resolver and accepts SelectedFonts plus Coverage through
-NewResolver. Application setup loads through `opentype.Services` before entering
-layout. No workbench forwarding package remains. Fontselection.Selection separates
-loaded fonts from application Provenance.
-The adapter owns parser bytes, synchronization, streaming, scaling and outlines. Metrics preserve signed font units. Scaling caches the factor from
+`typography/glyphing/adapter/opentype` owns Loader, Face, Scale, Stream and
+coverage. `typography/glyphing` owns StyleMapper and accepts SelectedFonts plus
+Coverage through `glyphing.NewStyleMapper`. Application setup loads through the
+glyphing adapter’s `Services` before entering layout. No workbench forwarding
+package remains. Fontselection.Selection separates loaded fonts from application
+Provenance. Selected-font text ranges use `glyphing.FontTextRun`.
+The glyphing adapter owns parser bytes, synchronization, streaming and scaling.
+Independent services from `typography/render/adapter/opentype.New()` own retained
+outline parsing, paths, identity and visual ordering.
+
+Glyphing metrics preserve signed font units. Scaling caches the factor from
 `otquery.FontScale` and retains fractional DU until khipu rounds geometry. The
 bounded stream adapts the synchronous public OpenType shaper directly to a
 context-aware channel sink; it starts no goroutines. The producer calls Shape,

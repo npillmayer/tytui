@@ -188,7 +188,7 @@ func run(ctx context.Context, o options, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	resolver, err := glyphing.NewResolver(ctx, selection.Fonts, ot.Services{})
+	resolver, err := glyphing.NewStyleMapper(ctx, selection.Fonts, ot.Services{})
 	if err != nil {
 		return err
 	}

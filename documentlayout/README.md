@@ -34,9 +34,13 @@ for _, group := range document.Groups() {
 }
 ```
 
-To lay out a document, supply an initialized `typography.Resolver` (from
-`typography.LoadSettings`) and a factory returning fresh exclusive streaming
-shapers. The caller supplies fonts suitable for the text; the existing itemizer
+To lay out a document, prepare fonts with `fontselection.Prepare`, then construct
+a `*glyphing.StyleMapper` with `glyphing.NewStyleMapper(ctx, selection.Fonts,
+coverage)`. For OpenType, coverage is supplied by
+`typography/glyphing/adapter/opentype.Services{}`. Pass the mapper through the
+existing `documentlayout.Config.Resolver` field and supply a factory returning
+fresh exclusive streaming shapers compatible with the selected faces. The caller
+supplies fonts suitable for the text; the existing itemizer
 checks remain in place pending their separate relocation.
 
 ```go

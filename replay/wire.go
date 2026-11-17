@@ -62,7 +62,7 @@ func (o wireOrigin) native() fontresource.Origin {
 func infoWire(i fontmeta.Info) wireInfo {
 	return wireInfo{i.ResourceID, originWire(i.Origin), i.Path, i.Family, i.Subfamily, i.SHA256, append([]string(nil), i.Warnings...)}
 }
-func bindingsWire(bindings []glyphing.Binding) []wireBinding {
+func bindingsWire(bindings []glyphing.FontTextRun) []wireBinding {
 	if bindings == nil {
 		return nil
 	}

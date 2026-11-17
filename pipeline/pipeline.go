@@ -96,7 +96,7 @@ type Result struct {
 	ParagraphText   string               // Processed text addressed by frozen ranges and glyph clusters.
 	TextSpans       []paragraphtext.Span // Plain input: processed bytes to Input.Text bytes; HTML uses Source.Spans.
 	Fonts           []fontmeta.Info
-	FontBindings    []glyphing.Binding
+	FontBindings    []glyphing.FontTextRun
 	Input           Input
 	Text            styled.Text
 	BreakPositions  []uint64
@@ -236,12 +236,12 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 	var fontSnapshot *glyphing.SelectedFonts
 	var fontProvenance fontselection.Provenance
 	var fontDiagnostics []fontselection.FontDiagnostic
-	var bindings []glyphing.Binding
+	var bindings []glyphing.FontTextRun
 	if input.Fonts != nil {
 		input.Fonts = input.Fonts.Clone()
 		fontProvenance = input.Fonts.Provenance.Clone()
 		fontDiagnostics = append([]fontselection.FontDiagnostic(nil), input.Fonts.Provenance.ResolutionDiagnostics...)
-		resolver, err := glyphing.NewResolver(ctx, input.Fonts.Fonts, otadapter.Services{})
+		resolver, err := glyphing.NewStyleMapper(ctx, input.Fonts.Fonts, otadapter.Services{})
 		if err != nil {
 			return fail(StageFonts, err)
 		}

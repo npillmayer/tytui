@@ -187,7 +187,7 @@ func prepare(ctx context.Context, request *Request, loadEntry loadEntry, coverag
 		}
 		fonts.Fallbacks = append(fonts.Fallbacks, id)
 	}
-	r, err := glyphing.NewResolver(ctx, fonts, coverage)
+	r, err := glyphing.NewStyleMapper(ctx, fonts, coverage)
 	if err != nil {
 		return nil, err
 	}
