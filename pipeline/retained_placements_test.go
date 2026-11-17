@@ -57,7 +57,7 @@ func (cellProof) VisualOrder(g []contracts.ShapedGlyph, d xbidi.Direction) ([]co
 
 func TestIndependentRetainedLinePlacements(t *testing.T) {
 	// Synthetic 10bp: 5bp cells (including ordinary spaces), ascent 8, descent 2,
-	// gap 2. Final fill occupies the trailing edge: left for an RTL paragraph.
+	// CSS normal height 10 with no extra gap. Final fill occupies the trailing edge: left for an RTL paragraph.
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
 		for _, tc := range []struct {
 			name, html, want string
@@ -69,9 +69,9 @@ func TestIndependentRetainedLinePlacements(t *testing.T) {
 			{"rtl", `<p dir="rtl" style="font-size:10pt">ab אב</p>`, "באab", 100, []float64{75, 80, 90, 95}, []float64{8, 8, 8, 8}, []float64{8}},
 			{"ltr_isolate_digits", `<p dir="ltr" style="font-size:10pt">ab <bdi dir="rtl">אב 12</bdi></p>`, "ab12בא", 100, []float64{0, 5, 15, 20, 30, 35}, []float64{8, 8, 8, 8, 8, 8}, []float64{8}},
 			{"rtl_isolate_digits", `<p dir="rtl" style="font-size:10pt"><bdi dir="ltr">ab 12</bdi> אב</p>`, "באab12", 100, []float64{60, 65, 75, 80, 90, 95}, []float64{8, 8, 8, 8, 8, 8}, []float64{8}},
-			{"ltr_two_lines", `<p dir="ltr" style="font-size:10pt">ab אב ab אב</p>`, "abבאabבא", 25, []float64{0, 5, 15, 20, 0, 5, 15, 20}, []float64{8, 8, 8, 8, 20, 20, 20, 20}, []float64{8, 20}},
-			{"rtl_two_lines", `<p dir="rtl" style="font-size:10pt">ab אב ab אב</p>`, "באabבאab", 25, []float64{0, 5, 15, 20, 0, 5, 15, 20}, []float64{8, 8, 8, 8, 20, 20, 20, 20}, []float64{8, 20}},
-			{"rtl_discretionary", `<p dir="rtl" style="font-size:10pt">אב&shy;גד</p>`, "-באדג", 15, []float64{0, 5, 10, 5, 10}, []float64{8, 8, 8, 20, 20}, []float64{8, 20}},
+			{"ltr_two_lines", `<p dir="ltr" style="font-size:10pt">ab אב ab אב</p>`, "abבאabבא", 25, []float64{0, 5, 15, 20, 0, 5, 15, 20}, []float64{8, 8, 8, 8, 18, 18, 18, 18}, []float64{8, 18}},
+			{"rtl_two_lines", `<p dir="rtl" style="font-size:10pt">ab אב ab אב</p>`, "באabבאab", 25, []float64{0, 5, 15, 20, 0, 5, 15, 20}, []float64{8, 8, 8, 8, 18, 18, 18, 18}, []float64{8, 18}},
+			{"rtl_discretionary", `<p dir="rtl" style="font-size:10pt">אב&shy;גד</p>`, "-באדג", 15, []float64{0, 5, 10, 5, 10}, []float64{8, 8, 8, 18, 18}, []float64{8, 18}},
 			{"rtl_unbroken", `<p dir="rtl" style="font-size:10pt">אב&shy;גד</p>`, "דגבא", 100, []float64{80, 85, 90, 95}, []float64{8, 8, 8, 8}, []float64{8}},
 		} {
 			t.Run(string(breaker)+"/"+tc.name, func(t *testing.T) {
@@ -108,7 +108,7 @@ func TestIndependentRetainedLinePlacements(t *testing.T) {
 				}
 				for i, l := range p.Lines {
 					baselines = append(baselines, l.Baseline)
-					if l.X != 0 || l.Top != float64(12*i) || l.Height != 12 || l.TargetWidth != float64(tc.width) {
+					if l.X != 0 || l.Top != float64(10*i) || l.Height != 10 || l.TargetWidth != float64(tc.width) {
 						t.Fatalf("line %d %+v", i, l)
 					}
 				}
@@ -116,7 +116,7 @@ func TestIndependentRetainedLinePlacements(t *testing.T) {
 					t.Fatalf("order=%q xs=%v ys=%v baselines=%v; want %q %v %v %v", string(chars), xs, ys, baselines, tc.want, tc.xs, tc.ys, tc.baselines)
 				}
 				v := r.VList()
-				if v == nil || v.Box().Extent != float64(12*len(tc.baselines)) || v.Box().Baseline != 8 || v.Frozen() != r.Frozen {
+				if v == nil || v.Box().Extent != float64(10*len(tc.baselines)) || v.Box().Baseline != 8 || v.Frozen() != r.Frozen {
 					t.Fatal("missing retained geometry")
 				}
 			})

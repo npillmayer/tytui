@@ -42,7 +42,7 @@ const (
 // to left-to-right. Fonts must already be loaded; Run performs no discovery or I/O.
 type Input struct {
 
-	// LineLayout opts into CSS-inspired line boxes. Nil preserves proof geometry.
+	// LineLayout supplies CSS line-height. Nil selects explicit normal line-height.
 	// Runs address normalized paragraph bytes; font/size strut uses backend defaults.
 	// Values bypass shaping styles and are retained independently for replay.
 	LineLayout *parlayout.LineLayout `json:",omitempty"`
@@ -84,7 +84,7 @@ type Diagnostic struct {
 // line fit diagnostics and retained glyphs.
 // No mutable encoder or elastic paragraph is exposed.
 type Result struct {
-	lineLayout *parlayout.LineLayout // Detached policy input; nil means compatibility.
+	lineLayout *parlayout.LineLayout // Detached CSS line-height input.
 	vlist      *layout.VList         // Retained placement; never serialized or recalculated by rendering.
 
 	paint           []typestyle.PaintSpan     // Detached rendering input; never passed to layout.
@@ -117,7 +117,7 @@ func (r *Result) VList() *layout.VList {
 }
 
 // LineLayout returns the detached layout policy used to assemble this result.
-// Nil means ProofCompatibility, including old replay cases.
+// Completed results always retain explicit CSS line-height, including defaults.
 func (r *Result) LineLayout() *parlayout.LineLayout {
 	if r == nil || r.lineLayout == nil {
 		return nil
@@ -273,13 +273,12 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 		}
 	}
 	config.Hyphenator = explicitHyphens{}
-	assembly := parlayout.Options{Policy: parlayout.ProofCompatibility, DefaultEmSize: config.Streaming.Defaults.EmSize}
-	var lineLayout *parlayout.LineLayout
+	assembly := parlayout.Options{Policy: parlayout.CSSLineHeight}
+	lineLayout := &parlayout.LineLayout{Default: parlayout.LineHeight{Kind: parlayout.NormalHeight}}
 	if input.LineLayout != nil {
 		lineLayout = input.LineLayout.Clone()
-		input.LineLayout = lineLayout.Clone()
-		assembly = parlayout.Options{Policy: parlayout.CSSLineHeight}
 	}
+	input.LineLayout = lineLayout.Clone()
 	completed, err := parlayout.Run(ctx, parlayout.Input{Text: text, Direction: input.Direction, Markup: markup}, parlayout.Params{
 		Constraints: parlayout.Constraints{Width: input.Width}, Breaker: parlayout.Breaker(input.Breaker),
 		Assembly: assembly, LineLayout: lineLayout,

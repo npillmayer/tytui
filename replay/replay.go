@@ -27,7 +27,7 @@ import (
 )
 
 // Version is the only supported experimental format. Historical formats are rejected.
-const Version = 4
+const Version = 5
 const maxBytes = 64 << 20
 
 // Revision describes source provenance, not a promise of identical build output.
@@ -104,9 +104,9 @@ func Save(ctx context.Context, result *pipeline.Result, manifestPath, store stri
 
 	m := Manifest{GoVersion: runtime.Version(), Version: Version, Units: "65536 DU per big point; 72 big points per inch", Input: inputWire(result.Input), Bindings: bindingsWire(result.FontBindings), Revisions: append([]Revision(nil), revisions...), Diagnostics: append([]pipeline.Diagnostic(nil), result.Diagnostics...), ParagraphText: result.ParagraphText, BreakPositions: append([]uint64(nil), result.BreakPositions...)}
 	m.Input.LineLayout = result.LineLayout()
-	m.Input.Assembly = paragraph.ProofCompatibility
-	if m.Input.LineLayout != nil {
-		m.Input.Assembly = paragraph.CSSLineHeight
+	m.Input.Assembly = paragraph.CSSLineHeight
+	if m.Input.LineLayout == nil {
+		return fmt.Errorf("result lacks CSS line-height; rerun layout")
 	}
 	var evidenceErr error
 	m.Evidence, evidenceErr = evidence(result)
@@ -270,10 +270,6 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 		return nil, fmt.Errorf("unsupported replay units")
 	}
 	switch m.Input.Assembly {
-	case paragraph.ProofCompatibility:
-		if m.Input.LineLayout != nil {
-			return nil, fmt.Errorf("proof compatibility assembly must omit line-height values")
-		}
 	case paragraph.CSSLineHeight:
 		if m.Input.LineLayout == nil {
 			return nil, fmt.Errorf("CSS assembly requires line-height values")

@@ -1,5 +1,11 @@
 # Replay regression inventory
 
+> Current contract update (2026-11-17): paragraph assembly is CSSLineHeight only;
+> ProofCompatibility, DefaultEmSize and frozen-only Assemble are removed.
+> Tycli/documentlayout geometry is unchanged. Replay supports version 5 only;
+> versions 1–4 are historical rejection cases. See [offline replay](OFFLINE_REPLAY.md).
+> Older milestone descriptions below do not restore compatibility behavior.
+
 Steps 1–4 of [the simplification plan](REPLAY_SIMPLIFICATION_PLAN.md), completed 2026-11-16.
 Step 1 established the controls below without changing behavior. Step 2 now accepts
 only replay version 4; the controls and historical fixture bytes remain unchanged.

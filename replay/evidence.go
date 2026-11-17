@@ -77,7 +77,7 @@ type LayoutEvidence struct {
 	HasBaseline             bool
 	Lines                   []LinePlacement
 }
-type LinePlacement struct{ X, Top, Baseline, Ascent, Descent, Gap, Height float64 }
+type LinePlacement struct{ X, Top, Baseline, Ascent, Descent, Height float64 }
 
 type Evidence struct {
 	Layout *LayoutEvidence
@@ -96,7 +96,7 @@ func evidence(result *pipeline.Result) (Evidence, error) {
 	b := v.Box()
 	e.Layout = &LayoutEvidence{Width: b.Width, Extent: b.Extent, Baseline: b.Baseline, HasBaseline: b.HasBaseline}
 	for _, l := range v.Lines() {
-		e.Layout.Lines = append(e.Layout.Lines, LinePlacement{l.X, l.Top, l.Baseline, l.Ascent, l.Descent, l.Gap, l.Height})
+		e.Layout.Lines = append(e.Layout.Lines, LinePlacement{l.X, l.Top, l.Baseline, l.Ascent, l.Descent, l.Height})
 	}
 	for i := 0; i < result.Frozen.LineCount(); i++ {
 		line, _ := result.Frozen.Line(i)

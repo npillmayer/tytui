@@ -116,8 +116,16 @@ func TestRTLFallbackAndSoftHyphenPaint(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(a, b) {
-				t.Fatal("paint changed fallback context")
+			// Different default fonts contribute different CSS struts. Compare
+			// glyph geometry relative to the retained line baseline, not absolute Y.
+			for i := range a.Glyphs {
+				a.Glyphs[i].Y -= a.Lines[a.Glyphs[i].Line].Baseline
+			}
+			for i := range b.Glyphs {
+				b.Glyphs[i].Y -= b.Lines[b.Glyphs[i].Line].Baseline
+			}
+			if !reflect.DeepEqual(a.Glyphs, b.Glyphs) {
+				t.Fatal("paint changed fallback glyph context")
 			}
 			colors := map[string]int{}
 			for _, g := range b.Glyphs {

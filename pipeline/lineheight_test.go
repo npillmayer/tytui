@@ -66,7 +66,7 @@ func TestLineHeightPreservesShapingPaintAndFallback(t *testing.T) {
 			t.Fatal("line-height not used")
 		}
 		for i, l := range after.VList().Lines() {
-			if l.Gap != 0 || q.Lines[i].Height != l.Height || q.Lines[i].Baseline != l.Baseline {
+			if q.Lines[i].Height != l.Height || q.Lines[i].Baseline != l.Baseline {
 				t.Fatal("renderer ignored placements")
 			}
 		}

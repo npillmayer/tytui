@@ -1,3 +1,14 @@
+# Replay evidence status (CSS-only migration, 2026-11-17)
+
+Version 5 is the only supported format. All checked-in version-1/version-4
+manifests below are now rejection cases; their bytes are unchanged.
+current-controls.json is unchanged: its eight CSS controls remain executable,
+and its eight compatibility controls are historical. Current version-5 resaves
+are covered by CSS replay tests, including source removal and pinned resources.
+No test automatically regenerates expected evidence.
+
+The notes below describe when the historical cases were captured.
+
 These version-1 manifests were captured from tytui before typography extraction
 step 5 (2026-11-11), using both breakers, mixed Latin/pointed Hebrew, a soft hyphen,
 and retained font resources. They are historical evidence, not golden output

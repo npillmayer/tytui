@@ -63,9 +63,9 @@ func TestRenderingDoesNotRemeasureRetainedLines(t *testing.T) {
 		}}
 		params := paragraph.Params{
 			Constraints: paragraph.Constraints{Width: 100 * dimen.BP}, Breaker: paragraph.FirstFit,
-			Assembly: paragraph.Options{Policy: paragraph.ProofCompatibility, DefaultEmSize: 10 * dimen.BP},
+			Assembly: paragraph.Options{Policy: paragraph.CSSLineHeight}, LineLayout: &paragraph.LineLayout{Default: paragraph.LineHeight{Kind: paragraph.NormalHeight}},
 		}
-		baseline, height := 8.0, 12.0
+		baseline, height := 8.0, 10.0
 		if css {
 			params.Assembly = paragraph.Options{Policy: paragraph.CSSLineHeight}
 			params.LineLayout = &paragraph.LineLayout{Default: paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 1.5}}

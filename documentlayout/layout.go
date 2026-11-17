@@ -133,6 +133,10 @@ func (i *invocation) LayoutInline(request box.InlineRequest) (box.InlineResult, 
 	if err != nil {
 		return fail(err)
 	}
+	margins, err := captureSurroundingMargins(request)
+	if err != nil {
+		return fail(err)
+	}
 	result, err := prepared.paragraph.Layout(i.ctx, paragraph.LayoutRequest{Params: paragraph.Params{
 		Constraints: paragraph.Constraints{Width: width}, Breaker: i.request.Breaker,
 		Assembly: paragraph.Options{Policy: paragraph.CSSLineHeight}, LineLayout: &g.LineLayout,
@@ -147,7 +151,7 @@ func (i *invocation) LayoutInline(request box.InlineRequest) (box.InlineResult, 
 	if err := i.ctx.Err(); err != nil {
 		return fail(err)
 	}
-	i.groups[id] = GroupResult{Input: *g, Paragraph: *result}
+	i.groups[id] = GroupResult{Input: *g, Paragraph: *result, margins: margins, hasMargins: true}
 	return summary, nil
 }
 

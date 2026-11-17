@@ -1,7 +1,7 @@
 # Current experimental paragraph replay
 
-`tytui/replay` writes and reads **version 4 only**, using a separate local font
-content store. Versions 1–3 and unknown versions fail explicitly before current
+`tytui/replay` writes and reads **version 5 only**, using a separate local font
+content store. Versions 1–4 and unknown versions fail explicitly before current
 schema decoding, font acquisition or pipeline execution. There is no migration
 reader and no promise of indefinite behavioral compatibility. This is a headless
 paragraph API; TUI Ctrl+S still exports SVG. Document replay remains deferred.
@@ -16,7 +16,7 @@ reproduced, err := replay.Load(ctx, "case.json", "font-store")
 
 ## One format, current paint, explicit assembly
 
-Version 4 fixes glyph-boundary paint behavior. Color bypasses typesetter styles;
+Version 5 retains glyph-boundary paint behavior. Color bypasses typesetter styles;
 rendering uses separate logical paint ranges and retained source/cluster mapping.
 A ligature is one colored glyph. There is no `Input.PaintPolicy` wire field;
 strict decoding rejects one even if it names the current policy.
@@ -25,21 +25,21 @@ strict decoding rejects one even if it names the current policy.
 
 | Mode | Required input | Placement evidence |
 | --- | --- | --- |
-| `proof-compatibility-v1` | `LineLayout` absent/null | Required |
-| `css-line-height-v1` | `LineLayout` present, with default and optional byte-range overrides | Required |
+| css-line-height-v1 | LineLayout present, with default and optional byte-range overrides | Required |
 
-Both modes preserve their existing geometry. CSS values support normal, factor
-and resolved-length policies. The format version does not depend on assembly.
-`Evidence.Layout` records box width/extent/baseline and line placements for both
-modes and both synthetic/OpenType backends. Unknown modes, inconsistent values
-and missing placement evidence fail.
+CSS is the only assembly mode. ProofCompatibility is removed. New paragraph
+runs with no line-height option use explicit CSS normal; Save records that
+retained value. Load does not silently supply omitted values. Evidence.Layout
+records box geometry and line placements without the obsolete Gap field.
+Unknown/retired modes, missing line-height or missing evidence fail explicitly.
 
 The pipeline and typography now have only current glyph-boundary behavior:
 PaintPolicy selectors, legacy shaping/color branches and the intermediate Save
 guard are removed. Assembly values still come from `Result.LineLayout()`, not
 mutable inspection metadata. Source paint stays separate and rendering consumes
-retained glyph/source correspondence. No new format change was needed for this
-API simplification; version-4 evidence and step-1 controls are unchanged.
+retained glyph/source correspondence. This semantic/schema change advances the experimental format to version 5.
+Version-4 manifests (including CSS cases) remain historical rejection cases;
+there is no compatibility reader or automatic conversion.
 
 ## What remains pinned
 
@@ -92,10 +92,11 @@ redistribution, garbage collection or discovery is introduced.
 ## Regression cases and deliberate changes
 
 See [the regression inventory](REPLAY_REGRESSION_INVENTORY.md) and
-[fixture notes](../replay/testdata/README.md). The 16 step-1 SVG/placement controls
-are unchanged. New version-4 fi fixtures for both breakers match those controls
-and exercise load/save/load. Historical JSON files remain unchanged as version
-rejection cases; they are no longer loaded to execute historical behavior.
+[fixture notes](../replay/testdata/README.md). The original 16 step-1 SVG/placement controls
+remain byte-for-byte unchanged. The eight CSS controls remain executable; the
+eight compatibility controls are historical. Version-4 current-fi fixtures now
+test rejection alongside the older fixtures. Current version-5 tests exercise
+normal/factor CSS, pinned fonts, source removal, load/save/load and tampering.
 
 For an old case that needs continued investigation, use its pre-change checkout
 to recover input and pinned fonts, then deliberately run the current policy and

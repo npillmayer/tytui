@@ -168,7 +168,7 @@ func TestInlineCallbackIdentityAndRepetition(t *testing.T) {
 	// These arbitrary completed dimensions must be consumed, never recomputed
 	// from the atomic subtree. Fractional CSS border width must stay unchanged.
 	req := box.InlineRequest{Group: entry.node, OwnerID: entry.OwnerID, ContentWidth: 100,
-		Used: usedView{id: {}}, Atomics: preparedView{id: {BoxID: id, BorderWidth: .12345, BorderHeight: 3}}}
+		Used: usedView{id: {}, entry.OwnerID: {}}, Atomics: preparedView{id: {BoxID: id, BorderWidth: .12345, BorderHeight: 3}}}
 	wrong := req
 	wrong.OwnerID++
 	if _, err := i.LayoutInline(wrong); !errors.Is(err, contracts.ErrIllegalArguments) {
@@ -203,7 +203,7 @@ func TestInlineCallbackPlacesZeroSizedPreparedBox(t *testing.T) {
 		}
 		id := g.AtomicSources[0].BoxID
 		out, err := i.LayoutInline(box.InlineRequest{Group: entry.node, OwnerID: entry.OwnerID, ContentWidth: 0,
-			Used: usedView{id: {}}, Atomics: preparedView{id: {BoxID: id}}})
+			Used: usedView{id: {}, entry.OwnerID: {}}, Atomics: preparedView{id: {BoxID: id}}})
 		if err != nil {
 			t.Fatal(err)
 		}

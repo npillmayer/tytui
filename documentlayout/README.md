@@ -71,6 +71,41 @@ Keep the tree and font/scale services stable, and serialize layouts sharing a
 resolver. Context is checked at callback entry/completion and document publication;
 synchronous CSS flow, bidi and breaking retain their cancellation limits.
 
+## Recovering paragraph items and margins
+
+`Result.Unbox(groupID)` returns a detached `UnboxedParagraph` with `Source` pointing
+to the immutable document result, `List` holding a typography `ElasticVList`, and
+`Margins` holding a detached `SurroundingMargins` snapshot. It does not measure,
+reshape, rebreak, render or rerun CSS. The call is synchronous without a context
+argument; invalid input/geometry returns nil and an error preserving its cause.
+
+Each VItem contains a full-height measured line in local coordinates and retains
+frozen horizontal content directly. Source/paint associations remain available
+through the document result; original VList placements and proofs stay unchanged.
+Inline objects stay within their frozen lines, with translated atomic origins.
+
+`Result.SurroundingMargins(groupID)` returns `(SurroundingMargins, bool)` by value.
+The snapshot records the enclosing OwnerID and all four signed, uncollapsed
+resolved margins in native CSS pixels. Layout captures these from the final
+callback's used-values view, including descendants whose margins become definite
+only after auto sizing. It retains no CSS callback view or used-values table.
+Snapshots are published only with successful groups and whole-document completion.
+They preserve fractional values without converting to DU, and later layouts leave
+older values unchanged.
+
+Every group produced by Document.Layout has a snapshot, even if all margins are
+zero or the paragraph has no lines. Unknown groups/missing metadata return false;
+the UnboxedParagraph margin pointer is nil when metadata was not retained, never
+an invented all-zero record. Margins belong to the enclosing owner and are not
+added to each line. Re-resolve them through CSS if their resolution context changes.
+
+Restacking, target-height packing, stretch/shrink, page-edge margin policy and
+rendering the recovered items remain deferred. Existing rendering and replay
+continue to consume the original completed results. See the
+[unboxing contract](../../typography/doc/VLIST_PLAN.md).
+
+## Preparation and document execution
+
 Stage 4C separates three invocation-local tables: completed group preparations,
 accepted final paragraphs, and final-callback attempts. A private helper validates
 both the normalized group node's identity and OwnerID before extracting,

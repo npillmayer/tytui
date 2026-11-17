@@ -141,7 +141,7 @@ See the document subset for format, size and sizing limits.
 
 These are diagnostic document proofs, not pagination or full CSS painting.
 Document replay remains deferred; Ctrl+S exports SVG, and the existing headless
-paragraph replay uses experimental version 4. The
+paragraph replay uses experimental version 5. The
 [TUI integration tests](document_workbench_test.go) reproduce all four existing
 [nested-auto proofs](documentlayout/testdata/README.md) byte-for-byte.
 
@@ -275,13 +275,13 @@ result, err := pipeline.Run(ctx, pipeline.Input{
 
 This replaces `discovery.Resolution` and root `LoadSettings`/`Settings`; typography's
 old discovery/fontfind packages are removed. Replay's explicit input, policy,
-descriptor and font records in `replay/wire.go` describe version 4.
+descriptor and font records in `replay/wire.go` describe version 5.
 Replay uses retained bytes and stored origins; requested paths and descriptors
 never trigger discovery. Historical fixtures remain unchanged as rejection cases.
 
 New layouts use glyph-boundary colors: paint changes preserve shaping, ligatures
 remain one color, and independently anchored marks may have their own color.
-Original paint spans are retained. Replay accepts only version 4; it never silently reinterprets historical cases.
+Original paint spans are retained. Replay accepts only version 5; it never silently reinterprets historical cases.
 Legacy shaping/color selectors have been removed from typography and pipeline.
 
 Color now bypasses the paragraph typesetter. M's `glyphing.ProjectStyles` owns
@@ -293,25 +293,22 @@ format retains source colors independently of glyph-color assignment.
 The headless `typography/glyphing/paragraph.Run` API consumes prepared `styled.Text`, base
 direction and zero-byte bidi markup, with explicit width/breaker/assembly parameters
 and injected `khipu.Config` services. It prepares bidi levels, encodes, breaks,
-freezes and assembles a boxed vertical list. `paragraph.Assemble` remains available
-for callers that already have frozen lines. Its compatibility
-policy preserves proof geometry. Completed results expose detached placements via
-`Result.VList()`; glyph rendering consumes those placements without remeasuring
-line metrics. Colors remain separate, and replay version 4 verifies rebuilt
-placements for both assembly modes. See the
-[paragraph-engine plan](doc/PARAGRAPH_ENGINE_PLAN.md).
+freezes and assembles CSS line boxes. Frozen-only paragraph.Assemble and
+compatibility assembly are removed: CSS assembly needs source styles and explicit
+strut defaults. Completed results expose detached placements via Result.VList();
+rendering consumes those placements without remeasuring line metrics.
 
+All paragraph callers use CSSLineHeight. Omitting pipeline.Input.LineLayout
+selects explicit CSS normal; callers may provide factor or resolved-length values
+and byte-range overrides. Line boxes include their leading and stack with no
+extra interline/trailing gap. The primary path is tycli/documentlayout, whose
+existing CSS geometry is unchanged. Documentlayout currently supports CSS normal;
+other parsed CSS line-height declarations remain unsupported there.
 
-Headless callers can opt into CSS-inspired line boxes with
-`pipeline.Input.LineLayout = &paragraph.LineLayout{Default:
-paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 1.5}}`.
-The policy uses a font/size strut, half-leading and natural stacking without a
-trailing gap. Normal and resolved-length values are also supported; optional
-byte ranges override line-height without splitting shaping or carrying paint.
-TUI defaults remain unchanged. The separate `documentlayout` CSS box-engine bridge
-currently supports normal line height; other CSS line-height declarations remain
-unsupported there. Both explicit single-paragraph line-height and compatibility
-layouts use replay version 4 with explicit assembly mode and placement evidence.
+Replay version 5 records explicit CSS assembly/line-height and placement evidence.
+Versions 1–4 are rejected before decoding their schema or loading fonts. Historical
+compatibility fixtures are not regenerated. Existing CSS proof controls remain
+unchanged. See [offline replay](doc/OFFLINE_REPLAY.md).
 
 ## CLI box-layout companion
 

@@ -1,5 +1,11 @@
 # Paragraph engine: extraction review and boxed-vlist plan
 
+> Current contract update (2026-11-17): paragraph assembly is CSSLineHeight only;
+> ProofCompatibility, DefaultEmSize and frozen-only Assemble are removed.
+> Tycli/documentlayout geometry is unchanged. Replay supports version 5 only;
+> versions 1–4 are historical rejection cases. See [offline replay](OFFLINE_REPLAY.md).
+> Older milestone descriptions below do not restore compatibility behavior.
+
 > Package update: this document includes historical API locations.
 > See [current ownership](TYPOGRAPHY_PACKAGES.md) for the glyphing/render split.
 > Old root, paragraph and combined-adapter APIs have been removed.

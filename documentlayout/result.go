@@ -12,8 +12,10 @@ import (
 // is float64 big points relative to Input.OwnerID's content origin. Lines already
 // include their vertical placement; a renderer must not stack them again.
 type GroupResult struct {
-	Input     InlineGroup
-	Paragraph paragraph.Result
+	Input      InlineGroup
+	Paragraph  paragraph.Result
+	margins    SurroundingMargins
+	hasMargins bool
 }
 
 // Result is one complete document snapshot. No working/prepared engine or partial
