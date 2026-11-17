@@ -71,6 +71,73 @@ Keep the tree and font/scale services stable, and serialize layouts sharing a
 resolver. Context is checked at callback entry/completion and document publication;
 synchronous CSS flow, bidi and breaking retain their cancellation limits.
 
+## Call flow: CSS initiates paragraph layout
+
+CSS core triggers paragraph boxing through the `InlineLayouter` callback and
+receives the geometry needed to continue block layout. The application starts the
+whole document operation; it does not create all paragraph VLists beforehand and
+then submit them to CSS. Here `documentlayout` is the headless integration adapter
+used by `tycli` as well as the TUI. The TUI event loop does not participate in these
+callbacks.
+
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant Adapter as tytui/documentlayout
+    participant CSS as css-box-layout
+    participant Type as typography
+
+    App->>Adapter: Document.Layout(...)
+    Adapter->>CSS: FlowLayout(..., adapter callbacks)
+    CSS->>CSS: Resolve content width and nested atomic boxes
+    CSS->>Adapter: LayoutInline(group, width, atomic geometry)
+    Adapter->>Type: Prepare if needed, then Prepared.Layout(...)
+    Type-->>Adapter: Frozen paragraph and VList
+    Adapter->>Adapter: Retain paragraph, source and paint
+    Adapter-->>CSS: Extent, atomic positions, collapse eligibility
+    CSS->>CSS: Complete block geometry and margin collapsing
+    CSS-->>Adapter: Document geometry
+    Adapter-->>App: Combined immutable document result
+```
+
+1. **The application starts document layout.** `Document.Layout` resolves CSS
+   used values and calls `FlowLayout`, supplying an adapter implementing
+   `InlineLayouter` and `IntrinsicMeasurer`. See [layout.go](layout.go).
+2. **CSS core requests paragraph layout.** When it reaches an inline group, it
+   supplies the available content width, resolved box values and prepared
+   inline-object dimensions. This callback is the trigger for paragraph boxing.
+   See [CSS block layout](../../css-box-layout/layout/layout.go).
+3. **The adapter translates the request into typography inputs.** It connects
+   the group to text, styles and font services, converts units, and invokes
+   `Prepared.Layout`. Typography performs line breaking, freezing and VList
+   assembly. Line boxes include their effective ascent/descent and half-leading;
+   successive boxes abut at `next.Top = current.Top + current.Height`.
+   See [preparation.go](preparation.go) and
+   [paragraph layout](../../typography/glyphing/paragraph/prepared.go).
+4. **The adapter returns the geometry CSS needs.** `InlineResult` contains
+   paragraph extent, inline-object positions and whether the group permits
+   margin collapsing. Detailed VLists, glyphs and source/paint associations stay
+   retained by the adapter. See the [callback contracts](../../css-box-layout/layout/interfaces.go).
+5. **CSS completes the surrounding block layout.** It accounts for padding,
+   borders and collapsed block margins without restacking paragraph lines. After
+   CSS returns successfully, the adapter publishes document geometry and retained
+   paragraphs together.
+
+For automatic widths, CSS can first call `MeasureInline` to obtain intrinsic
+widths. That prepares horizontal content without creating the final VList; the
+subsequent layout callback reuses the preparation. CSS controls recursive sizing
+and the order of nested callbacks. See [measure.go](measure.go).
+
+The adapter connects two contracts: CSS works with document boxes and CSS pixels;
+typography works with prepared text, font services and typographic geometry.
+`documentlayout` supplies the translation and retains the combined result. CSS
+controls when layout is requested; typography controls how the paragraph is
+typeset.
+
+There is no architectural requirement that this adapter live in the `tytui`
+module specifically. It could be extracted into a reusable integration package
+while preserving this call flow. Such extraction is not part of the current API.
+
 ## Recovering paragraph items and margins
 
 `Result.Unbox(groupID)` returns a detached `UnboxedParagraph` with `Source` pointing
