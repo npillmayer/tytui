@@ -39,7 +39,7 @@ func TestInlineCSSTerminatorsReachDocumentLayout(t *testing.T) {
 				t.Fatal("missing frozen child text")
 			}
 			text, ok := child.Paragraph.Frozen.CopyText(0)
-			if !ok || text.Context.EmSize != 15*dimen.BP/2 {
+			if !ok || text.Context.Params.Font.EmSize() != 15*dimen.BP/2 {
 				t.Fatalf("frozen font size = %+v (%v)", text, ok)
 			}
 			checkSource(t, d, []*documentlayout.InlineGroup{&parent.Input, &child.Input})

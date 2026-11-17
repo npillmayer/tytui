@@ -34,7 +34,7 @@ type guardedStream struct {
 }
 
 func (s guardedStream) Shape(ctx context.Context, p contracts.ShapeParams, r contracts.RuneReader, o contracts.ShapeBufferOptions) error {
-	p.Font = helpers.NewSyntheticFont()
+	p.Font, _ = contracts.NewFontInstance(helpers.NewSyntheticFont(), p.Font.EmSize())
 	return s.SyntheticStreamingShaper.Shape(ctx, p, r, o)
 }
 

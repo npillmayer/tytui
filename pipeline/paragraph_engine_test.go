@@ -97,15 +97,15 @@ func TestPublicParagraphEngineMatchesDOMWorkbench(t *testing.T) {
 				}
 				x, ok := out.Frozen.CopyText(k)
 				y, ok2 := workbench.Frozen.CopyText(k)
-				if ok != ok2 || !reflect.DeepEqual(x.Glyphs, y.Glyphs) || !reflect.DeepEqual(x.Clusters, y.Clusters) || x.ReplacementText != y.ReplacementText || x.Context.Input != y.Context.Input || x.Context.EmSize != y.Context.EmSize {
+				if ok != ok2 || !reflect.DeepEqual(x.Glyphs, y.Glyphs) || !reflect.DeepEqual(x.Clusters, y.Clusters) || x.ReplacementText != y.ReplacementText || x.Context.Input != y.Context.Input || x.Context.Params.Font.EmSize() != y.Context.Params.Font.EmSize() {
 					t.Fatal("glyphs or source correspondence differ", k)
 				}
 				if ok {
-					ix, err := (otadapter.Services{}).Identify(x.Context.Params.Font)
+					ix, err := (otadapter.Services{}).Identify(x.Context.Params.Font.Face())
 					if err != nil {
 						t.Fatal(err)
 					}
-					iy, err := (otadapter.Services{}).Identify(y.Context.Params.Font)
+					iy, err := (otadapter.Services{}).Identify(y.Context.Params.Font.Face())
 					if err != nil || ix.ResourceID != iy.ResourceID {
 						t.Fatal("font selection differs", err)
 					}

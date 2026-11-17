@@ -37,8 +37,8 @@ func TestCSSSpecificityThroughFrozenProof(t *testing.T) {
 			// Prove that inherited size reaches the frozen shaper context and
 			// winning colors reach the glyph proof at multibyte source offsets.
 			for k := 0; k < r.Frozen.KnotCount(); k++ {
-				if text, ok := r.Frozen.CopyText(k); ok && text.Context.EmSize != 18*dimen.BP {
-					t.Fatalf("frozen size = %v", text.Context.EmSize)
+				if text, ok := r.Frozen.CopyText(k); ok && text.Context.Params.Font.EmSize() != 18*dimen.BP {
+					t.Fatalf("frozen size = %v", text.Context.Params.Font.EmSize())
 				}
 			}
 			proof, err := pipeline.BuildGlyphProof(r)

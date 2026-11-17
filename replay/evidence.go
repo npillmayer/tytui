@@ -109,12 +109,12 @@ func evidence(result *pipeline.Result) (Evidence, error) {
 		if !ok {
 			continue
 		}
-		run := Run{Knot: i, Replacement: text.IsReplacement, ReplacementText: text.ReplacementText, EmSize: int32(text.Context.EmSize), Direction: int(text.Context.Params.Direction), Script: text.Context.Params.Script.String(), Language: text.Context.Params.Language.String(), Features: text.Context.Params.Features, Glyphs: text.Glyphs, Clusters: text.Clusters}
+		run := Run{Knot: i, Replacement: text.IsReplacement, ReplacementText: text.ReplacementText, EmSize: int32(text.Context.Params.Font.EmSize()), Direction: int(text.Context.Params.Direction), Script: text.Context.Params.Script.String(), Language: text.Context.Params.Language.String(), Features: text.Context.Params.Features, Glyphs: text.Glyphs, Clusters: text.Clusters}
 		if result.Input.Fonts != nil {
 			if result.Identity == nil {
 				return e, fmt.Errorf("result lacks font identity service")
 			}
-			info, err := result.Identity.Identify(text.Context.Params.Font)
+			info, err := result.Identity.Identify(text.Context.Params.Font.Face())
 			if err != nil {
 				return e, err
 			}

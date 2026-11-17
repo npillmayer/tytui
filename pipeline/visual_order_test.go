@@ -80,7 +80,7 @@ func TestFrozenGlyphProofVisualOrderCompatibility(t *testing.T) {
 							if err != nil {
 								t.Fatalf("knot %d: %v", k, err)
 							}
-							scale := snapshot.Context.Scale.ToDU(1) / float64(dimen.BP)
+							scale := snapshot.Context.Params.Font.Scale().ToDU(1) / float64(dimen.BP)
 							penX, penY := x, proof.Lines[li].Baseline
 							for _, want := range visual {
 								if glyphIndex >= len(proof.Glyphs) {

@@ -54,7 +54,7 @@ func TestStyledFrozenParagraph(t *testing.T) {
 		sizes := map[dimen.DU]bool{}
 		for i := 0; i < r.Frozen.KnotCount(); i++ {
 			if text, ok := r.Frozen.CopyText(i); ok {
-				sizes[text.Context.EmSize] = true
+				sizes[text.Context.Params.Font.EmSize()] = true
 			}
 		}
 		if !sizes[12*dimen.BP] || !sizes[24*dimen.BP] {

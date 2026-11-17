@@ -30,7 +30,7 @@ func TestOpenTypeFrozenReference(t *testing.T) {
 		for i := 0; i < r.Frozen.KnotCount(); i++ {
 			if text, ok := r.Frozen.CopyText(i); ok {
 				glyphs = append(glyphs, text.Glyphs...)
-				if text.Context.EmSize != 12*dimen.BP {
+				if text.Context.Params.Font.EmSize() != 12*dimen.BP {
 					t.Fatal("font size lost")
 				}
 			}
@@ -69,10 +69,10 @@ func TestOpenTypeStyleMappingAndSnapshot(t *testing.T) {
 		if !ok {
 			continue
 		}
-		f := text.Context.Params.Font.(*otadapter.Face)
+		f := text.Context.Params.Font.Face().(*otadapter.Face)
 		if f.Info().Path == progress {
 			found = true
-			if text.Context.EmSize != 24*dimen.BP {
+			if text.Context.Params.Font.EmSize() != 24*dimen.BP {
 				t.Fatal("mapped size lost")
 			}
 			if len(text.Glyphs) != 2 || text.Glyphs[0].GlyphID != 1 || text.Glyphs[0].Cluster != 2 || text.Glyphs[0].XAdvance != 580 {

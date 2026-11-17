@@ -122,7 +122,11 @@ func (s proofGuardStream) Shape(ctx context.Context, p contracts.ShapeParams, te
 	if s.guard.proofOnly.Load() {
 		return errProofPreparation
 	}
-	p.Font = unguardProofFace(p.Font)
+	instance, err := contracts.NewFontInstance(unguardProofFace(p.Font.Face()), p.Font.EmSize())
+	if err != nil {
+		return err
+	}
+	p.Font = instance
 	return s.StreamingShaper.Shape(ctx, p, text, opts)
 }
 func guardedRealProofConfig(t *testing.T) (documentlayout.Config, *proofServiceGuard) {
@@ -255,7 +259,7 @@ func checkAutoProofCorrespondence(t *testing.T, r *documentlayout.Result, p *doc
 		if !ok {
 			t.Fatal("glyph lacks frozen text")
 		}
-		if _, ok := tx.Context.Params.Font.(*proofGuardFace); !ok {
+		if _, ok := tx.Context.Params.Font.Face().(*proofGuardFace); !ok {
 			t.Fatal("retained face bypassed metric guard")
 		}
 		paintFound := false

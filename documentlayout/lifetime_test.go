@@ -70,14 +70,14 @@ func lifetimeSnapshot(t *testing.T, r *Result) string {
 			id, hasAtomic := f.Atomic(n)
 			fmt.Fprintf(&s, "knot=%#v text=%t:%#v atomic=%t:%d\n", knot, hasText, text, hasAtomic, id)
 			if hasText {
-				if text.Context.Params.Font == nil || text.Context.Scale == nil {
+				if text.Context.Params.Font.Face() == nil || text.Context.Params.Font.Scale() == nil {
 					t.Fatal("missing retained font/scale service")
 				}
-				metrics, err := text.Context.Params.Font.Metrics()
+				metrics, err := text.Context.Params.Font.Face().Metrics()
 				if err != nil {
 					t.Fatal("retained font service became unusable", err)
 				}
-				fmt.Fprintf(&s, "metrics=%#v scaled-em=%g\n", metrics, text.Context.Scale.ToDU(int32(metrics.UnitsPerEm)))
+				fmt.Fprintf(&s, "metrics=%#v scaled-em=%g\n", metrics, text.Context.Params.Font.Scale().ToDU(int32(metrics.UnitsPerEm)))
 			}
 		}
 		for _, source := range g.Input.TextSources {
@@ -174,8 +174,8 @@ type lifetimeFaultStream struct{ contracts.StreamingShaper }
 func (s lifetimeFaultStream) Shape(ctx context.Context, p contracts.ShapeParams, text contracts.RuneReader, opts contracts.ShapeBufferOptions) error {
 	// Only the test shaper needs the concrete synthetic face. Khipu retains the
 	// original wrapper in its run context for the later assembly metric query.
-	if f, ok := p.Font.(*lifetimeFaultFont); ok {
-		p.Font = f.FontFace
+	if f, ok := p.Font.Face().(*lifetimeFaultFont); ok {
+		p.Font, _ = contracts.NewFontInstance(f.FontFace, p.Font.EmSize())
 	}
 	return s.StreamingShaper.Shape(ctx, p, text, opts)
 }

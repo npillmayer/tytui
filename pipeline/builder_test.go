@@ -60,7 +60,7 @@ func TestBuiltStylesReachFrozenLayout(t *testing.T) {
 	sizes := map[dimen.DU]bool{}
 	for k := 0; k < frozen.KnotCount(); k++ {
 		if tx, ok := frozen.CopyText(k); ok {
-			sizes[tx.Context.EmSize] = true
+			sizes[tx.Context.Params.Font.EmSize()] = true
 		}
 	}
 	if !sizes[12*dimen.BP] || !sizes[24*dimen.BP] {

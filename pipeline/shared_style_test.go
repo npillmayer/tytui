@@ -35,7 +35,7 @@ func TestSharedStylesWithoutDOM(t *testing.T) {
 				sizes := map[dimen.DU]bool{}
 				for k := 0; k < r.Frozen.KnotCount(); k++ {
 					if tx, ok := r.Frozen.CopyText(k); ok {
-						sizes[tx.Context.EmSize] = true
+						sizes[tx.Context.Params.Font.EmSize()] = true
 					}
 				}
 				if !sizes[12*dimen.BP] || !sizes[18*dimen.BP] {

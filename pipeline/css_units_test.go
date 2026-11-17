@@ -25,8 +25,8 @@ func TestCSSUnitsThroughFrozenProof(t *testing.T) {
 				for k := 0; k < r.Frozen.KnotCount(); k++ {
 					if text, ok := r.Frozen.CopyText(k); ok {
 						count++
-						if text.Context.EmSize != 36*dimen.BP {
-							t.Fatalf("%s frozen size %v", size, text.Context.EmSize)
+						if text.Context.Params.Font.EmSize() != 36*dimen.BP {
+							t.Fatalf("%s frozen size %v", size, text.Context.Params.Font.EmSize())
 						}
 					}
 				}

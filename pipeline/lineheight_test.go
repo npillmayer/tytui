@@ -41,7 +41,7 @@ func TestLineHeightPreservesShapingPaintAndFallback(t *testing.T) {
 			}
 			x, _ := before.Frozen.CopyText(k)
 			y, _ := after.Frozen.CopyText(k)
-			if !reflect.DeepEqual(x.Glyphs, y.Glyphs) || !reflect.DeepEqual(x.Clusters, y.Clusters) || x.Context.EmSize != y.Context.EmSize || x.ReplacementText != y.ReplacementText {
+			if !reflect.DeepEqual(x.Glyphs, y.Glyphs) || !reflect.DeepEqual(x.Clusters, y.Clusters) || x.Context.Params.Font.EmSize() != y.Context.Params.Font.EmSize() || x.ReplacementText != y.ReplacementText {
 				t.Fatal("reshaped at line-height boundary")
 			}
 		}

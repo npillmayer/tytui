@@ -40,8 +40,8 @@ func TestExtractionContractSourceStyleAndFrozenSize(t *testing.T) {
 					t.Fatal("missing frozen text")
 				}
 				want := []dimen.DU{12 * dimen.BP, 18 * dimen.BP}[i]
-				if snapshot.Context.EmSize != want {
-					t.Fatalf("frozen size %v want %v", snapshot.Context.EmSize, want)
+				if snapshot.Context.Params.Font.EmSize() != want {
+					t.Fatalf("frozen size %v want %v", snapshot.Context.Params.Font.EmSize(), want)
 				}
 			}
 			e.Spans[0].NodePath = "changed"

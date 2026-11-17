@@ -319,3 +319,5 @@ outlines or `--hide-boxes` for a clean glyph proof. The TUI is unchanged:
 go run ./tycli documentlayout/testdata/nested.html --root root \
   --fonts tycli/examples/fonts.yaml --width 420 --output /tmp/boxes.svg
 ```
+
+Font sizing and retained-state ownership are described in [Font instances](doc/FONT_INSTANCE.md).

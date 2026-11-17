@@ -66,7 +66,7 @@ func TestFallbackPreservesSoftHyphenBreaks(t *testing.T) {
 					if !reflect.DeepEqual(ta.Glyphs, tb.Glyphs) || !reflect.DeepEqual(ta.Clusters, tb.Clusters) || ta.ReplacementText != tb.ReplacementText || ta.IsReplacement != tb.IsReplacement {
 						t.Fatalf("glyphs or provenance differ at knot %d", i)
 					}
-					if tb.Context.Params.Font.(*otadapter.Face).Info().SHA256 != direct.Fonts[0].SHA256 {
+					if tb.Context.Params.Font.Face().(*otadapter.Face).Info().SHA256 != direct.Fonts[0].SHA256 {
 						t.Fatal("replacement uses wrong font")
 					}
 				}
