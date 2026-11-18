@@ -65,6 +65,7 @@ func (d *Document) Layout(ctx context.Context, request LayoutRequest, config Con
 }
 
 type invocation struct {
+	flow     *flowInvocation // optional bounded frame flow; never published
 	ctx      context.Context
 	document *Document
 	request  LayoutRequest
@@ -137,10 +138,20 @@ func (i *invocation) LayoutInline(request box.InlineRequest) (box.InlineResult, 
 	if err != nil {
 		return fail(err)
 	}
-	result, err := prepared.paragraph.Layout(i.ctx, paragraph.LayoutRequest{Params: paragraph.Params{
+	layoutRequest := paragraph.LayoutRequest{Params: paragraph.Params{
 		Constraints: paragraph.Constraints{Width: width}, Breaker: i.request.Breaker,
 		Assembly: paragraph.Options{Policy: paragraph.CSSLineHeight}, LineLayout: &g.LineLayout,
-	}, Horizontal: &paragraph.HorizontalLayout{}, Atomics: atoms})
+	}, Horizontal: &paragraph.HorizontalLayout{}, Atomics: atoms}
+	var result *paragraph.Result
+	if i.flow != nil && id == i.flow.group {
+		if width != i.flow.width {
+			return fail(unsupported("first frame width does not match CSS paragraph content width"))
+		}
+		result, err = i.startFlow(prepared, layoutRequest)
+	} else {
+		result, err = prepared.paragraph.Layout(i.ctx, layoutRequest)
+	}
+
 	if err != nil {
 		return fail(err)
 	}
@@ -152,6 +163,9 @@ func (i *invocation) LayoutInline(request box.InlineRequest) (box.InlineResult, 
 		return fail(err)
 	}
 	i.groups[id] = GroupResult{Input: *g, Paragraph: *result, margins: margins, hasMargins: true}
+	if i.flow != nil && id != i.flow.group {
+		delete(i.prepared, id)
+	}
 	return summary, nil
 }
 

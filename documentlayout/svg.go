@@ -24,10 +24,26 @@ func WriteSVG(ctx context.Context, w io.Writer, result *Result, services render.
 	if err != nil {
 		return err
 	}
+	return writeProofSVG(ctx, w, p)
+}
+
+func writeProofSVG(ctx context.Context, w io.Writer, p *Proof) error {
+	return writeDecoratedProofSVG(ctx, w, p, "")
+}
+
+func writeDecoratedProofSVG(ctx context.Context, w io.Writer, p *Proof, decoration string) error {
+	// Finite bounds can still overflow when their span is computed. Validate
+	// the completed padded viewport before serializing or writing any bytes;
+	// preserve the existing operation order and never clamp retained geometry.
+	viewport := ProofRect{p.MinX - 12, p.MinY - 12, p.MaxX - p.MinX + 24, p.MaxY - p.MinY + 24}
+	if !finiteProof(viewport.X, viewport.Y, viewport.W, viewport.H) || viewport.W <= 0 || viewport.H <= 0 {
+		return invalid("invalid SVG viewport")
+	}
 	var b bytes.Buffer
 	escape := func(s string) string { var out bytes.Buffer; _ = xml.EscapeText(&out, []byte(s)); return out.String() }
-	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="%.6f %.6f %.6f %.6f"><title>Retained document proof</title>`, p.MinX-12, p.MinY-12, p.MaxX-p.MinX+24, p.MaxY-p.MinY+24)
-	fmt.Fprintf(&b, `<rect x="%.6f" y="%.6f" width="%.6f" height="%.6f" fill="white"/>`, p.MinX-12, p.MinY-12, p.MaxX-p.MinX+24, p.MaxY-p.MinY+24)
+	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="%.6f %.6f %.6f %.6f"><title>Retained document proof</title>`, viewport.X, viewport.Y, viewport.W, viewport.H)
+	fmt.Fprintf(&b, `<rect x="%.6f" y="%.6f" width="%.6f" height="%.6f" fill="white"/>`, viewport.X, viewport.Y, viewport.W, viewport.H)
+	b.WriteString(decoration)
 	b.WriteString(`<g id="boxes" fill="none" stroke-width="0.4">`)
 	for _, box := range p.Boxes {
 		f, c := box.Frame, box.Content

@@ -29,8 +29,8 @@ import (
 )
 
 type options struct {
-	input, css, fonts, root, output, width, breaker, log string
-	showGlyphs, hideBoxes                                bool
+	input, css, fonts, root, output, width, breaker, log, frames string
+	showGlyphs, hideBoxes                                        bool
 }
 
 func main() {
@@ -39,6 +39,7 @@ func main() {
 	registry := commando.NewCommandRegistry().SetExecutableName("tycli").SetVersion("0.1.0").SetDescription("Lay out HTML/CSS and export positioned CSS box outlines.")
 	cmd := registry.Register(nil).AddArgument("html", "Local HTML input", "")
 	for _, f := range []struct{ name, desc, value string }{
+		{"frames", "JSON content-frame rectangles for one paragraph (opt-in)", ""},
 		{"css", "Additional author stylesheet (after embedded CSS)", ""},
 		{"fonts", "YAML font mapping file (required)", ""},
 		{"root", "Element ID to lay out; empty selects body", ""},
@@ -50,7 +51,7 @@ func main() {
 		cmd.AddFlag(f.name, f.desc, commando.String, f.value)
 	}
 	// Commando treats empty string defaults as required; these flags are optional.
-	for _, name := range []string{"css", "root", "fonts"} {
+	for _, name := range []string{"css", "root", "fonts", "frames"} {
 		cmd.Flags[name].IsRequired = false
 	}
 	cmd.AddFlag("show-glyphs", "Overlay final glyph outlines", commando.Bool, nil)
@@ -59,7 +60,7 @@ func main() {
 		value := func(k string) string { s, _ := flags[k].GetString(); return s }
 		showGlyphs, _ := flags["show-glyphs"].GetBool()
 		hideBoxes, _ := flags["hide-boxes"].GetBool()
-		err := run(ctx, options{input: args["html"].Value, css: value("css"), fonts: value("fonts"), root: value("root"), output: value("output"), width: value("width"), breaker: value("breaker"), log: value("log"), showGlyphs: showGlyphs, hideBoxes: hideBoxes}, os.Stdout, os.Stderr)
+		err := run(ctx, options{input: args["html"].Value, css: value("css"), fonts: value("fonts"), root: value("root"), output: value("output"), width: value("width"), breaker: value("breaker"), log: value("log"), frames: value("frames"), showGlyphs: showGlyphs, hideBoxes: hideBoxes}, os.Stdout, os.Stderr)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "tycli:", err)
 			os.Exit(1)
@@ -206,29 +207,50 @@ func run(ctx context.Context, o options, stdout, stderr io.Writer) error {
 		config.Trace = log
 	}
 	info(fmt.Sprintf("layout: root=%s width=%g CSS px breaker=%s", input.Nodes[selected].Path, width, o.breaker))
-	result, err := doc.Layout(ctx, documentlayout.LayoutRequest{Width: float32(width), Breaker: paragraph.Breaker(o.breaker)}, config)
-	if err != nil {
-		return err
-	}
-	for _, group := range result.Groups() {
-		g, _ := result.Group(group.GroupID)
-		f := g.Paragraph.Frozen
-		info(fmt.Sprintf("group=%d owner=%d lines=%d knots=%d", group.GroupID, group.OwnerID, f.LineCount(), f.KnotCount()))
-		if o.log == "trace" {
-			for i := 0; i < f.LineCount(); i++ {
-				l, _ := f.Line(i)
-				log(fmt.Sprintf("group=%d line=%d %+v", group.GroupID, i, l))
-			}
-			for i := 0; i < f.KnotCount(); i++ {
-				k, _ := f.Knot(i)
-				log(fmt.Sprintf("group=%d knot=%d %+v", group.GroupID, i, k))
+	var svg bytes.Buffer
+	if o.frames != "" {
+		frames, e := loadFrames(o.frames)
+		if e != nil {
+			return e
+		}
+		result, e := doc.LayoutFlow(ctx, documentlayout.FlowRequest{Layout: documentlayout.LayoutRequest{Width: float32(width), Breaker: paragraph.Breaker(o.breaker)}, Frames: frames}, config)
+		if e != nil {
+			return e
+		}
+		for _, f := range result.Frames() {
+			info(fmt.Sprintf("frame=%s attempted=%t reused=%t status=%v overflow=%v", f.Frame.ID, f.Attempted, f.Reused, f.Status, f.Overfull))
+		}
+		if !result.Complete() {
+			return fmt.Errorf("incomplete frame flow: %d lines remain; output unchanged", len(result.Remainder().Lines()))
+		}
+		drawing := renderot.New()
+		if e = documentlayout.WriteFlowSVG(ctx, &svg, result, render.Services{Backend: drawing, Identity: drawing}, documentlayout.LayoutSVGOptions{ShowGlyphs: o.showGlyphs, HideBoxes: o.hideBoxes}); e != nil {
+			return e
+		}
+	} else {
+		result, err := doc.Layout(ctx, documentlayout.LayoutRequest{Width: float32(width), Breaker: paragraph.Breaker(o.breaker)}, config)
+		if err != nil {
+			return err
+		}
+		for _, group := range result.Groups() {
+			g, _ := result.Group(group.GroupID)
+			f := g.Paragraph.Frozen
+			info(fmt.Sprintf("group=%d owner=%d lines=%d knots=%d", group.GroupID, group.OwnerID, f.LineCount(), f.KnotCount()))
+			if o.log == "trace" {
+				for i := 0; i < f.LineCount(); i++ {
+					l, _ := f.Line(i)
+					log(fmt.Sprintf("group=%d line=%d %+v", group.GroupID, i, l))
+				}
+				for i := 0; i < f.KnotCount(); i++ {
+					k, _ := f.Knot(i)
+					log(fmt.Sprintf("group=%d knot=%d %+v", group.GroupID, i, k))
+				}
 			}
 		}
-	}
-	var svg bytes.Buffer
-	renderServices := renderot.New()
-	if err := documentlayout.WriteLayoutSVG(ctx, &svg, result, render.Services{Backend: renderServices, Identity: renderServices}, documentlayout.LayoutSVGOptions{ShowGlyphs: o.showGlyphs, HideBoxes: o.hideBoxes}); err != nil {
-		return err
+		renderServices := renderot.New()
+		if err := documentlayout.WriteLayoutSVG(ctx, &svg, result, render.Services{Backend: renderServices, Identity: renderServices}, documentlayout.LayoutSVGOptions{ShowGlyphs: o.showGlyphs, HideBoxes: o.hideBoxes}); err != nil {
+			return err
+		}
 	}
 	if o.output == "-" {
 		_, err = io.Copy(stdout, &svg)

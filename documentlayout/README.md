@@ -342,6 +342,106 @@ cancellation, repeated callbacks, detached accessors and resize exercise the
 transactional ownership contract. Paragraph mode and replay remain controls;
 `../document_workbench_test.go` now covers the document TUI wiring.
 
+## Bounded paragraph frame flow (P5)
+
+`Document.LayoutFlow(ctx, FlowRequest, Config)` is an opt-in alternative to
+`Layout`. Select a block whose normalized root contains one direct inline group.
+Other block siblings/multiple paragraphs are rejected. Opaque inline-blocks need
+fixed pixel widths; their retained children keep the original CSS layout. Auto or
+percentage inline-block widths and region-dependent object sizing are excluded.
+
+```go
+flow, err := document.LayoutFlow(ctx, documentlayout.FlowRequest{
+    Layout: documentlayout.LayoutRequest{Width: 220, Breaker: paragraph.FirstFit},
+    Frames: []documentlayout.FlowFrame{
+        {ID: "A", X: 10, Y: 10, Width: 200, Height: 100},
+        {ID: "B", X: 250, Y: 10, Width: 150, Height: 400},
+    },
+}, config)
+// This example expects 20 CSS px of horizontal owner edges in the source layout.
+```
+
+`Layout.Width` is the original CSS containing width. CSS resolves the owner edges
+and fixed children; the single root callback must have the same content width as
+frame A after DU rounding, or the request fails. The callback starts flow once.
+Frame rectangles are already usable **content** areas in CSS pixels, with finite
+float64 coordinates and nonnegative dimensions, including zero. IDs are nonempty
+and unique. Width conversion checks before integer casting; origins/heights remain
+fractional big points after the 3/4 conversion. Frames have no typography fields.
+Original paragraph styles, language, direction, paint and line-height remain fixed.
+
+Each frame is visited once. Equal widths reuse frozen geometry; changed widths
+use checkpointed first-fit continuation, even after a Knuth–Plass initial layout.
+`Frames()` returns detached `FrameResult` values with `Attempted`, `Reused`,
+`Status`, `Breaker` and placed-line `Overfull` diagnostics. Unused destinations after
+completion have `Attempted=false`. No-progress frames do not discard content.
+`Complete()` and `Remainder()` distinguish successful exhaustion from full placement.
+Incomplete results retain frozen material for inspection, not resumable working
+state; extending the request requires a new invocation.
+
+Preparations of fixed child paragraphs are removed after their final callbacks.
+The root preparation/token lasts only through flow, is removed immediately on
+completion, and is also released on failure/cancellation or frame exhaustion.
+No working handle is published. `Group()` detaches original input/source/paint
+associations; `SurroundingMargins()` preserves the original owner metadata.
+Frames do not reapply these margins or repeat owner decorations at page boundaries.
+
+`BuildFlowProof` inspects placed fragments, including incomplete flows.
+`WriteFlowSVG` requires completion and honors `LayoutSVGOptions`: frame/line/child
+outlines by default, optional glyphs, or glyphs without diagnostic outlines.
+Boxes-only export never queries outlines, identity or line metrics. Export
+performs no layout. Proof/serialization failure writes no bytes; writer failures
+have the ordinary partial-write contract. CLI file replacement remains atomic.
+The ordinary document path and replay v5 are unchanged; there is no flow replay.
+
+The synchronous upstream bidi preparation limitation remains: a deadline cannot
+interrupt that resolver. This opt-in experiment does not claim arbitrary mixed-bidi
+production support. P6 validates this bounded profile; see the
+[production cost report](../../typography/doc/FLOW_COSTS.md) for evidence and
+verification scope. The upstream bidi fix, generalized pagination and flow replay
+remain deferred.
+
+## Positioned fragment proofs (P4)
+
+`BuildFragmentProof(ctx, result, placements, services)` and `WriteFragmentSVG`
+render explicit `[]PositionedFragment` drawing requests alongside ordinary
+whole-document proofs. Each value supplies a `GroupID`, immutable `Fragment`,
+`FrameOrigin` and `Offset`. Origins/offsets use float64 big points, Y downward;
+their sum positions the local fragment, with margins/edges already accounted for
+by the application. The old owner's CSS content origin is not added again.
+
+```go
+placements := []documentlayout.PositionedFragment{{
+    GroupID: groupID, Fragment: placed,
+    FrameOrigin: render.Point{X: 200, Y: 30},
+    Offset: render.Point{X: 4, Y: 8},
+}}
+proof, err := documentlayout.BuildFragmentProof(ctx, current, placements, services)
+err = documentlayout.WriteFragmentSVG(ctx, writer, current, placements, services)
+```
+
+Only published line ranges and their atomic subtrees are drawn. Fragments may
+have different frozen owners after width changes; their whole source text must
+match the retained group. Callers keep that group's original styles, paint and
+fixed atomic dimensions. Child interiors retain their completed CSS layout;
+precise atomic border origins and retained content edges are composed once,
+including nested objects, signed advances and diagnostic leaves/images.
+Ancestor boxes outside those interiors are not repeated in each frame.
+
+Glyph/source/paint identities stay original. Glyph and atomic line indexes are
+local to each supplied fragment (or complete opaque child paragraph). Input order
+is drawing order; the API neither sorts by X nor schedules frames. Repeated
+placements deliberately draw again; omitted ranges are allowed for inspection.
+Empty ranges draw nothing and contribute no bounds. Outputs own their slices and
+share only immutable image payloads; preparation and continuation handles are
+unnecessary. Errors/cancellation return no partial proof or SVG bytes; writer
+failures can leave partial bytes. Ordinary `BuildProof`/`WriteSVG`, replay and CLI
+behavior are unchanged. The P4 proof API only renders supplied placements; it
+does not schedule frames. Frame scheduling and flow results are implemented by
+`Document.LayoutFlow`, with CLI support through `--frames`; see
+[Bounded paragraph frame flow (P5)](#bounded-paragraph-frame-flow-p5).
+Proof construction performs no shaping, metrics, binding, breaking or restacking.
+
 ## Retained document proof
 
 ```go

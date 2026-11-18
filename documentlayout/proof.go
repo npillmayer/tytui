@@ -72,12 +72,8 @@ func buildProof(ctx context.Context, result *Result, services render.Services, b
 		return nil, err
 	}
 	p := &Proof{}
-	include := func(x, y float64) {
-		p.MinX = math.Min(p.MinX, x)
-		p.MinY = math.Min(p.MinY, y)
-		p.MaxX = math.Max(p.MaxX, x)
-		p.MaxY = math.Max(p.MaxY, y)
-	}
+	include := p.include
+
 	// Geometry.RelativeTo identifies a content-coordinate parent, including for
 	// anonymous owners. Cache each absolute content origin, never add Frame twice.
 	origins := map[box.BoxID]render.Point{0: {}}
@@ -167,28 +163,10 @@ func buildProof(ctx context.Context, result *Result, services render.Services, b
 		if err != nil {
 			return nil, fmt.Errorf("document proof group %d: %w", group.GroupID, err)
 		}
-		include(origin.X+local.MinX, origin.Y+local.MinY)
-		include(origin.X+local.MaxX, origin.Y+local.MaxY)
-		for _, l := range local.Lines {
-			l.X += origin.X
-			l.Top += origin.Y
-			l.Baseline += origin.Y
-			p.Lines = append(p.Lines, ProofLine{group.GroupID, group.OwnerID, l})
+		if err := p.appendParagraph(g, origin, local); err != nil {
+			return nil, err
 		}
-		for _, glyph := range local.Glyphs {
-			glyph.X += origin.X
-			glyph.Y += origin.Y
-			out := ProofGlyph{GroupID: group.GroupID, OwnerID: group.OwnerID, Glyph: glyph}
-			for _, source := range g.Input.TextSources {
-				if source.Start <= glyph.SourceByte && glyph.SourceByte < source.End {
-					out.Sources = append(out.Sources, source)
-				}
-			}
-			if len(out.Sources) == 0 {
-				return nil, invalid("glyph has no retained text provenance")
-			}
-			p.Glyphs = append(p.Glyphs, out)
-		}
+
 		byID := make(map[contracts.AtomicID]AtomicSource, len(g.Input.AtomicSources))
 		for _, source := range g.Input.AtomicSources {
 			byID[source.ID] = source

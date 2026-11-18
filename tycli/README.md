@@ -92,3 +92,45 @@ fail without synthetic fallback. Ctrl+C cancels through the existing pipeline's
 cancellation boundaries. Processing errors exit with status 1. Commando 1.0.4
 itself prints CLI syntax errors to stdout and exits 0; this upstream parser
 behavior also applies to tycli (help/version exit 0 normally).
+
+## Opt-in paragraph frames (P5)
+
+Use `--frames frames.json` to flow one selected paragraph through already usable
+content rectangles. `--width` remains the original containing-block CSS width;
+the first frame width must match the root's resolved paragraph content width
+(after padding/borders/margins). For an edge-free root:
+
+```sh
+go run ./tycli input.html --root paragraph --fonts tycli/examples/fonts.yaml \
+  --width 200 --frames frames.json --show-glyphs --output flow.svg
+```
+
+```json
+[
+  {"id":"A", "x":10, "y":10, "width":200, "height":100},
+  {"id":"B", "x":250, "y":10, "width":150, "height":400}
+]
+```
+
+The file is exactly one nonempty JSON array; unknown fields are rejected. IDs
+must be nonempty/unique, dimensions finite and nonnegative, coordinates finite
+and within the layout domain. Omitted numeric fields default to zero. Frame CSS,
+fonts and direction overrides are unsupported and never alter paragraph styles.
+Only a root with one direct paragraph group and fixed pixel-width opaque children
+is admitted; choose the paragraph block itself, not a multi-paragraph wrapper.
+
+The default draws frames and retained line/child diagnostics; `--show-glyphs`
+adds retained glyphs and `--hide-boxes` hides diagnostic outlines. Each frame is
+visited once; no-progress frames are skipped, while any final remainder fails the
+CLI invocation without replacing prior output or writing to stdout. Horizontal
+overflow is reported separately. `--log trace` reports frame IDs, reuse route,
+accepted line counts, suffix breaker and overflow. Equal widths reuse geometry;
+different widths continue with first-fit. Export never reflows content.
+
+The invocation releases all working preparation/checkpoints when complete or
+abandoned; only frozen output survives. Ordinary output without `--frames` is
+unchanged. P6 validates this opt-in profile; see the
+[production cost report](../../typography/doc/FLOW_COSTS.md). Flow replay,
+multi-paragraph scheduling and generalized pagination remain deferred.
+The existing synchronous upstream bidi limitation is unchanged; this opt-in
+profile is not a claim of arbitrary mixed-bidi production support.
