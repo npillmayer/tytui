@@ -2,7 +2,6 @@ package pipeline_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -29,7 +28,7 @@ func TestBreakersFreezeAndExport(t *testing.T) {
 	var proofs [][]byte
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass, pipeline.FirstFit} {
 		input.Breaker = breaker
-		result, err := pipeline.Run(context.Background(), input)
+		result, err := pipeline.Run(input)
 		if err != nil {
 			t.Fatalf("%s: %v", breaker, err)
 		}
@@ -80,7 +79,7 @@ func TestBreakersFreezeAndExport(t *testing.T) {
 		}
 	}
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-		result, err := pipeline.Run(context.Background(), pipeline.Input{Width: 100 * dimen.BP, Breaker: breaker})
+		result, err := pipeline.Run(pipeline.Input{Width: 100 * dimen.BP, Breaker: breaker})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -95,7 +94,7 @@ func TestExportErrors(t *testing.T) {
 	if err := pipeline.WriteSVG(io.Discard, nil); err == nil {
 		t.Fatal("accepted missing result")
 	}
-	result, err := pipeline.Run(context.Background(), pipeline.Input{Text: "hi", Width: 100 * dimen.BP})
+	result, err := pipeline.Run(pipeline.Input{Text: "hi", Width: 100 * dimen.BP})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,14 +105,14 @@ func TestExportErrors(t *testing.T) {
 	if err := pipeline.WriteSVG(nil, result); err == nil {
 		t.Fatal("accepted nil writer")
 	}
-	if got, err := pipeline.Run(context.Background(), pipeline.Input{Width: dimen.BP, Breaker: "unknown"}); got != nil || !errors.Is(err, pipeline.ErrInvalidInput) || !strings.Contains(err.Error(), "breaker") {
+	if got, err := pipeline.Run(pipeline.Input{Width: dimen.BP, Breaker: "unknown"}); got != nil || !errors.Is(err, pipeline.ErrInvalidInput) || !strings.Contains(err.Error(), "breaker") {
 		t.Fatalf("unknown breaker: %v", err)
 	}
 }
 
 func TestBreakerLayoutProfiles(t *testing.T) {
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-		result, err := pipeline.Run(context.Background(), pipeline.Input{Text: "aa bb cc dd ee ff gg hh ii jj", Width: 100 * dimen.BP, Breaker: breaker})
+		result, err := pipeline.Run(pipeline.Input{Text: "aa bb cc dd ee ff gg hh ii jj", Width: 100 * dimen.BP, Breaker: breaker})
 		if err != nil {
 			t.Fatal(err)
 		}

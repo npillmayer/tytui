@@ -2,7 +2,6 @@ package documentlayout
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"math"
@@ -14,8 +13,8 @@ import (
 
 // WriteBoxesSVG exports retained CSS box outlines and line-height rectangles
 // for frozen text fragments, in big points. It never requests glyph outlines.
-func WriteBoxesSVG(ctx context.Context, w io.Writer, result *Result) error {
-	return WriteLayoutSVG(ctx, w, result, render.Services{}, LayoutSVGOptions{})
+func WriteBoxesSVG(w io.Writer, result *Result) error {
+	return WriteLayoutSVG(w, result, render.Services{}, LayoutSVGOptions{})
 }
 
 // LayoutSVGOptions selects diagnostic boxes and retained glyph outlines.
@@ -27,12 +26,12 @@ type LayoutSVGOptions struct {
 
 // WriteLayoutSVG exports colored boxes with optional final glyph outlines.
 // Glyph export requires render services; it never reshapes or reflows text.
-func WriteLayoutSVG(ctx context.Context, w io.Writer, result *Result, services render.Services, options LayoutSVGOptions) error {
+func WriteLayoutSVG(w io.Writer, result *Result, services render.Services, options LayoutSVGOptions) error {
 	showGlyphs := options.ShowGlyphs || options.HideBoxes
 	if w == nil {
 		return invalid("box proof requires a writer")
 	}
-	p, err := buildProof(ctx, result, services, !showGlyphs)
+	p, err := buildProof(result, services, !showGlyphs)
 	if err != nil {
 		return err
 	}
@@ -58,9 +57,6 @@ func WriteLayoutSVG(ctx context.Context, w io.Writer, result *Result, services r
 				return invalid("missing retained paragraph geometry")
 			}
 			for _, line := range g.Paragraph.VList.Lines() {
-				if err := ctx.Err(); err != nil {
-					return err
-				}
 				x := origin.X + line.X + line.Horizontal.LeftSkip.Points()
 				y := origin.Y + line.Top
 				for k := line.Horizontal.FirstKnot; k < line.Horizontal.FirstKnot+line.Horizontal.KnotCount; k++ {
@@ -106,9 +102,7 @@ func WriteLayoutSVG(ctx context.Context, w io.Writer, result *Result, services r
 		b.WriteString(`</g>`)
 	}
 	b.WriteString(`</svg>`)
-	if err := ctx.Err(); err != nil {
-		return err
-	}
+
 	n, err := w.Write(b.Bytes())
 	if err == nil && n != b.Len() {
 		return io.ErrShortWrite

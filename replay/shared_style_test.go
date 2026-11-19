@@ -1,7 +1,6 @@
 package replay
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -16,16 +15,16 @@ import (
 
 func TestSharedStylesOfflineReplay(t *testing.T) {
 	s := typestyle.Style{Family: "serif", EmSize: 12 * dimen.BP, Weight: 400, Slant: "normal", Color: "red", Language: "en", WhiteSpace: "normal", UnicodeBidi: "normal"}
-	original, err := pipeline.Run(context.Background(), pipeline.Input{Text: "éa", Width: 100 * dimen.BP, Styles: []typestyle.Span{{Start: 0, End: 3, Style: s}}, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: latin, Size: 10 * dimen.BP}})})
+	original, err := pipeline.Run(pipeline.Input{Text: "éa", Width: 100 * dimen.BP, Styles: []typestyle.Span{{Start: 0, End: 3, Style: s}}, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: latin, Size: 10 * dimen.BP}})})
 	if err != nil {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
 	path, store := filepath.Join(dir, "case.json"), filepath.Join(dir, "fonts")
-	if err = Save(context.Background(), original, path, store, revisions()); err != nil {
+	if err = Save(original, path, store, revisions()); err != nil {
 		t.Fatal(err)
 	}
-	got, err := Load(context.Background(), path, store)
+	got, err := Load(path, store)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +56,7 @@ func TestCaptureUnversionedModules(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	got, err := CaptureRevisions(context.Background(), filepath.Join(root, "tytui"))
+	got, err := CaptureRevisions(filepath.Join(root, "tytui"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +71,7 @@ func TestCaptureUnversionedModules(t *testing.T) {
 	if err := os.Remove(filepath.Join(root, "typography", "go.mod")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := CaptureRevisions(context.Background(), filepath.Join(root, "tytui")); err == nil {
+	if _, err := CaptureRevisions(filepath.Join(root, "tytui")); err == nil {
 		t.Fatal("missing module accepted")
 	}
 }

@@ -1,5 +1,14 @@
 # tytui
 
+Context policy (2026-11-19): typesetting, geometry, retained proofs, replay,
+and document execution are synchronous and have no context argument. Contexts
+are confined to streaming coordination and font discovery/loading. Streaming
+callers create a local background context; consumer failure still cancels and
+joins the producer before cleanup. Errors publish no partial result and preserve
+previous immutable output. TUI layout jobs finish serially; stale results are
+discarded, while font work remains cancellable. This supersedes earlier
+cancellation requirements for typesetting in this document.
+
 The headless [documentlayout package](documentlayout/README.md) connects
 CSS-normalized inline groups to prepared paragraph layout, including fixed and auto-width
 atomic boxes and retained source/paint correspondence (pipeline integration
@@ -247,7 +256,7 @@ its input. The former `pipeline/internal/layout` package is removed.
 
 The `glyphing.StyleMapper` in `typography/glyphing` receives already loaded fonts: `SelectedFonts`
 contains a closed table of `FaceEntry` values plus default, style-rule and ordered
-fallback references. `glyphing.NewStyleMapper(ctx, fonts, coverage)` validates that table and
+fallback references. `glyphing.NewStyleMapper(fonts, coverage)` validates that table and
 performs no loading or discovery. OpenType parsing lives in `typography/glyphing/adapter/opentype`; retained rendering
 services live in `typography/render/adapter/opentype`. Completed geometry is shared
 through `typography/layout`; neither branch imports the other. Itemization records
@@ -257,7 +266,7 @@ selected fonts and processed-text byte ranges as `glyphing.FontTextRun` values;
 
 [`fontselection`](fontselection/README.md) owns application requests, controlled
 fontfind providers, generic mappings, substitution policy and session caches.
-`Prepare(ctx, request)` loads explicit selections before layout. `pipeline.Input.Fonts`
+`Prepare(request)` loads explicit selections before layout. `pipeline.Input.Fonts`
 accepts its `*Selection`; nil selects synthetic. `Result.FontSnapshot` contains
 `*glyphing.SelectedFonts`, and `FontProvenance()` returns detached application
 evidence. The TUI keeps editable requests and prepares fresh faces per run, so
@@ -268,7 +277,7 @@ selected, err := fontselection.Prepare(ctx, &fontselection.Request{
     Settings: fontselection.Settings{DefaultPath: path, Size: 12 * dimen.BP},
 })
 if err != nil { return err }
-result, err := pipeline.Run(ctx, pipeline.Input{
+result, err := pipeline.Run(pipeline.Input{
     Text: "office", Width: 200 * dimen.BP, Fonts: selected,
 })
 ```

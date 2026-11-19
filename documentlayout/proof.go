@@ -1,7 +1,6 @@
 package documentlayout
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"slices"
@@ -59,18 +58,16 @@ type Proof struct {
 // BuildProof composes retained owner-content transforms exactly once. It never
 // resolves styles, prepares, measures, shapes, breaks or stacks paragraph lines.
 // Outlines/identity come from explicitly supplied services for the retained faces.
-// Errors and cancellation return no partial proof. Keep inputs/services stable.
-func BuildProof(ctx context.Context, result *Result, services render.Services) (*Proof, error) {
-	return buildProof(ctx, result, services, false)
+// Errors return no partial proof. Keep inputs/services stable.
+func BuildProof(result *Result, services render.Services) (*Proof, error) {
+	return buildProof(result, services, false)
 }
 
-func buildProof(ctx context.Context, result *Result, services render.Services, boxesOnly bool) (*Proof, error) {
-	if ctx == nil || result == nil || result.document == nil {
+func buildProof(result *Result, services render.Services, boxesOnly bool) (*Proof, error) {
+	if result == nil || result.document == nil {
 		return nil, invalid("document proof requires context and a completed result")
 	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
+
 	p := &Proof{}
 	include := p.include
 
@@ -80,9 +77,6 @@ func buildProof(ctx context.Context, result *Result, services render.Services, b
 	visiting := map[box.BoxID]bool{}
 	var contentOrigin func(box.BoxID) (render.Point, error)
 	contentOrigin = func(id box.BoxID) (render.Point, error) {
-		if err := ctx.Err(); err != nil {
-			return render.Point{}, err
-		}
 		if p, ok := origins[id]; ok {
 			return p, nil
 		}
@@ -157,7 +151,7 @@ func buildProof(ctx context.Context, result *Result, services render.Services, b
 		if err != nil {
 			return nil, err
 		}
-		local, err := render.BuildParagraphProof(ctx, render.ParagraphInput{
+		local, err := render.BuildParagraphProof(render.ParagraphInput{
 			Frozen: g.Paragraph.Frozen, VList: g.Paragraph.VList, Text: g.Input.Text, Paint: g.Input.Paint,
 		}, services)
 		if err != nil {
@@ -179,9 +173,7 @@ func buildProof(ctx context.Context, result *Result, services render.Services, b
 			p.Atomics = append(p.Atomics, ProofAtomic{group.GroupID, group.OwnerID, source, a.Line, origin.X + a.X, origin.Y + a.Y})
 		}
 	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
+
 	if !finiteProof(p.MinX, p.MinY, p.MaxX, p.MaxY) {
 		return nil, invalid("non-finite proof bounds")
 	}

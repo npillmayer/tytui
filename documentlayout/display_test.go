@@ -46,10 +46,10 @@ func TestDocumentNormalizedDisplaySpellings(t *testing.T) {
 					}
 				}
 				var svg, expected bytes.Buffer
-				if err := documentlayout.WriteBoxesSVG(t.Context(), &svg, got); err != nil {
+				if err := documentlayout.WriteBoxesSVG(&svg, got); err != nil {
 					t.Fatal(err)
 				}
-				if err := documentlayout.WriteBoxesSVG(t.Context(), &expected, want); err != nil {
+				if err := documentlayout.WriteBoxesSVG(&expected, want); err != nil {
 					t.Fatal(err)
 				}
 				if !bytes.Equal(svg.Bytes(), expected.Bytes()) {
@@ -99,7 +99,7 @@ func TestDocumentUnsupportedNormalizedDisplay(t *testing.T) {
 			if err != nil { // Valid CSS must reach the adapter's support boundary.
 				t.Fatal(err)
 			}
-			d, err := documentlayout.Build(t.Context(), input, id)
+			d, err := documentlayout.Build(input, id)
 			if d != nil || !errors.Is(err, khipu.ErrUnsupportedPolicy) || !strings.Contains(err.Error(), input.Nodes[badID].Path) || !strings.Contains(err.Error(), "display "+v.CSS()) {
 				t.Fatalf("display %q root=%v: document=%v, error=%v", value, root, d, err)
 			}
@@ -117,7 +117,7 @@ func TestDocumentDisplayErrorsKeepSource(t *testing.T) {
 				badName = "section"
 			}
 			input, id := parse(t, source)
-			d, err := documentlayout.Build(t.Context(), input, id)
+			d, err := documentlayout.Build(input, id)
 			want := domcss.ErrUnsupportedDisplayCascade
 			if value == "NONE" || value == `\6e one` {
 				want = khipu.ErrUnsupportedPolicy
@@ -160,7 +160,7 @@ func TestDocumentFlowRootMarginsAndProof(t *testing.T) {
 					g[after.BoxID].Frame.Y != tc.nextY || g[root.BoxID].Content.H != tc.nextY+10 {
 					t.Fatalf("incorrect parent/sibling containment: %+v", g)
 				}
-				proof, err := documentlayout.BuildProof(t.Context(), r, cells())
+				proof, err := documentlayout.BuildProof(r, cells())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -177,14 +177,14 @@ func TestDocumentFlowRootMarginsAndProof(t *testing.T) {
 					t.Fatal("proof lost child box")
 				}
 				var before, afterSVG bytes.Buffer
-				if err := documentlayout.WriteBoxesSVG(t.Context(), &before, r); err != nil {
+				if err := documentlayout.WriteBoxesSVG(&before, r); err != nil {
 					t.Fatal(err)
 				}
 				resized := runDocument(t, d, 200, breaker, cfg)
 				if resized.Geometry()[container.BoxID].Content.W != 200 || g[container.BoxID].Content.W != 100 {
 					t.Fatal("flow-root did not retain normal auto block sizing")
 				}
-				if err := documentlayout.WriteBoxesSVG(t.Context(), &afterSVG, r); err != nil {
+				if err := documentlayout.WriteBoxesSVG(&afterSVG, r); err != nil {
 					t.Fatal(err)
 				}
 				if !reflect.DeepEqual(g, r.Geometry()) || !bytes.Equal(before.Bytes(), afterSVG.Bytes()) {

@@ -16,10 +16,9 @@ import (
 // Independent synthetic fixtures and static replay evidence are the geometry oracles.
 func TestBoxedVListPreservesProofGeometry(t *testing.T) {
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-
 		for _, width := range []dimen.DU{90 * dimen.BP, 600 * dimen.BP} {
 			e := styledInput(t, `<p dir="rtl" lang="he" style="font-size:13.3pt;color:navy">שָׁלוֹם אב&shy;גד <span lang="en" style="font-size:24pt;color:red">office café</span> עולם hello שָׁלוֹם</p>`)
-			r, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: width, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{
+			r, err := pipeline.Run(pipeline.Input{Text: e.Text, Source: e, Width: width, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{
 				DefaultPath: "../../opentype/testdata/fonts/GentiumPlus-R.ttf", Size: 12 * dimen.BP, Fallbacks: []string{hebrew},
 			}})})
 			if err != nil {
@@ -87,6 +86,5 @@ func TestBoxedVListPreservesProofGeometry(t *testing.T) {
 				t.Fatal("assembly changed proof or renderer paint", err)
 			}
 		}
-
 	}
 }

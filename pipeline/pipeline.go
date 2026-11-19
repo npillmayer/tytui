@@ -3,7 +3,6 @@
 package pipeline
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -41,7 +40,6 @@ const (
 // be a positive finite layout dimension, not terminal cells. Direction defaults
 // to left-to-right. Fonts must already be loaded; Run performs no discovery or I/O.
 type Input struct {
-
 	// LineLayout supplies CSS line-height. Nil selects explicit normal line-height.
 	// Runs address normalized paragraph bytes; font/size strut uses backend defaults.
 	// Values bypass shaping styles and are retained independently for replay.
@@ -138,7 +136,7 @@ func (r *Result) PaintSpans() []typestyle.PaintSpan {
 var ErrInvalidInput = errors.New("invalid paragraph input")
 
 // StageError identifies the failed operation and preserves the underlying error
-// for errors.Is and errors.As, including context cancellation and backend errors.
+// for errors.Is and errors.As, including backend errors.
 type StageError struct {
 	Stage Stage
 	Err   error
@@ -152,18 +150,11 @@ func (e *StageError) Unwrap() error { return e.Err }
 // Each call owns fresh encoding state; input faces are already loaded and retained.
 // Empty text is valid.
 //
-// Context must be nonnil. Cancellation is checked at stage boundaries and by
-// encoding/freezing/assembly; paragraph preparation and breaking cannot be interrupted
-// mid-call. Errors return a nil result, never a partially completed layout.
-func Run(ctx context.Context, input Input) (*Result, error) {
+// Execution is synchronous. Errors return a nil result, never a partially
+// completed layout; streaming coordination retains internal cancellation.
+func Run(input Input) (*Result, error) {
 	fail := func(stage Stage, err error) (*Result, error) {
 		return nil, &StageError{Stage: stage, Err: err}
-	}
-	if ctx == nil {
-		return fail(StageInput, fmt.Errorf("%w: nil context", ErrInvalidInput))
-	}
-	if err := ctx.Err(); err != nil {
-		return fail(StageInput, err)
 	}
 
 	if input.Width <= 0 || input.Width >= dimen.Fil {
@@ -241,11 +232,11 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 		input.Fonts = input.Fonts.Clone()
 		fontProvenance = input.Fonts.Provenance.Clone()
 		fontDiagnostics = append([]fontselection.FontDiagnostic(nil), input.Fonts.Provenance.ResolutionDiagnostics...)
-		resolver, err := glyphing.NewStyleMapper(ctx, input.Fonts.Fonts, otadapter.Services{})
+		resolver, err := glyphing.NewStyleMapper(input.Fonts.Fonts, otadapter.Services{})
 		if err != nil {
 			return fail(StageFonts, err)
 		}
-		text, bindings, err = resolver.Itemize(ctx, paragraphText, spans)
+		text, bindings, err = resolver.Itemize(paragraphText, spans)
 		if err != nil {
 			return fail(StageFonts, &fontselection.ResolutionError{Stage: "coverage", Err: err})
 		}
@@ -279,7 +270,7 @@ func Run(ctx context.Context, input Input) (*Result, error) {
 		lineLayout = input.LineLayout.Clone()
 	}
 	input.LineLayout = lineLayout.Clone()
-	completed, err := parlayout.Run(ctx, parlayout.Input{Text: text, Direction: input.Direction, Markup: markup}, parlayout.Params{
+	completed, err := parlayout.Run(parlayout.Input{Text: text, Direction: input.Direction, Markup: markup}, parlayout.Params{
 		Constraints: parlayout.Constraints{Width: input.Width}, Breaker: parlayout.Breaker(input.Breaker),
 		Assembly: assembly, LineLayout: lineLayout,
 	}, config)

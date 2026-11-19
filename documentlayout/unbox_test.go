@@ -120,7 +120,7 @@ func TestUnboxMarginsUseFinalAutoResolution(t *testing.T) {
 		resize := boundaryInvocation(t, `<div id="root" style="font-size:20px"><div style="width:40px;margin:0 auto">é</div></div>`)
 		var old *Result
 		for _, width := range []float32{100, 80} {
-			r, err := resize.document.Layout(t.Context(), LayoutRequest{Width: width, Breaker: breaker}, resize.config)
+			r, err := resize.document.Layout(LayoutRequest{Width: width, Breaker: breaker}, resize.config)
 			if err != nil {
 				t.Fatal(err)
 			}

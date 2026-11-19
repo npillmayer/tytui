@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"context"
 	"math"
 	"reflect"
 	"testing"
@@ -34,7 +33,7 @@ func TestFrozenGlyphProofVisualOrderCompatibility(t *testing.T) {
 			{"ltr_control", "office", gentium, bidi.LeftToRight, 100 * dimen.BP, 1, false, false},
 		} {
 			t.Run(string(breaker)+"/"+tc.name, func(t *testing.T) {
-				r, err := pipeline.Run(context.Background(), pipeline.Input{
+				r, err := pipeline.Run(pipeline.Input{
 					Text: tc.text, Direction: tc.direction, Width: tc.width, Breaker: breaker,
 					Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: tc.font, Size: 12 * dimen.BP}}),
 				})

@@ -1,5 +1,14 @@
 # Document flow and normalized input
 
+Context policy (2026-11-19): typesetting, geometry, retained proofs, replay,
+and document execution are synchronous and have no context argument. Contexts
+are confined to streaming coordination and font discovery/loading. Streaming
+callers create a local background context; consumer failure still cancels and
+joins the producer before cleanup. Errors publish no partial result and preserve
+previous immutable output. TUI layout jobs finish serially; stale results are
+discarded, while font work remains cancellable. This supersedes earlier
+cancellation requirements for typesetting in this document.
+
 `documentlayout` implements pipeline integration stages 3D–3F and 4C–4D,
 with stage 5 verification complete (2026-11-15). It builds typed CSS
 render input from a selected styled block, lets `css-box-layout` normalize the
@@ -23,11 +32,11 @@ to `WriteSVG` with captured rendering services. The TUI adds no box sizing,
 paragraph algorithms or document replay format.
 
 ```go
-document, err := documentlayout.Build(ctx, htmlDocument, selectedNodeID)
+document, err := documentlayout.Build(htmlDocument, selectedNodeID)
 // Handle err before using document.
 root := document.Root() // borrowed, immutable structural input for CSS core
 for _, group := range document.Groups() {
-    input, err := document.Extract(ctx, group.GroupID)
+    input, err := document.Extract(group.GroupID)
     // Handle err. input addresses exactly one normalized inline group.
     // Pass input.Text, input.Styles and input.Anchors to ItemizeInline.
     // Resolve the strut from input.Paragraph.Style, not its first text run.
@@ -35,7 +44,7 @@ for _, group := range document.Groups() {
 ```
 
 To lay out a document, prepare fonts with `fontselection.Prepare`, then construct
-a `*glyphing.StyleMapper` with `glyphing.NewStyleMapper(ctx, selection.Fonts,
+a `*glyphing.StyleMapper` with `glyphing.NewStyleMapper(selection.Fonts,
 coverage)`. For OpenType, coverage is supplied by
 `typography/glyphing/adapter/opentype.Services{}`. Pass the mapper through the
 existing `documentlayout.Config.Resolver` field and supply a factory returning
@@ -44,7 +53,7 @@ supplies fonts suitable for the text; the existing itemizer
 checks remain in place pending their separate relocation.
 
 ```go
-next, err := document.Layout(ctx, documentlayout.LayoutRequest{
+next, err := document.Layout(documentlayout.LayoutRequest{
     Width: 640, // containing-block width in CSS pixels; zero is valid
     Breaker: paragraph.KnuthPlass,
 }, documentlayout.Config{Resolver: resolver, NewShaper: newShaper})
@@ -344,14 +353,14 @@ transactional ownership contract. Paragraph mode and replay remain controls;
 
 ## Bounded paragraph frame flow (P5)
 
-`Document.LayoutFlow(ctx, FlowRequest, Config)` is an opt-in alternative to
+`Document.LayoutFlow(FlowRequest, Config)` is an opt-in alternative to
 `Layout`. Select a block whose normalized root contains one direct inline group.
 Other block siblings/multiple paragraphs are rejected. Opaque inline-blocks need
 fixed pixel widths; their retained children keep the original CSS layout. Auto or
 percentage inline-block widths and region-dependent object sizing are excluded.
 
 ```go
-flow, err := document.LayoutFlow(ctx, documentlayout.FlowRequest{
+flow, err := document.LayoutFlow(documentlayout.FlowRequest{
     Layout: documentlayout.LayoutRequest{Width: 220, Breaker: paragraph.FirstFit},
     Frames: []documentlayout.FlowFrame{
         {ID: "A", X: 10, Y: 10, Width: 200, Height: 100},
@@ -381,7 +390,7 @@ state; extending the request requires a new invocation.
 
 Preparations of fixed child paragraphs are removed after their final callbacks.
 The root preparation/token lasts only through flow, is removed immediately on
-completion, and is also released on failure/cancellation or frame exhaustion.
+completion, and is also released on failure or frame exhaustion.
 No working handle is published. `Group()` detaches original input/source/paint
 associations; `SurroundingMargins()` preserves the original owner metadata.
 Frames do not reapply these margins or repeat owner decorations at page boundaries.
@@ -403,7 +412,7 @@ remain deferred.
 
 ## Positioned fragment proofs (P4)
 
-`BuildFragmentProof(ctx, result, placements, services)` and `WriteFragmentSVG`
+`BuildFragmentProof(result, placements, services)` and `WriteFragmentSVG`
 render explicit `[]PositionedFragment` drawing requests alongside ordinary
 whole-document proofs. Each value supplies a `GroupID`, immutable `Fragment`,
 `FrameOrigin` and `Offset`. Origins/offsets use float64 big points, Y downward;
@@ -416,8 +425,8 @@ placements := []documentlayout.PositionedFragment{{
     FrameOrigin: render.Point{X: 200, Y: 30},
     Offset: render.Point{X: 4, Y: 8},
 }}
-proof, err := documentlayout.BuildFragmentProof(ctx, current, placements, services)
-err = documentlayout.WriteFragmentSVG(ctx, writer, current, placements, services)
+proof, err := documentlayout.BuildFragmentProof(current, placements, services)
+err = documentlayout.WriteFragmentSVG(writer, current, placements, services)
 ```
 
 Only published line ranges and their atomic subtrees are drawn. Fragments may
@@ -434,7 +443,7 @@ is drawing order; the API neither sorts by X nor schedules frames. Repeated
 placements deliberately draw again; omitted ranges are allowed for inspection.
 Empty ranges draw nothing and contribute no bounds. Outputs own their slices and
 share only immutable image payloads; preparation and continuation handles are
-unnecessary. Errors/cancellation return no partial proof or SVG bytes; writer
+unnecessary. Errors return no partial proof or SVG bytes; writer
 failures can leave partial bytes. Ordinary `BuildProof`/`WriteSVG`, replay and CLI
 behavior are unchanged. The P4 proof API only renders supplied placements; it
 does not schedule frames. Frame scheduling and flow results are implemented by
@@ -446,9 +455,9 @@ Proof construction performs no shaping, metrics, binding, breaking or restacking
 
 ```go
 services := render.Services{Backend: backend, Identity: identity}
-proof, err := documentlayout.BuildProof(ctx, current, services)
+proof, err := documentlayout.BuildProof(current, services)
 // Handle err. proof is detached absolute geometry in float64 big points.
-err = documentlayout.WriteSVG(ctx, writer, current, services)
+err = documentlayout.WriteSVG(writer, current, services)
 ```
 
 `typography/render.BuildParagraphProof` owns the reusable frozen-glyph walk,
@@ -470,7 +479,7 @@ quantization differences between precise paragraph origins and CSS summaries
 are expected under the documented conversion budget. Signed positions remain
 signed; rendering never sorts items by X.
 
-Proof construction returns no partial object on error/cancellation. SVG generation
+Proof construction returns no partial object on error. SVG generation
 buffers a complete proof before writing; destination write failures can still leave
 partial bytes. The SVG shows diagnostic geometry and glyph outlines in source-group
 order, not CSS paint order for overlapping/positioned/stacking contexts. There are no
@@ -484,7 +493,7 @@ Latin ligature/pointed Hebrew glyphs against existing independent HarfBuzz captu
 No new glyph coverage validation is introduced; relocation of existing itemizer
 checks remains deferred. Auto-width tests cover intrinsic bounds, signed margins,
 primitive rounding, shrink-to-fit below/inside/above the intrinsic interval,
-preparation reuse, late measurement failure/cancellation and unchanged fixed-width
+preparation reuse, late measurement failure and unchanged fixed-width
 flow.
 
 Stage 5A adds nested scheduling evidence through the actual paragraph engine with
@@ -523,7 +532,7 @@ source bytes, diagnostics, vlist geometry and atomic identities/placements. The
 repeated wide result reproduces the first result, while stream and actual shaping
 counts establish fresh preparation per independent document invocation.
 
-Deterministic errors/cancellation occur during later intrinsic preparation and
+Deterministic errors occur during later intrinsic preparation and
 parent assembly after a child completes; publication cancellation occurs only
 after every paragraph exists privately. Failures preserve their causes and return
 no public document. A failed final attempt still rejects a repeated callback.

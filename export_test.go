@@ -13,7 +13,7 @@ import (
 func TestBreakerHistoryAndExportSnapshot(t *testing.T) {
 	m := initialModel()
 	m, cmd := updateModel(m, runKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	first := m.result
 	if len(m.history) != 1 {
 		t.Fatal("completed result not retained")
@@ -29,7 +29,7 @@ func TestBreakerHistoryAndExportSnapshot(t *testing.T) {
 		t.Fatal("selection did not invalidate input")
 	}
 	m, cmd = updateModel(m, runKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.result == nil || m.result.Input.Breaker != pipeline.KnuthPlass || len(m.history) != 2 {
 		t.Fatalf("second layout failed: %s", m.status)
 	}
@@ -102,10 +102,10 @@ func TestExportFailures(t *testing.T) {
 		t.Fatal("export launched without result")
 	}
 	m, cmd = updateModel(m, runKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	m.export = func(r *pipeline.Result) (string, error) { return exportSVG(r, filepath.Join(dir, "missing")) }
 	m, cmd = updateModel(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.exporting || !strings.Contains(m.status, "SVG export failed") {
 		t.Fatal("file error not surfaced")
 	}

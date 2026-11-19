@@ -2,7 +2,6 @@ package documentlayout_test
 
 import (
 	"bytes"
-	"context"
 	_ "embed"
 	"encoding/json"
 	"encoding/xml"
@@ -48,7 +47,7 @@ func TestDocumentProofIndependentAncestorCoordinates(t *testing.T) {
 	d, _, _ := build(t, `<div id="root" style="font-size:20px;padding:7px;border-width:3px;border-style:solid"><div style="margin:13px 0 0 11px;padding:5px;border-width:2px;border-style:solid">before<div style="margin:0">middle</div><span style="display:inline-block;width:30px;font-size:10px;padding:2px;border-width:1px;border-style:solid;margin:4px 5px 6px -2px">x</span></div></div>`)
 	for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
 		r := runDocument(t, d, 300, breaker, layoutConfig(t))
-		p, err := documentlayout.BuildProof(t.Context(), r, cells())
+		p, err := documentlayout.BuildProof(r, cells())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -67,7 +66,7 @@ func TestDocumentProofIndependentAncestorCoordinates(t *testing.T) {
 			t.Fatal("atomic transform", p.Atomics)
 		}
 		var svg bytes.Buffer
-		if err := documentlayout.WriteSVG(t.Context(), &svg, r, cells()); err != nil {
+		if err := documentlayout.WriteSVG(&svg, r, cells()); err != nil {
 			t.Fatal(err)
 		}
 		dec := xml.NewDecoder(&svg)
@@ -88,7 +87,7 @@ func TestDocumentProofBidiAndAtomicSourceOrder(t *testing.T) {
 		for _, dir := range []string{"ltr", "rtl"} {
 			d, _, _ := build(t, `<div id="root" dir="`+dir+`" style="font-size:20px">ab <span style="display:inline-block;width:20px;font-size:10px" dir="ltr">x</span> אב</div>`)
 			r := runDocument(t, d, 100, breaker, layoutConfig(t))
-			p, err := documentlayout.BuildProof(t.Context(), r, cells())
+			p, err := documentlayout.BuildProof(r, cells())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -131,7 +130,7 @@ func TestDocumentProofRetainedMultilineBaselines(t *testing.T) {
 	d, _, _ := build(t, `<div id="root" style="font-size:20px;padding:4px">ab ab ab ab</div>`)
 	for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
 		r := runDocument(t, d, 28, breaker, layoutConfig(t))
-		p, err := documentlayout.BuildProof(t.Context(), r, cells())
+		p, err := documentlayout.BuildProof(r, cells())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -173,7 +172,7 @@ func TestRealDocumentFixtureAndSnapshotLifetime(t *testing.T) {
 	for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
 		for _, width := range []float32{420, 260, 420} {
 			r := runDocument(t, d, width, breaker, cfg)
-			p, err := documentlayout.BuildProof(t.Context(), r, services)
+			p, err := documentlayout.BuildProof(r, services)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -205,7 +204,7 @@ func TestRealDocumentFixtureAndSnapshotLifetime(t *testing.T) {
 				t.Fatal("font/paint correspondence", fonts, colors)
 			}
 			var svg bytes.Buffer
-			if err := documentlayout.WriteSVG(t.Context(), &svg, r, services); err != nil {
+			if err := documentlayout.WriteSVG(&svg, r, services); err != nil {
 				t.Fatal(err)
 			}
 			if baseline == nil {
@@ -223,7 +222,7 @@ func TestRealDocumentFixtureAndSnapshotLifetime(t *testing.T) {
 	group.Input.Text = "removed"
 	group.Input.Paint = nil
 	var again bytes.Buffer
-	if err := documentlayout.WriteSVG(t.Context(), &again, baseline, services); err != nil || !bytes.Equal(firstSVG, again.Bytes()) {
+	if err := documentlayout.WriteSVG(&again, baseline, services); err != nil || !bytes.Equal(firstSVG, again.Bytes()) {
 		t.Fatal("old snapshot changed", err)
 	}
 }
@@ -261,7 +260,7 @@ func TestRealGlyphsAgainstIndependentHarfBuzzFixtures(t *testing.T) {
 		d, _, _ := build(t, `<div id="root" style="font-size:24px;padding:4px">a <span style="display:inline-block;width:180px;padding:3px" dir="`+dir+`" lang="`+lang+`">`+c.Text+`</span> z</div>`)
 		for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
 			r := runDocument(t, d, 300, breaker, realConfig(t))
-			p, err := documentlayout.BuildProof(t.Context(), r, render.Services{Backend: renderot.New(), Identity: renderot.New()})
+			p, err := documentlayout.BuildProof(r, render.Services{Backend: renderot.New(), Identity: renderot.New()})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -318,20 +317,14 @@ func TestDocumentProofFailuresWriteNothing(t *testing.T) {
 	sentinel := errors.New("outline unavailable")
 	b := cellProof{fail: sentinel}
 	var out bytes.Buffer
-	err := documentlayout.WriteSVG(t.Context(), &out, r, render.Services{Backend: b, Identity: b})
+	err := documentlayout.WriteSVG(&out, r, render.Services{Backend: b, Identity: b})
 	if !errors.Is(err, sentinel) || out.Len() != 0 {
 		t.Fatal("partial proof written", err)
 	}
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-	err = documentlayout.WriteSVG(ctx, &out, r, cells())
-	if !errors.Is(err, context.Canceled) || out.Len() != 0 {
-		t.Fatal("cancelled proof written", err)
-	}
-	if err := documentlayout.WriteSVG(t.Context(), shortWriter{}, r, cells()); !errors.Is(err, io.ErrShortWrite) {
+	if err := documentlayout.WriteSVG(shortWriter{}, r, cells()); !errors.Is(err, io.ErrShortWrite) {
 		t.Fatal("short write ignored", err)
 	}
-	if p, err := documentlayout.BuildProof(t.Context(), r, render.Services{}); p != nil || err == nil {
+	if p, err := documentlayout.BuildProof(r, render.Services{}); p != nil || err == nil {
 		t.Fatal("renderer silently installed")
 	}
 }

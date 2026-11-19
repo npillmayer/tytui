@@ -58,5 +58,5 @@ func loadResolver(ctx context.Context, s fontselection.Settings, svc testService
 		}
 		fonts.Fallbacks = append(fonts.Fallbacks, id)
 	}
-	return glyphing.NewStyleMapper(ctx, fonts, svc.Coverage)
+	return glyphing.NewStyleMapper(fonts, svc.Coverage)
 }

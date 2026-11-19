@@ -71,7 +71,7 @@ func TestRenderingDoesNotRemeasureRetainedLines(t *testing.T) {
 			params.LineLayout = &paragraph.LineLayout{Default: paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 1.5}}
 			baseline, height = 10.5, 15
 		}
-		frozen, err := paragraph.Run(t.Context(), paragraph.Input{Text: text, Direction: bidi.LeftToRight}, params, config)
+		frozen, err := paragraph.Run(paragraph.Input{Text: text, Direction: bidi.LeftToRight}, params, config)
 		if err != nil {
 			t.Fatal(err)
 		}

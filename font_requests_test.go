@@ -26,7 +26,7 @@ func TestFontRequestPreviewApply(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("no resolution command")
 	}
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if !m.fontEditor.previewOpen || m.fontEditor.pending == nil || m.fontSettings != nil {
 		t.Fatalf("preview: %s", m.fontEditor.status)
 	}
@@ -46,7 +46,7 @@ func TestFontRequestPreviewApply(t *testing.T) {
 	}
 	m.textarea.SetValue("office")
 	m, cmd = updateModel(m, runKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.result == nil || !strings.Contains(renderResult(m.result), "Discovery resolved") {
 		t.Fatalf("missing result diagnostics: %s", m.status)
 	}
@@ -56,18 +56,18 @@ func TestFontRequestSubstitutionAndRetainedResult(t *testing.T) {
 	m.textarea.SetValue("retained")
 	m.fontEditor.open = false
 	m, cmd := updateModel(m, runKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	old := m.result
 	m, _ = updateModel(m, keyPress(tea.KeyF5))
 	m.fontEditor.path.SetValue("Missing ; 700 ; italic")
 	m, cmd = updateModel(m, fontApplyKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.result != old || m.fontEditor.pending != nil || !strings.Contains(m.fontEditor.status, "failed") {
 		t.Fatal("failed request altered result")
 	}
 	m, _ = updateModel(m, fontControl('t'))
 	m, cmd = updateModel(m, fontApplyKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.result != old || m.fontSettings != nil || !strings.Contains(m.fontEditor.preview, "SUBSTITUTION") {
 		t.Fatal("substitution not previewed before apply")
 	}

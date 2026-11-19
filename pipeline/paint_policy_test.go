@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"context"
 	"reflect"
 	"testing"
 
@@ -24,7 +23,7 @@ func TestGlyphBoundaryPaintPreservesShaping(t *testing.T) {
 			t.Run(string(breaker)+"/"+tc.name, func(t *testing.T) {
 				run := func(html string) *pipeline.Result {
 					e := styledInput(t, html)
-					r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: tc.font, Size: 12 * dimen.BP}})})
+					r, err := pipeline.Run(pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: tc.font, Size: 12 * dimen.BP}})})
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -73,7 +72,7 @@ func TestSoftHyphenUsesMarkerPaint(t *testing.T) {
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
 		for _, width := range []dimen.DU{20 * dimen.BP, 100 * dimen.BP} {
 			e := styledInput(t, `<p><span style="color:red">ab</span><span style="color:blue">&shy;</span><span style="color:green">cd</span></p>`)
-			r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Width: width, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})})
+			r, err := pipeline.Run(pipeline.Input{Text: e.Text, Source: e, Width: width, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -101,7 +100,7 @@ func TestRTLFallbackAndSoftHyphenPaint(t *testing.T) {
 		for _, width := range []dimen.DU{20 * dimen.BP, 100 * dimen.BP} {
 			e := styledInput(t, `<p dir="rtl"><span style="color:red">אב</span><span style="color:blue">&shy;</span><span style="color:green">גד</span></p>`)
 			run := func(path string, fallback []string) *pipeline.Result {
-				r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Width: width, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: path, Size: 12 * dimen.BP, Fallbacks: fallback}})})
+				r, err := pipeline.Run(pipeline.Input{Text: e.Text, Source: e, Width: width, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: path, Size: 12 * dimen.BP, Fallbacks: fallback}})})
 				if err != nil {
 					t.Fatal(err)
 				}

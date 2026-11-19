@@ -9,7 +9,7 @@ import (
 // complete paragraph, so republish those same records as a VList for the existing
 // CSS summary/provenance path. No second layout, freeze or assembly occurs.
 func (i *invocation) startFlow(p *preparedGroup, request paragraph.LayoutRequest) (*paragraph.Result, error) {
-	token, err := p.paragraph.StartFlow(i.ctx, request)
+	token, err := p.paragraph.StartFlow(request)
 	if err != nil {
 		return nil, err
 	}

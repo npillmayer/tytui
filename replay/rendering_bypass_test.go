@@ -1,7 +1,6 @@
 package replay
 
 import (
-	"context"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -15,27 +14,26 @@ import (
 
 func TestRenderingBypassReplayKeepsWireColors(t *testing.T) {
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-
 		t.Run(string(breaker)+"/"+"glyph-boundary", func(t *testing.T) {
 			red := style.Style{Family: "serif", EmSize: 12 * dimen.BP, Weight: 400, Slant: "normal", Color: "red", Language: "en", WhiteSpace: "normal", UnicodeBidi: "normal"}
 			blue := red
 			blue.Color = "blue"
 			in := pipeline.Input{Text: "\nfi\n", Width: 100 * dimen.BP, Breaker: breaker, Styles: []style.Span{{Start: 0, End: 1, Style: red}, {Start: 1, End: 2, Style: blue}},
 				Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: latin, Size: 12 * dimen.BP}})}
-			original, err := pipeline.Run(context.Background(), in)
+			original, err := pipeline.Run(in)
 			if err != nil {
 				t.Fatal(err)
 			}
 			dir := t.TempDir()
 			path, store := filepath.Join(dir, "case.json"), filepath.Join(dir, "fonts")
-			if err := Save(context.Background(), original, path, store, revisions()); err != nil {
+			if err := Save(original, path, store, revisions()); err != nil {
 				t.Fatal(err)
 			}
 			m := readManifest(t, path)
 			if m.Version != Version || !reflect.DeepEqual(m.Input.Styles, in.Styles) {
 				t.Fatal("bypass changed replay version or serialized document colors")
 			}
-			got, err := Load(context.Background(), path, store)
+			got, err := Load(path, store)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -61,6 +59,5 @@ func TestRenderingBypassReplayKeepsWireColors(t *testing.T) {
 				t.Fatalf("separate replayed paint changed proof: %v", err)
 			}
 		})
-
 	}
 }

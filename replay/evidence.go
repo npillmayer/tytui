@@ -1,7 +1,6 @@
 package replay
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"github.com/npillmayer/khipu"
@@ -17,19 +16,14 @@ import (
 // development modules. Call at layout time for accurate provenance. Dirty state
 // is an indication, not an archive of the actual patch or compiler/toolchain.
 // Module directories without .git are recorded as unversioned and dirty.
-func CaptureRevisions(ctx context.Context, workspace string) ([]Revision, error) {
-	if ctx == nil {
-		return nil, fmt.Errorf("nil context")
-	}
+func CaptureRevisions(workspace string) ([]Revision, error) {
 	var revisions []Revision
 	for _, name := range []string{"tytui", "cords", "khipu", "uax", "opentype", "w3c-dom", "tree", "schuko", "fontfind", "typography"} {
 		dir := workspace
 		if name != "tytui" {
 			dir = filepath.Join(workspace, "..", name)
 		}
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
+
 		if _, err := os.Stat(filepath.Join(dir, ".git")); errors.Is(err, os.ErrNotExist) {
 			if _, err := os.Stat(filepath.Join(dir, "go.mod")); err != nil {
 				return nil, fmt.Errorf("revision %s: %w", name, err)
@@ -40,7 +34,7 @@ func CaptureRevisions(ctx context.Context, workspace string) ([]Revision, error)
 			return nil, fmt.Errorf("revision %s: %w", name, err)
 		}
 		run := func(args ...string) (string, error) {
-			cmd := exec.CommandContext(ctx, "git", args...)
+			cmd := exec.Command("git", args...)
 			cmd.Dir = dir
 			b, e := cmd.Output()
 			return strings.TrimSpace(string(b)), e

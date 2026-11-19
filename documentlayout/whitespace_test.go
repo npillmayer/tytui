@@ -99,7 +99,7 @@ func TestEmptyCSSParagraphRetainsEdgesAndProof(t *testing.T) {
 		if g.Content.H != 0 || g.Frame.H != 8 || g.Frame.Y != 10 || r.Geometry()[d.Root().BoxID].Content.H != 28 {
 			t.Fatal("empty principal box lost its edges/margins or gained a strut", g)
 		}
-		proof, err := documentlayout.BuildProof(t.Context(), r, cells())
+		proof, err := documentlayout.BuildProof(r, cells())
 		if err != nil || len(proof.Lines) != 0 || len(proof.Glyphs) != 0 || len(proof.Boxes) != 2 {
 			t.Fatal("empty proof lost boxes or gained lines", proof, err)
 		}

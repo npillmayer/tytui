@@ -96,7 +96,7 @@ func TestCurrentBehaviorReplayControls(t *testing.T) {
 				}
 				in := pipeline.Input{Text: source.Text, Source: source, Width: dimen.DU(tc.width) * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: paths[0], Size: 12 * dimen.BP, Fallbacks: []string{paths[1]}, Rules: []fontselection.Rule{{Weight: 700, Path: paths[0]}}}})}
 				in.LineLayout = &paragraph.LineLayout{Default: paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 1.5}}
-				r, err := pipeline.Run(t.Context(), in)
+				r, err := pipeline.Run(in)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -144,14 +144,14 @@ func TestCurrentBehaviorReplayControls(t *testing.T) {
 					}
 				}
 				path, store := filepath.Join(dir, "case.json"), filepath.Join(dir, "store")
-				if err := Save(t.Context(), r, path, store, revisions()); err != nil {
+				if err := Save(r, path, store, revisions()); err != nil {
 					t.Fatal(err)
 				}
 				m := readManifest(t, path)
 				if len(m.Fonts) != 2 || len(m.Selection.Rules) != 1 || len(m.Selection.Fallbacks) != 1 {
 					t.Fatal("configured resource lost")
 				}
-				loaded, err := Load(t.Context(), path, store)
+				loaded, err := Load(path, store)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -193,16 +193,16 @@ func TestCurrentSyntheticReplayPlacements(t *testing.T) {
 				in.LineLayout = &paragraph.LineLayout{Default: paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 2}}
 				height, baseline = 20, 13
 			}
-			r, err := pipeline.Run(t.Context(), in)
+			r, err := pipeline.Run(in)
 			if err != nil {
 				t.Fatal(err)
 			}
 			dir := t.TempDir()
 			path := filepath.Join(dir, "case.json")
-			if err := Save(t.Context(), r, path, filepath.Join(dir, "store"), revisions()); err != nil {
+			if err := Save(r, path, filepath.Join(dir, "store"), revisions()); err != nil {
 				t.Fatal(err)
 			}
-			loaded, err := Load(t.Context(), path, filepath.Join(dir, "absent-store"))
+			loaded, err := Load(path, filepath.Join(dir, "absent-store"))
 			if err != nil {
 				t.Fatal(err)
 			}

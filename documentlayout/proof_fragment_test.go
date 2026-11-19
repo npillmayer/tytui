@@ -2,7 +2,7 @@ package documentlayout_test
 
 import (
 	"bytes"
-	"context"
+
 	"encoding/xml"
 	"errors"
 	"io"
@@ -23,18 +23,18 @@ import (
 
 func lineFragment(t *testing.T, v *layout.VList, start, end int) *layout.Fragment {
 	t.Helper()
-	f, err := paragraph.Fragment(t.Context(), v)
+	f, err := paragraph.Fragment(v)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if end < len(f.Lines()) {
-		f, _, err = paragraph.SplitFragment(t.Context(), f, end)
+		f, _, err = paragraph.SplitFragment(f, end)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 	if start > 0 {
-		_, f, err = paragraph.SplitFragment(t.Context(), f, start)
+		_, f, err = paragraph.SplitFragment(f, start)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -47,7 +47,7 @@ func TestPositionedFragmentsRealEqualWidthProof(t *testing.T) {
 		d, _, _ := build(t, `<div id="root" dir="`+dir+`" style="font-size:20px;padding:7px;border-width:3px;border-style:solid;color:navy">office office <span style="color:red">office office</span> אב אב office office אב אב office office</div>`)
 		r := runDocument(t, d, 130, paragraph.FirstFit, realConfig(t))
 		services := render.Services{Backend: renderot.New(), Identity: renderot.New()}
-		full, err := documentlayout.BuildProof(t.Context(), r, services)
+		full, err := documentlayout.BuildProof(r, services)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -61,7 +61,7 @@ func TestPositionedFragmentsRealEqualWidthProof(t *testing.T) {
 			{GroupID: group.Input.GroupID, Fragment: lineFragment(t, group.Paragraph.VList, 0, cut), FrameOrigin: render.Point{X: 100, Y: 200}, Offset: render.Point{X: 3, Y: 5}},
 			{GroupID: group.Input.GroupID, Fragment: lineFragment(t, group.Paragraph.VList, cut, len(lines)), FrameOrigin: render.Point{X: 400, Y: 700}, Offset: render.Point{X: 7, Y: 11}},
 		}
-		proof, err := documentlayout.BuildFragmentProof(t.Context(), r, placements, services)
+		proof, err := documentlayout.BuildFragmentProof(r, placements, services)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -107,7 +107,7 @@ func TestPositionedFragmentsRealEqualWidthProof(t *testing.T) {
 			t.Fatal("ligature fixture did not ligate")
 		}
 		var out bytes.Buffer
-		if err := documentlayout.WriteFragmentSVG(t.Context(), &out, r, placements, services); err != nil {
+		if err := documentlayout.WriteFragmentSVG(&out, r, placements, services); err != nil {
 			t.Fatal(err)
 		}
 		dec := xml.NewDecoder(&out)
@@ -121,7 +121,7 @@ func TestPositionedFragmentsRealEqualWidthProof(t *testing.T) {
 			}
 		}
 		proof.Glyphs[0].Sources[0].NodeStart = 999
-		again, err := documentlayout.BuildFragmentProof(t.Context(), r, placements, services)
+		again, err := documentlayout.BuildFragmentProof(r, placements, services)
 		if err != nil || again.Glyphs[0].Sources[0].NodeStart == 999 {
 			t.Fatal("proof source alias", err)
 		}
@@ -143,12 +143,12 @@ func TestFragmentProofNestedOpaqueAndNegativeAdvance(t *testing.T) {
 	a := f.AtomicPlacements()
 	a[0].X += 1.0 / 65536
 	var err error
-	f, err = layout.NewFragment(t.Context(), f.Frozen(), f.Range(), f.Box(), f.Lines(), f.Materials(), a)
+	f, err = layout.NewFragment(f.Frozen(), f.Range(), f.Box(), f.Lines(), f.Materials(), a)
 	if err != nil {
 		t.Fatal(err)
 	}
 	p := documentlayout.PositionedFragment{GroupID: group.Input.GroupID, Fragment: f, FrameOrigin: render.Point{X: 100, Y: 200}, Offset: render.Point{X: 3, Y: 5}}
-	proof, err := documentlayout.BuildFragmentProof(t.Context(), r, []documentlayout.PositionedFragment{p}, cells())
+	proof, err := documentlayout.BuildFragmentProof(r, []documentlayout.PositionedFragment{p}, cells())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +203,7 @@ func TestFragmentProofDifferentOwners(t *testing.T) {
 	cfg := layoutConfig(t)
 	r := runDocument(t, d, 80, paragraph.FirstFit, cfg)
 	g, _ := r.Group(d.Groups()[0].GroupID)
-	text, _, err := cfg.Resolver.ItemizeInline(t.Context(), g.Input.Text, g.Input.Styles, g.Input.Anchors)
+	text, _, err := cfg.Resolver.ItemizeInline(g.Input.Text, g.Input.Styles, g.Input.Anchors)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,30 +215,30 @@ func TestFragmentProofDifferentOwners(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := paragraph.Prepare(t.Context(), paragraph.Input{Text: text, Direction: g.Input.Paragraph.Style.Direction, Markup: markup}, khipu.PrepareOptions{}, khipu.Config{Streaming: &khipu.StreamingConfig{Resolver: cfg.Resolver, Defaults: defaults, NewShaper: cfg.NewShaper}})
+	p, err := paragraph.Prepare(paragraph.Input{Text: text, Direction: g.Input.Paragraph.Style.Direction, Markup: markup}, khipu.PrepareOptions{}, khipu.Config{Streaming: &khipu.StreamingConfig{Resolver: cfg.Resolver, Defaults: defaults, NewShaper: cfg.NewShaper}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := p.StartFlow(t.Context(), paragraph.LayoutRequest{Params: paragraph.Params{Constraints: paragraph.Constraints{Width: 60 * dimen.BP}, Breaker: paragraph.FirstFit, Assembly: paragraph.Options{Policy: paragraph.CSSLineHeight}, LineLayout: g.Input.LineLayout.Clone()}, Horizontal: &paragraph.HorizontalLayout{}})
+	c, err := p.StartFlow(paragraph.LayoutRequest{Params: paragraph.Params{Constraints: paragraph.Constraints{Width: 60 * dimen.BP}, Breaker: paragraph.FirstFit, Assembly: paragraph.Options{Policy: paragraph.CSSLineHeight}, LineLayout: g.Input.LineLayout.Clone()}, Horizontal: &paragraph.HorizontalLayout{}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	first, err := c.Fit(t.Context(), paragraph.Frame{Width: 60 * dimen.BP, Height: 15})
+	first, err := c.Fit(paragraph.Frame{Width: 60 * dimen.BP, Height: 15})
 	if err != nil || first.Continuation == nil {
 		t.Fatal(err)
 	}
-	last, err := first.Continuation.Fit(t.Context(), paragraph.Frame{Width: 30 * dimen.BP, Height: 1000})
+	last, err := first.Continuation.Fit(paragraph.Frame{Width: 30 * dimen.BP, Height: 1000})
 	if err != nil || last.Continuation != nil || last.Placed.Frozen() == first.Placed.Frozen() {
 		t.Fatal("needs completed multiple owners", err)
 	}
 	places := []documentlayout.PositionedFragment{{GroupID: g.Input.GroupID, Fragment: first.Placed}, {GroupID: g.Input.GroupID, Fragment: last.Placed, FrameOrigin: render.Point{X: 200, Y: 50}, Offset: render.Point{X: 2, Y: 3}}}
-	proof, err := documentlayout.BuildFragmentProof(t.Context(), r, places, cells())
+	proof, err := documentlayout.BuildFragmentProof(r, places, cells())
 	if err != nil {
 		t.Fatal(err)
 	}
 	count := 0
 	for _, place := range places {
-		local, err := render.BuildFragmentProof(t.Context(), render.FragmentInput{Fragment: place.Fragment, Text: g.Input.Text, Paint: g.Input.Paint}, cells())
+		local, err := render.BuildFragmentProof(render.FragmentInput{Fragment: place.Fragment, Text: g.Input.Text, Paint: g.Input.Paint}, cells())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -258,17 +258,13 @@ func TestFragmentProofDifferentOwners(t *testing.T) {
 
 type fragmentFailureBackend struct {
 	cellProof
-	calls  int
-	fail   error
-	cancel context.CancelFunc
+	calls int
+	fail  error
 }
 
 func (b *fragmentFailureBackend) Outline(f contracts.FontFace, g uint32) (render.Outline, error) {
 	b.calls++
 	if b.calls == 3 {
-		if b.cancel != nil {
-			b.cancel()
-		}
 		if b.fail != nil {
 			return render.Outline{}, b.fail
 		}
@@ -281,46 +277,36 @@ func TestFragmentProofFailuresPublishNothing(t *testing.T) {
 	g, _ := r.Group(d.Groups()[0].GroupID)
 	places := []documentlayout.PositionedFragment{{GroupID: g.Input.GroupID, Fragment: lineFragment(t, g.Paragraph.VList, 0, 1)}, {GroupID: g.Input.GroupID, Fragment: lineFragment(t, g.Paragraph.VList, 1, len(g.Paragraph.VList.Lines()))}}
 	sentinel := errors.New("late fragment outline")
-	for _, cancelled := range []bool{false, true} {
-		ctx, cancel := context.WithCancel(t.Context())
+	{
 		b := &fragmentFailureBackend{fail: sentinel}
 		want := sentinel
-		if cancelled {
-			b.fail = nil
-			b.cancel = cancel
-			want = context.Canceled
-		}
 		var out bytes.Buffer
-		err := documentlayout.WriteFragmentSVG(ctx, &out, r, places, render.Services{Backend: b, Identity: b})
-		cancel()
+		err := documentlayout.WriteFragmentSVG(&out, r, places, render.Services{Backend: b, Identity: b})
 		if !errors.Is(err, want) || out.Len() != 0 || b.calls != 3 {
 			t.Fatal("partial export", err, out.Len(), b.calls)
 		}
 	}
 	bad := places[0]
 	bad.Offset.X = math.Inf(1)
-	if p, err := documentlayout.BuildFragmentProof(t.Context(), r, []documentlayout.PositionedFragment{bad}, cells()); p != nil || err == nil {
+	if p, err := documentlayout.BuildFragmentProof(r, []documentlayout.PositionedFragment{bad}, cells()); p != nil || err == nil {
 		t.Fatal("invalid origin")
 	}
 	bad = places[0]
 	bad.GroupID = 999999
-	if p, err := documentlayout.BuildFragmentProof(t.Context(), r, []documentlayout.PositionedFragment{bad}, cells()); p != nil || err == nil {
+	if p, err := documentlayout.BuildFragmentProof(r, []documentlayout.PositionedFragment{bad}, cells()); p != nil || err == nil {
 		t.Fatal("unknown group")
 	}
-	if err := documentlayout.WriteFragmentSVG(t.Context(), shortWriter{}, r, places, cells()); !errors.Is(err, io.ErrShortWrite) {
+	if err := documentlayout.WriteFragmentSVG(shortWriter{}, r, places, cells()); !errors.Is(err, io.ErrShortWrite) {
 		t.Fatal("short writer", err)
 	}
-	if p, err := documentlayout.BuildFragmentProof(nil, r, places, cells()); p != nil || err == nil {
-		t.Fatal("nil context")
-	}
-	before, err := documentlayout.BuildProof(t.Context(), r, cells())
+	before, err := documentlayout.BuildProof(r, cells())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := documentlayout.BuildFragmentProof(t.Context(), r, places, cells()); err != nil {
+	if _, err := documentlayout.BuildFragmentProof(r, places, cells()); err != nil {
 		t.Fatal(err)
 	}
-	after, err := documentlayout.BuildProof(t.Context(), r, cells())
+	after, err := documentlayout.BuildProof(r, cells())
 	if err != nil || !reflect.DeepEqual(before, after) {
 		t.Fatal("fragment proof mutated ordinary result", err)
 	}
@@ -330,12 +316,12 @@ func TestFragmentProofEmptyAndSourceValidation(t *testing.T) {
 	d, _, _ := build(t, `<div id="root">aa bb</div>`)
 	r := runDocument(t, d, 100, paragraph.FirstFit, layoutConfig(t))
 	g, _ := r.Group(d.Groups()[0].GroupID)
-	empty, err := layout.NewFragment(t.Context(), g.Paragraph.Frozen, layout.LineRange{}, layout.Box{}, nil, nil, nil)
+	empty, err := layout.NewFragment(g.Paragraph.Frozen, layout.LineRange{}, layout.Box{}, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	b := &fragmentFailureBackend{}
-	proof, err := documentlayout.BuildFragmentProof(t.Context(), r, []documentlayout.PositionedFragment{{GroupID: g.Input.GroupID, Fragment: empty, FrameOrigin: render.Point{X: 999, Y: 999}}}, render.Services{Backend: b, Identity: b})
+	proof, err := documentlayout.BuildFragmentProof(r, []documentlayout.PositionedFragment{{GroupID: g.Input.GroupID, Fragment: empty, FrameOrigin: render.Point{X: 999, Y: 999}}}, render.Services{Backend: b, Identity: b})
 	if err != nil || !reflect.DeepEqual(proof, &documentlayout.Proof{}) || b.calls != 0 {
 		t.Fatal("empty range rendered owner", proof, err, b.calls)
 	}
@@ -343,14 +329,8 @@ func TestFragmentProofEmptyAndSourceValidation(t *testing.T) {
 	other := runDocument(t, foreign, 100, paragraph.FirstFit, layoutConfig(t))
 	h, _ := other.Group(foreign.Groups()[0].GroupID)
 	f := lineFragment(t, h.Paragraph.VList, 0, len(h.Paragraph.VList.Lines()))
-	proof, err = documentlayout.BuildFragmentProof(t.Context(), r, []documentlayout.PositionedFragment{{GroupID: g.Input.GroupID, Fragment: f}}, cells())
+	proof, err = documentlayout.BuildFragmentProof(r, []documentlayout.PositionedFragment{{GroupID: g.Input.GroupID, Fragment: f}}, cells())
 	if proof != nil || !errors.Is(err, contracts.ErrIllegalArguments) {
 		t.Fatal("foreign text paired with source/paint", proof, err)
-	}
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-	proof, err = documentlayout.BuildFragmentProof(ctx, r, nil, cells())
-	if proof != nil || !errors.Is(err, context.Canceled) {
-		t.Fatal("early cancellation lost", err)
 	}
 }

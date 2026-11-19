@@ -44,7 +44,7 @@ func TestParagraphDisplayMatchesExplicitBlock(t *testing.T) {
 				}
 			}
 			var svg bytes.Buffer
-			if err := documentlayout.WriteBoxesSVG(t.Context(), &svg, got); err != nil {
+			if err := documentlayout.WriteBoxesSVG(&svg, got); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -54,7 +54,7 @@ func TestParagraphDisplayMatchesExplicitBlock(t *testing.T) {
 func TestParagraphDisplayOverrideStillApplies(t *testing.T) {
 	for _, display := range []string{"inline", "inline-block", "none", "flex"} {
 		input, id := parse(t, `<p id="root" style="display:`+display+`">text</p>`)
-		if _, err := documentlayout.Build(t.Context(), input, id); err == nil {
+		if _, err := documentlayout.Build(input, id); err == nil {
 			t.Fatalf("accepted non-block paragraph root: %s", display)
 		}
 	}

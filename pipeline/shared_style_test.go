@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -25,7 +24,7 @@ func TestSharedStylesWithoutDOM(t *testing.T) {
 				if real {
 					in.Fonts = selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 10 * dimen.BP}})
 				}
-				r, err := pipeline.Run(context.Background(), in)
+				r, err := pipeline.Run(in)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -75,7 +74,7 @@ func TestSharedStyleInputValidation(t *testing.T) {
 		{"preserving whitespace", []typestyle.Span{{Start: 0, End: 2, Style: typestyle.Style{EmSize: 12 * dimen.BP, WhiteSpace: "pre-wrap", UnicodeBidi: "normal"}}}, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "é", Styles: tc.spans, Source: tc.source, Width: 100 * dimen.BP})
+			r, err := pipeline.Run(pipeline.Input{Text: "é", Styles: tc.spans, Source: tc.source, Width: 100 * dimen.BP})
 			if r != nil || !errors.Is(err, pipeline.ErrInvalidInput) {
 				t.Fatalf("result=%v error=%v", r, err)
 			}

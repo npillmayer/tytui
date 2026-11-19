@@ -1,5 +1,14 @@
 # Current experimental paragraph replay
 
+Context policy (2026-11-19): typesetting, geometry, retained proofs, replay,
+and document execution are synchronous and have no context argument. Contexts
+are confined to streaming coordination and font discovery/loading. Streaming
+callers create a local background context; consumer failure still cancels and
+joins the producer before cleanup. Errors publish no partial result and preserve
+previous immutable output. TUI layout jobs finish serially; stale results are
+discarded, while font work remains cancellable. This supersedes earlier
+cancellation requirements for typesetting in this document.
+
 `tytui/replay` writes and reads **version 5 only**, using a separate local font
 content store. Versions 1–4 and unknown versions fail explicitly before current
 schema decoding, font acquisition or pipeline execution. There is no migration
@@ -7,11 +16,11 @@ reader and no promise of indefinite behavioral compatibility. This is a headless
 paragraph API; TUI Ctrl+S still exports SVG. Document replay remains deferred.
 
 ```go
-revisions, err := replay.CaptureRevisions(ctx, workspaceRoot)
+revisions, err := replay.CaptureRevisions(workspaceRoot)
 // Handle err, then run the pipeline using the captured checkout state.
-err = replay.Save(ctx, result, "case.json", "font-store", revisions)
+err = replay.Save(result, "case.json", "font-store", revisions)
 // Handle err. Original font files and discovery providers are no longer needed.
-reproduced, err := replay.Load(ctx, "case.json", "font-store")
+reproduced, err := replay.Load("case.json", "font-store")
 ```
 
 ## One format, current paint, explicit assembly

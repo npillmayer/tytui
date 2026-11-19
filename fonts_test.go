@@ -22,13 +22,13 @@ func TestFontPanelApplyRunAndSynthetic(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("no asynchronous validation")
 	}
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.fontEditor.open || m.fontSettings == nil || len(m.fontSettings.Rules) != 1 {
 		t.Fatalf("apply: %s", m.fontEditor.status)
 	}
 	m.textarea.SetValue("office")
 	m, cmd = updateModel(m, runKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.result == nil || len(m.result.Fonts) != 1 {
 		t.Fatalf("layout: %s %s", m.status, m.viewport.View())
 	}
@@ -57,14 +57,14 @@ func TestFontPanelStaleAndFailure(t *testing.T) {
 	}
 	m.fontEditor.path.SetValue("missing.ttf")
 	m, cmd = updateModel(m, fontApplyKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.fontSettings != nil || !strings.Contains(m.fontEditor.status, "failed") {
 		t.Fatal("missing font not diagnosed")
 	}
 	m.fontEditor.path.SetValue(uiFont)
 	m, cmd = updateModel(m, fontApplyKey())
 	m, _ = updateModel(m, keyPress(tea.KeyEscape))
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.fontEditor.open || m.fontSettings != nil {
 		t.Fatal("closed panel applied stale load")
 	}

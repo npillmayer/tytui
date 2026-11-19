@@ -160,9 +160,8 @@ func mutateLifetimeAccessors(t *testing.T, r *Result) {
 }
 
 // A separate resolver is used only by a failing invocation. Previously retained
-// results keep their original stable services. Metrics fail/cancel synchronously
-// after a child completes; no timer, mutable production hook or counting of Err
-// calls is needed to hit final assembly.
+// results keep their original stable services. Metrics fail synchronously
+// after a child completes, deterministically reaching final assembly.
 type lifetimeFaultLoader struct{ metrics func() error }
 type lifetimeFaultFont struct {
 	contracts.FontFace
@@ -194,14 +193,14 @@ func (l lifetimeFaultLoader) Load(ctx context.Context, path string, resource *fo
 	return f, err
 }
 
-func freshLifetimeInvocation(ctx context.Context, d *Document, request LayoutRequest, cfg Config) *invocation {
-	return &invocation{ctx: ctx, document: d, request: request, config: cfg,
+func freshLifetimeInvocation(d *Document, request LayoutRequest, cfg Config) *invocation {
+	return &invocation{document: d, request: request, config: cfg,
 		prepared: map[box.BoxID]*preparedGroup{}, started: map[box.BoxID]bool{}, groups: map[box.BoxID]GroupResult{}}
 }
 
 func TestNestedResizeFailureRecoveryAndLifetime(t *testing.T) {
 	for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
-		for _, fault := range []string{"intrinsic error", "intrinsic cancellation", "assembly error", "assembly cancellation", "publication cancellation"} {
+		for _, fault := range []string{"intrinsic error", "assembly error"} {
 			t.Run(string(breaker)+"/"+fault, func(t *testing.T) {
 				seed := boundaryInvocation(t, nestedLifetimeHTML)
 				d, cfg := seed.document, seed.config
@@ -231,7 +230,7 @@ func TestNestedResizeFailureRecoveryAndLifetime(t *testing.T) {
 				success := func(width float32) *Result {
 					t.Helper()
 					beforeFactories, beforeShapes := factories, shapes.Load()
-					r, err := d.Layout(t.Context(), LayoutRequest{Width: width, Breaker: breaker}, cfg)
+					r, err := d.Layout(LayoutRequest{Width: width, Breaker: breaker}, cfg)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -265,14 +264,9 @@ func TestNestedResizeFailureRecoveryAndLifetime(t *testing.T) {
 				if wide.Geometry()[inner.OwnerID].Content.W <= narrow.Geometry()[inner.OwnerID].Content.W {
 					t.Fatal("resize did not change nested auto content width")
 				}
-				ctx, cancel := context.WithCancel(t.Context())
-				defer cancel()
-				i := freshLifetimeInvocation(ctx, d, LayoutRequest{Width: 60, Breaker: breaker}, cfg)
+				i := freshLifetimeInvocation(d, LayoutRequest{Width: 60, Breaker: breaker}, cfg)
 				sentinel := errors.New("nested lifetime injected failure")
 				want := error(sentinel)
-				if strings.Contains(fault, "cancellation") {
-					want = context.Canceled
-				}
 				hits := 0
 				switch {
 				case strings.HasPrefix(fault, "intrinsic"):
@@ -284,11 +278,7 @@ func TestNestedResizeFailureRecoveryAndLifetime(t *testing.T) {
 							if len(i.prepared) != 1 || i.prepared[inner.GroupID] == nil || len(i.started) != 0 || len(i.groups) != 0 {
 								t.Error("failure did not occur during later intrinsic preparation")
 							}
-							if want == context.Canceled {
-								cancel()
-							} else {
-								return nil, sentinel
-							}
+							return nil, sentinel
 						}
 						return helpers.NewSyntheticStreamingShaper(8)
 					}
@@ -300,11 +290,7 @@ func TestNestedResizeFailureRecoveryAndLifetime(t *testing.T) {
 								if _, ok := i.groups[inner.GroupID]; !ok || !i.started[d.Groups()[1].GroupID] {
 									t.Error("assembly fault preceded nested child completion")
 								}
-								if want == context.Canceled {
-									cancel()
-								} else {
-									return sentinel
-								}
+								return sentinel
 							}
 							return nil
 						}}, Coverage: glyphing.CoverageFuncs{Check: checkSyntheticFace, Lookup: func(contracts.FontFace, rune) (uint32, error) { return 1, nil }},
@@ -317,14 +303,6 @@ func TestNestedResizeFailureRecoveryAndLifetime(t *testing.T) {
 						s, err := helpers.NewSyntheticStreamingShaper(8)
 						return lifetimeFaultStream{StreamingShaper: s}, err
 					}
-				default:
-					i.ctx = publicationContext{Context: ctx, ready: func() bool {
-						if len(i.groups) == len(d.Groups()) {
-							hits++
-							return true
-						}
-						return false
-					}}
 				}
 				// Use the actual invocation runner to witness private state at failure;
 				// successes/recovery use the public API. No replacement CSS scheduler.
@@ -343,17 +321,11 @@ func TestNestedResizeFailureRecoveryAndLifetime(t *testing.T) {
 					if !errors.As(err, &stage) || stage.Stage != paragraph.StageAssemble || len(i.prepared) != 2 || len(i.groups) != 1 || len(i.started) != 2 {
 						t.Fatal("not a late assembly failure", err, len(i.groups), len(i.started))
 					}
-					// Remove only the cancellation gate to exercise the failed-attempt
-					// guard. This is a direct rejected call, never a scheduler retry.
-					i.ctx = t.Context()
+					// Exercise the failed-attempt guard directly, never through a scheduler retry.
 					entry := d.groups[d.Groups()[1].GroupID]
 					_, repeat := i.LayoutInline(box.InlineRequest{Group: entry.node, OwnerID: entry.OwnerID, Used: usedView{}, Atomics: preparedView{}})
 					if !errors.Is(repeat, khipu.ErrUnsupportedPolicy) || hits != 1 || len(i.groups) != 1 || len(i.started) != 2 {
 						t.Fatal("failed final callback was retried", repeat)
-					}
-				default:
-					if len(i.groups) != len(d.Groups()) || len(i.started) != len(d.Groups()) || len(i.prepared) != len(d.Groups()) {
-						t.Fatal("publication cancellation did not follow complete private layout")
 					}
 				}
 				checkRetained()
@@ -386,12 +358,12 @@ func TestNestedResultOutlivesOriginalDOM(t *testing.T) {
 					}
 				}
 			}
-			d, err := Build(t.Context(), input, selected)
+			d, err := Build(input, selected)
 			if err != nil {
 				t.Fatal(err)
 			}
 			cfg := boundaryInvocation(t).config
-			r, err := d.Layout(t.Context(), LayoutRequest{Width: 300, Breaker: breaker}, cfg)
+			r, err := d.Layout(LayoutRequest{Width: 300, Breaker: breaker}, cfg)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -404,7 +376,7 @@ func TestNestedResultOutlivesOriginalDOM(t *testing.T) {
 			if lifetimeSnapshot(t, r) != before {
 				t.Fatal("result depended on original DOM or caller's document variable")
 			}
-			again, err := r.Document().Layout(t.Context(), LayoutRequest{Width: 300, Breaker: breaker}, cfg)
+			again, err := r.Document().Layout(LayoutRequest{Width: 300, Breaker: breaker}, cfg)
 			if err != nil || lifetimeSnapshot(t, again) != before || lifetimeSnapshot(t, r) != before {
 				t.Fatal("retained normalized document lost source/style ownership", err)
 			}

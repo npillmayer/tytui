@@ -1,7 +1,6 @@
 package documentlayout
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"slices"
@@ -91,11 +90,11 @@ func (r *FlowResult) SurroundingMargins() SurroundingMargins {
 // finite ordered frame list. Only fixed-width opaque inline children are admitted.
 // CSS schedules the single initial layout; subsequent frames use paragraph.Fit.
 // No-progress frames are skipped once, and exhaustion returns an explicit frozen
-// remainder. Errors/cancellation return nil. Working state is released on every
+// remainder. Errors return nil. Working state is released on every
 // exit, including incomplete flow. There is no document-wide preparation cache.
-// Synchronous upstream bidi preparation retains its existing cancellation limits.
-func (d *Document) LayoutFlow(ctx context.Context, request FlowRequest, config Config) (*FlowResult, error) {
-	i, frames, err := d.flowInvocation(ctx, request, config)
+// Execution is synchronous, including upstream bidi preparation.
+func (d *Document) LayoutFlow(request FlowRequest, config Config) (*FlowResult, error) {
+	i, frames, err := d.flowInvocation(request, config)
 	if err != nil {
 		return nil, err
 	}
@@ -113,13 +112,7 @@ type flowInvocation struct {
 	token *paragraph.Continuation
 }
 
-func (d *Document) flowInvocation(ctx context.Context, request FlowRequest, config Config) (*invocation, []FlowFrame, error) {
-	if ctx == nil {
-		return nil, nil, invalid("nil context")
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, nil, err
-	}
+func (d *Document) flowInvocation(request FlowRequest, config Config) (*invocation, []FlowFrame, error) {
 	if d == nil || d.root == nil || config.Resolver == nil || config.NewShaper == nil {
 		return nil, nil, invalid("document and services required")
 	}
@@ -153,9 +146,6 @@ func (d *Document) flowInvocation(ctx context.Context, request FlowRequest, conf
 	}
 	var fixed func(*box.LayoutNode) error
 	fixed = func(n *box.LayoutNode) error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
 		if n.Box == box.BoxInlineBlock && (n.Style == nil || n.Style.Width.Kind != box.LenPx) {
 			return unsupported("flow requires fixed pixel widths for opaque inline children")
 		}
@@ -170,7 +160,7 @@ func (d *Document) flowInvocation(ctx context.Context, request FlowRequest, conf
 		return nil, nil, err
 	}
 	width, _ := frameDU(frames[0].Width, false)
-	i := &invocation{ctx: ctx, document: d, request: request.Layout, config: config, prepared: map[box.BoxID]*preparedGroup{}, started: map[box.BoxID]bool{}, groups: map[box.BoxID]GroupResult{}, flow: &flowInvocation{group: d.root.Children[0].BoxID, width: width}}
+	i := &invocation{document: d, request: request.Layout, config: config, prepared: map[box.BoxID]*preparedGroup{}, started: map[box.BoxID]bool{}, groups: map[box.BoxID]GroupResult{}, flow: &flowInvocation{group: d.root.Children[0].BoxID, width: width}}
 	return i, frames, nil
 }
 
@@ -198,14 +188,11 @@ func (i *invocation) finishFlow(source *Result, frames []FlowFrame) (*FlowResult
 	}
 	out := &FlowResult{source: source, group: i.flow.group, remainder: i.flow.token.Remainder()}
 	for _, frame := range frames {
-		if err := i.ctx.Err(); err != nil {
-			return nil, err
-		}
 		record := FrameResult{Frame: frame}
 		if !out.complete {
 			record.Attempted = true
 			width, _ := frameDU(frame.Width, false)
-			fit, err := i.flow.token.Fit(i.ctx, paragraph.Frame{Width: width, Height: frame.Height * .75})
+			fit, err := i.flow.token.Fit(paragraph.Frame{Width: width, Height: frame.Height * .75})
 			if err != nil {
 				return nil, err
 			}
@@ -226,9 +213,7 @@ func (i *invocation) finishFlow(source *Result, frames []FlowFrame) (*FlowResult
 		}
 		out.frames = append(out.frames, record)
 	}
-	if err := i.ctx.Err(); err != nil {
-		return nil, err
-	}
+
 	// Exhaustion ends this bounded invocation too: only the frozen tail escapes.
 	i.releaseFlow()
 	return out, nil

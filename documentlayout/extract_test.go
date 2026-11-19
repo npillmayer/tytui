@@ -1,7 +1,6 @@
 package documentlayout_test
 
 import (
-	"context"
 	"errors"
 	"reflect"
 	"slices"
@@ -42,7 +41,7 @@ func parse(t *testing.T, source string) (*htmlinput.Document, int) {
 func build(t *testing.T, source string) (*documentlayout.Document, *htmlinput.Document, int) {
 	t.Helper()
 	input, id := parse(t, source)
-	d, err := documentlayout.Build(t.Context(), input, id)
+	d, err := documentlayout.Build(input, id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +52,7 @@ func extractAll(t *testing.T, d *documentlayout.Document) []*documentlayout.Inli
 	t.Helper()
 	var groups []*documentlayout.InlineGroup
 	for _, id := range d.Groups() {
-		g, err := d.Extract(t.Context(), id.GroupID)
+		g, err := d.Extract(id.GroupID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -323,7 +322,7 @@ func TestDocumentExtractionOwnershipAndTypedStyles(t *testing.T) {
 	before.LineLayout.Runs[0].End = 999
 	before.Anchors[0].ID = 999
 	before.AtomicSources[0].BoxID = 0
-	after, err := d.Extract(t.Context(), ids[0].GroupID)
+	after, err := d.Extract(ids[0].GroupID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -351,32 +350,24 @@ func TestUnsupportedDocumentPolicies(t *testing.T) {
 		`<br>`, `<img src="x">`, `<custom>x</custom>`,
 	} {
 		input, id := parse(t, `<div id="root">a `+content+` z</div>`)
-		d, err := documentlayout.Build(t.Context(), input, id)
+		d, err := documentlayout.Build(input, id)
 		if d != nil || !errors.Is(err, khipu.ErrUnsupportedPolicy) {
 			t.Fatal(content, d, err)
 		}
 	}
 	input, id := parse(t, `<div id="root">a</div>`)
-	if d, err := documentlayout.Build(nil, input, id); d != nil || !errors.Is(err, contracts.ErrIllegalArguments) {
-		t.Fatal(d, err)
-	}
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-	if d, err := documentlayout.Build(ctx, input, id); d != nil || !errors.Is(err, context.Canceled) {
-		t.Fatal(d, err)
-	}
-	d, err := documentlayout.Build(t.Context(), input, id)
+	d, err := documentlayout.Build(input, id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, call := range []func() (*documentlayout.InlineGroup, error){func() (*documentlayout.InlineGroup, error) { return d.Extract(nil, d.Groups()[0].GroupID) }, func() (*documentlayout.InlineGroup, error) { return d.Extract(t.Context(), 0) }} {
+	for _, call := range []func() (*documentlayout.InlineGroup, error){func() (*documentlayout.InlineGroup, error) { return d.Extract(0) }} {
 		g, err := call()
 		if g != nil || !errors.Is(err, contracts.ErrIllegalArguments) {
 			t.Fatal(g, err)
 		}
 	}
-	g, err := d.Extract(ctx, d.Groups()[0].GroupID)
-	if g != nil || !errors.Is(err, context.Canceled) {
+	g, err := d.Extract(d.Groups()[0].GroupID)
+	if g == nil || err != nil {
 		t.Fatal(g, err)
 	}
 	// IDs follow emission, never sorted BoxID order. The normalized tree's
@@ -392,7 +383,7 @@ func TestUnsupportedDocumentPolicies(t *testing.T) {
 func TestMalformedGeometryAndBidiRanges(t *testing.T) {
 	for _, style := range []string{"width:-1px", "width:NaNpx", "padding:-1px", "width:1e100px", "border-style:unknown"} {
 		input, id := parse(t, `<div id="root" style="`+style+`">x</div>`)
-		if d, err := documentlayout.Build(t.Context(), input, id); d != nil || !errors.Is(err, contracts.ErrIllegalArguments) {
+		if d, err := documentlayout.Build(input, id); d != nil || !errors.Is(err, contracts.ErrIllegalArguments) {
 			t.Fatal(style, d, err)
 		}
 	}

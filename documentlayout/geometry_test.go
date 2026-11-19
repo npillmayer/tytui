@@ -146,7 +146,7 @@ func boundaryInvocation(t *testing.T, source ...string) *invocation {
 			}
 		}
 	}
-	d, err := Build(t.Context(), input, selected)
+	d, err := Build(input, selected)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,13 +154,13 @@ func boundaryInvocation(t *testing.T, source ...string) *invocation {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &invocation{ctx: t.Context(), document: d, request: LayoutRequest{Width: 100, Breaker: paragraph.FirstFit}, config: Config{Resolver: r, NewShaper: func() (contracts.StreamingShaper, error) { return helpers.NewSyntheticStreamingShaper(8) }}, prepared: map[box.BoxID]*preparedGroup{}, started: map[box.BoxID]bool{}, groups: map[box.BoxID]GroupResult{}}
+	return &invocation{document: d, request: LayoutRequest{Width: 100, Breaker: paragraph.FirstFit}, config: Config{Resolver: r, NewShaper: func() (contracts.StreamingShaper, error) { return helpers.NewSyntheticStreamingShaper(8) }}, prepared: map[box.BoxID]*preparedGroup{}, started: map[box.BoxID]bool{}, groups: map[box.BoxID]GroupResult{}}
 }
 
 func TestInlineCallbackIdentityAndRepetition(t *testing.T) {
 	i := boundaryInvocation(t)
 	entry := i.document.groups[i.document.order[0].GroupID]
-	g, err := i.document.Extract(t.Context(), entry.GroupID)
+	g, err := i.document.Extract(entry.GroupID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +197,7 @@ func TestInlineCallbackPlacesZeroSizedPreparedBox(t *testing.T) {
 		i := boundaryInvocation(t)
 		i.request.Breaker = breaker
 		entry := i.document.groups[i.document.order[0].GroupID]
-		g, err := i.document.Extract(t.Context(), entry.GroupID)
+		g, err := i.document.Extract(entry.GroupID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -210,29 +210,6 @@ func TestInlineCallbackPlacesZeroSizedPreparedBox(t *testing.T) {
 		if len(out.Atomics) != 1 || out.Atomics[0] != (box.AtomicPlacement{BoxID: id, Y: 16}) {
 			t.Fatal("zero-sized prepared item lost or resized", out)
 		}
-	}
-}
-
-// Cancellation becomes visible only after the final callback retained a complete
-// paragraph. This exercises the whole-flow publication check deterministically.
-type publicationContext struct {
-	context.Context
-	ready func() bool
-}
-
-func (c publicationContext) Err() error {
-	if c.ready() {
-		return context.Canceled
-	}
-	return c.Context.Err()
-}
-
-func TestCancellationAtDocumentPublication(t *testing.T) {
-	i := boundaryInvocation(t)
-	i.ctx = publicationContext{Context: t.Context(), ready: func() bool { return len(i.groups) == len(i.document.groups) }}
-	out, err := i.run()
-	if out != nil || !errors.Is(err, context.Canceled) || len(i.groups) != len(i.document.groups) {
-		t.Fatal("partial document published", out, err)
 	}
 }
 

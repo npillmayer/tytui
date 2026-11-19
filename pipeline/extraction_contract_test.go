@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/npillmayer/khipu/dimen"
@@ -20,7 +19,7 @@ func TestExtractionContractSourceStyleAndFrozenSize(t *testing.T) {
 			if err := e.Validate(e.Text); err != nil {
 				t.Fatal(err)
 			}
-			r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 10 * dimen.BP}})})
+			r, err := pipeline.Run(pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 10 * dimen.BP}})})
 			if err != nil {
 				t.Fatal(err)
 			}

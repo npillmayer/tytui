@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"bytes"
-	"context"
 	"encoding/xml"
 	"fmt"
 	"github.com/npillmayer/typography/render"
@@ -30,7 +29,7 @@ func BuildGlyphProof(result *Result) (*GlyphProof, error) {
 	if result == nil {
 		return nil, fmt.Errorf("glyph proof requires a completed result")
 	}
-	proof, err := render.BuildParagraphProof(context.Background(), render.ParagraphInput{
+	proof, err := render.BuildParagraphProof(render.ParagraphInput{
 		Frozen: result.Frozen, VList: result.vlist, Text: result.ParagraphText,
 		Paint: result.paint}, render.Services{Backend: result.Renderer, Identity: result.Identity})
 	if err != nil {

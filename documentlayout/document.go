@@ -5,7 +5,6 @@
 package documentlayout
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"slices"
@@ -83,7 +82,7 @@ func (d *Document) TextSource(id boxtext.TextSourceID) (TextSource, bool) {
 
 // Build snapshots the selected styled block subtree, constructs typed RenderNode
 // input, then delegates split/hoist and anonymous groups to CSS core. Inputs must
-// be read-only during this call. Errors/cancellation return no partial document.
+// be read-only during this call. Errors return no partial document.
 // The initial subset is normal whitespace, normal line height, horizontal flow,
 // fixed-pixel or auto atomic widths and zero ordinary-inline edges. The document
 // profile is NoHyphenation: authored U+00AD requires effective hyphens:none;
@@ -91,13 +90,7 @@ func (d *Document) TextSource(id boxtext.TextSourceID) (TextSource, bool) {
 // with khipu.ErrUnsupportedPolicy. Marker errors locate the original decoded
 // text-node byte offset, before whitespace normalization. No font coverage is
 // checked and no atomic interior is flattened into its enclosing paragraph.
-func Build(ctx context.Context, input *htmlinput.Document, selected int) (*Document, error) {
-	if ctx == nil {
-		return nil, invalid("nil context")
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
+func Build(input *htmlinput.Document, selected int) (*Document, error) {
 	if input == nil || selected < 0 || selected >= len(input.Nodes) || len(input.Nodes) >= math.MaxUint32 {
 		return nil, invalid("invalid document or selected node")
 	}
@@ -117,9 +110,6 @@ func Build(ctx context.Context, input *htmlinput.Document, selected int) (*Docum
 	images := make(map[string]*ImageResource) // one byte snapshot per path per build
 	var render func(int) (*box.RenderNode, error)
 	render = func(id int) (*box.RenderNode, error) {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
 		n := input.Nodes[id]
 		if n.Type != html.ElementNode && n.Type != html.TextNode {
 			return nil, nil
@@ -193,7 +183,7 @@ func Build(ctx context.Context, input *htmlinput.Document, selected int) (*Docum
 				}
 				resource := images[path]
 				if resource == nil {
-					resource, err = readImage(ctx, path)
+					resource, err = readImage(path)
 					if err != nil {
 						return nil, fmt.Errorf("%s: image %q: %w", n.Path, path, err)
 					}
@@ -220,9 +210,6 @@ func Build(ctx context.Context, input *htmlinput.Document, selected int) (*Docum
 		return nil, err
 	}
 	d.root, err = box.BuildLayoutTree(renderRoot, box.BuildOptions{ReadText: func(ref boxtext.TextRef) (string, error) {
-		if err := ctx.Err(); err != nil {
-			return "", err
-		}
 		source, ok := d.sources[ref.Source]
 		if !ok || ref.Range.Start > ref.Range.End || !boundary(source.Text, ref.Range.Start) || !boundary(source.Text, ref.Range.End) {
 			return "", invalid("invalid text reference")
@@ -234,9 +221,6 @@ func Build(ctx context.Context, input *htmlinput.Document, selected int) (*Docum
 	}
 	var index func(*box.LayoutNode, *box.LayoutNode, NodeSource) error
 	index = func(n, owner *box.LayoutNode, paragraph NodeSource) error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
 		if box.IsBlockContainer(n.Box) {
 			owner = n
 			if n.NodeID != 0 {
@@ -261,7 +245,7 @@ func Build(ctx context.Context, input *htmlinput.Document, selected int) (*Docum
 	// Validate every normalized group before publishing the snapshot, including
 	// nested atomic interiors and unsupported empty metric-bearing inlines.
 	for _, g := range d.order {
-		if _, err := d.Extract(ctx, g.GroupID); err != nil {
+		if _, err := d.Extract(g.GroupID); err != nil {
 			return nil, err
 		}
 	}

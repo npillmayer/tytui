@@ -1,7 +1,6 @@
 package documentlayout
 
 import (
-	"context"
 	"errors"
 	"math"
 	"reflect"
@@ -25,7 +24,7 @@ func TestAtomicIntrinsicConversion(t *testing.T) {
 	g := &InlineGroup{AtomicSources: []AtomicSource{{ID: 91, BoxID: 7}, {ID: 3, BoxID: 19}}}
 	atoms := intrinsicView{19: {BoxID: 19, BorderWidths: box.IntrinsicWidths{MaxContent: 2}}, 7: {BoxID: 7, BorderWidths: box.IntrinsicWidths{MinContent: 1.0 / 32768, MaxContent: 1.0 / 32768}}}
 	edges := edgesView{7: {Margin: box.Edges{Left: 1.0 / 32768, Right: 1.0 / 32768}, Padding: box.Edges{Left: 100}, Border: box.Edges{Right: 100}}, 19: {Margin: box.Edges{Left: -5, Right: 1}}}
-	got, err := atomicIntrinsics(t.Context(), g, box.InlineMeasureRequest{Atomics: atoms, Edges: edges})
+	got, err := atomicIntrinsics(g, box.InlineMeasureRequest{Atomics: atoms, Edges: edges})
 	want := []khipu.AtomicIntrinsic{{ID: 91, MinAdvance: 6, MaxAdvance: 6}, {ID: 3, MinAdvance: -4 * 49152, MaxAdvance: -2 * 49152}}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatal("primitive rounding, signed margins or ID mapping", got, err)
@@ -39,7 +38,7 @@ func TestAtomicIntrinsicConversion(t *testing.T) {
 	} {
 		atoms[7] = box.IntrinsicAtomic{BoxID: 7, BorderWidths: box.IntrinsicWidths{MinContent: tc.border, MaxContent: tc.border}}
 		edges[7] = box.BoxEdges{Margin: box.Edges{Left: tc.left, Right: tc.right}}
-		got, err := atomicIntrinsics(t.Context(), g, box.InlineMeasureRequest{Atomics: atoms, Edges: edges})
+		got, err := atomicIntrinsics(g, box.InlineMeasureRequest{Atomics: atoms, Edges: edges})
 		if tc.valid {
 			if err != nil || got[0].MinAdvance != 30000*49152 {
 				t.Fatal(got, err)
@@ -69,7 +68,7 @@ func TestMeasureInlineReuseAndRequestValidation(t *testing.T) {
 	i := boundaryInvocation(t, `<div id="root" style="font-size:20px">éa <span style="display:inline-block;width:20px">x</span> z</div>`)
 	calls := countPreparation(t, i)
 	entry := i.document.groups[i.document.order[0].GroupID]
-	g, err := i.document.Extract(t.Context(), entry.GroupID)
+	g, err := i.document.Extract(entry.GroupID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,43 +137,5 @@ func TestMeasureInlineReuseAndRequestValidation(t *testing.T) {
 	}
 	if _, err := i.LayoutInline(box.InlineRequest{Group: entry.node, OwnerID: entry.OwnerID, Used: usedView{}, Atomics: preparedView{}}); !errors.Is(err, khipu.ErrUnsupportedPolicy) {
 		t.Fatal("measurement weakened final-callback guard", err)
-	}
-}
-
-type cancellingIntrinsicView struct {
-	intrinsicView
-	cancel context.CancelFunc
-}
-
-func (v cancellingIntrinsicView) Lookup(id box.BoxID) (box.IntrinsicAtomic, bool) {
-	v.cancel()
-	return v.intrinsicView.Lookup(id)
-}
-
-func TestMeasureInlineCancellation(t *testing.T) {
-	i := boundaryInvocation(t)
-	entry := i.document.groups[i.document.order[0].GroupID]
-	g, err := i.document.Extract(t.Context(), entry.GroupID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	id := g.AtomicSources[0].BoxID
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	i.ctx = ctx
-	req := box.InlineMeasureRequest{Group: entry.node, OwnerID: entry.OwnerID, Edges: edgesView{id: {}}, Atomics: cancellingIntrinsicView{intrinsicView{id: {BoxID: id}}, cancel}}
-	if got, err := i.MeasureInline(req); got != (box.IntrinsicWidths{}) || !errors.Is(err, context.Canceled) {
-		t.Fatal("lookup cancellation ignored", got, err)
-	}
-	if len(i.prepared) != 1 || len(i.groups) != 0 || len(i.started) != 0 {
-		t.Fatal("cancellation published partial result")
-	}
-	if got, err := i.MeasureInline(box.InlineMeasureRequest{}); got != (box.IntrinsicWidths{}) || !errors.Is(err, context.Canceled) {
-		t.Fatal("entry cancellation lost", got, err)
-	}
-	// The completed preparation remains usable; the cancelled invocation is discarded.
-	p := i.prepared[entry.GroupID]
-	if _, err := p.paragraph.MeasureIntrinsic(t.Context(), khipu.MeasureRequest{Atomics: []khipu.AtomicIntrinsic{{ID: p.input.Anchors[0].ID}}}); err != nil {
-		t.Fatal(err)
 	}
 }

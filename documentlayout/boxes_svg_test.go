@@ -21,7 +21,7 @@ func TestBoxesSVGCoordinates(t *testing.T) {
 	for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
 		r := runDocument(t, d, 300, breaker, layoutConfig(t))
 		var b bytes.Buffer
-		if err := documentlayout.WriteBoxesSVG(t.Context(), &b, r); err != nil {
+		if err := documentlayout.WriteBoxesSVG(&b, r); err != nil {
 			t.Fatal(err)
 		}
 		dec := xml.NewDecoder(&b)
@@ -64,7 +64,7 @@ func TestBoxesSVGKindsAndTextFragments(t *testing.T) {
 		t.Run(string(breaker), func(t *testing.T) {
 			r := runDocument(t, d, 75, breaker, layoutConfig(t))
 			before := r.Geometry()
-			proof, err := documentlayout.BuildProof(t.Context(), r, cells())
+			proof, err := documentlayout.BuildProof(r, cells())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -97,7 +97,7 @@ func TestBoxesSVGKindsAndTextFragments(t *testing.T) {
 				t.Fatal("fixture must include wrapped text and an atomic")
 			}
 			var out bytes.Buffer
-			if err := documentlayout.WriteBoxesSVG(t.Context(), &out, r); err != nil {
+			if err := documentlayout.WriteBoxesSVG(&out, r); err != nil {
 				t.Fatal(err)
 			}
 			original := out.String()
@@ -169,7 +169,7 @@ func TestBoxesSVGKindsAndTextFragments(t *testing.T) {
 				t.Fatal("missing box kinds or fragments", seen, len(want))
 			}
 			out.Reset()
-			if err := documentlayout.WriteBoxesSVG(t.Context(), &out, r); err != nil {
+			if err := documentlayout.WriteBoxesSVG(&out, r); err != nil {
 				t.Fatal(err)
 			}
 			if out.String() != original || !reflect.DeepEqual(before, r.Geometry()) {
@@ -208,7 +208,7 @@ func TestLayoutSVGGlyphs(t *testing.T) {
 	for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
 		r := runDocument(t, d, 90, breaker, layoutConfig(t))
 		var reference bytes.Buffer
-		if err := documentlayout.WriteSVG(t.Context(), &reference, r, cells()); err != nil {
+		if err := documentlayout.WriteSVG(&reference, r, cells()); err != nil {
 			t.Fatal(err)
 		}
 		want := paths(reference.Bytes())
@@ -217,7 +217,7 @@ func TestLayoutSVGGlyphs(t *testing.T) {
 		}
 		for _, opts := range []documentlayout.LayoutSVGOptions{{ShowGlyphs: true}, {HideBoxes: true}, {ShowGlyphs: true, HideBoxes: true}} {
 			var out, again bytes.Buffer
-			if err := documentlayout.WriteLayoutSVG(t.Context(), &out, r, cells(), opts); err != nil {
+			if err := documentlayout.WriteLayoutSVG(&out, r, cells(), opts); err != nil {
 				t.Fatal(err)
 			}
 			if !reflect.DeepEqual(paths(out.Bytes()), want) {
@@ -226,7 +226,7 @@ func TestLayoutSVGGlyphs(t *testing.T) {
 			if opts.HideBoxes && (strings.Contains(out.String(), "<rect") || strings.Contains(out.String(), "<circle")) {
 				t.Fatal("clean proof contains diagnostics")
 			}
-			if err := documentlayout.WriteLayoutSVG(t.Context(), &again, r, cells(), opts); err != nil {
+			if err := documentlayout.WriteLayoutSVG(&again, r, cells(), opts); err != nil {
 				t.Fatal(err)
 			}
 			if !bytes.Equal(out.Bytes(), again.Bytes()) {
@@ -234,7 +234,7 @@ func TestLayoutSVGGlyphs(t *testing.T) {
 			}
 		}
 		var after bytes.Buffer
-		if err := documentlayout.WriteSVG(t.Context(), &after, r, cells()); err != nil {
+		if err := documentlayout.WriteSVG(&after, r, cells()); err != nil {
 			t.Fatal(err)
 		}
 		if !bytes.Equal(reference.Bytes(), after.Bytes()) {

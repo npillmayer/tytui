@@ -1,7 +1,6 @@
 package documentlayout
 
 import (
-	"context"
 	"errors"
 	"reflect"
 	"testing"
@@ -61,7 +60,7 @@ func TestInvocationPreparationMeasureThenLayout(t *testing.T) {
 				if err != nil || cached != p {
 					t.Fatal("lost preparation identity", err)
 				}
-				got, err := cached.paragraph.MeasureIntrinsic(i.ctx, request)
+				got, err := cached.paragraph.MeasureIntrinsic(request)
 				if err != nil || got != want {
 					t.Fatalf("measure = %v, %v; want %v", got, err, want)
 				}
@@ -101,7 +100,7 @@ func TestInvocationPreparationMeasureThenLayout(t *testing.T) {
 			measure(want) // Accepted result and final-attempt guard do not block reuse.
 			geometry := out.Geometry()
 			before := calls.shape
-			resized, err := i.document.Layout(t.Context(), LayoutRequest{Width: 60, Breaker: breaker}, i.config)
+			resized, err := i.document.Layout(LayoutRequest{Width: 60, Breaker: breaker}, i.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -187,7 +186,7 @@ func TestPreparationFailureAndRetryPreserveCompletedGroups(t *testing.T) {
 	if len(i.prepared) != 1 || i.prepared[first.GroupID] != p || len(i.groups) != 0 || len(i.started) != 0 {
 		t.Fatal("partial preparation retained or earlier preparation lost")
 	}
-	if _, err := p.paragraph.MeasureIntrinsic(t.Context(), khipu.MeasureRequest{}); err != nil {
+	if _, err := p.paragraph.MeasureIntrinsic(khipu.MeasureRequest{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := i.prepareGroup(second.node, second.OwnerID); err != nil {
@@ -199,9 +198,9 @@ func TestPreparationFailureAndRetryPreserveCompletedGroups(t *testing.T) {
 	}
 }
 
-func TestPreparationCancellationDoesNotPublish(t *testing.T) {
+func TestPreparationFailureDoesNotPublish(t *testing.T) {
 	i := boundaryInvocation(t, `<div id="root"><div>first text</div><div>second text</div></div>`)
-	old, err := i.document.Layout(t.Context(), i.request, i.config)
+	old, err := i.document.Layout(i.request, i.config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,14 +208,12 @@ func TestPreparationCancellationDoesNotPublish(t *testing.T) {
 	first := i.document.groups[i.document.order[0].GroupID]
 	second := i.document.groups[i.document.order[1].GroupID]
 	retained, _ := old.Group(first.GroupID)
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	i.ctx = ctx
+	failure := errors.New("preparation failed")
 	calls := 0
 	i.config.NewShaper = func() (contracts.StreamingShaper, error) {
 		calls++
 		if calls == 2 {
-			cancel()
+			return nil, failure
 		}
 		return helpers.NewSyntheticStreamingShaper(8)
 	}
@@ -224,19 +221,13 @@ func TestPreparationCancellationDoesNotPublish(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bad, err := i.prepareGroup(second.node, second.OwnerID); bad != nil || !errors.Is(err, context.Canceled) {
+	if bad, err := i.prepareGroup(second.node, second.OwnerID); bad != nil || !errors.Is(err, failure) {
 		t.Fatal(bad, err)
 	}
 	if len(i.prepared) != 1 || i.prepared[first.GroupID] != p || len(i.groups) != 0 {
-		t.Fatal("cancellation retained partial preparation")
+		t.Fatal("failure retained partial preparation")
 	}
-	if bad, err := i.prepareGroup(first.node, first.OwnerID); bad != nil || !errors.Is(err, context.Canceled) {
-		t.Fatal("cache hit ignored cancellation", err)
-	}
-	if out, err := i.run(); out != nil || !errors.Is(err, context.Canceled) {
-		t.Fatal("cancelled invocation published", out, err)
-	}
-	if _, err := i.document.Layout(t.Context(), i.request, i.config); err != nil {
+	if _, err := i.document.Layout(i.request, i.config); err != nil {
 		t.Fatal("fresh invocation failed", err)
 	}
 	after, _ := old.Group(first.GroupID)
@@ -266,7 +257,7 @@ func TestFailedFinalCallbackKeepsPreparationButRejectsRepeat(t *testing.T) {
 	if err != nil || cached != p {
 		t.Fatal("final failure invalidated preparation", err)
 	}
-	if _, err := p.paragraph.MeasureIntrinsic(t.Context(), khipu.MeasureRequest{Atomics: []khipu.AtomicIntrinsic{{ID: p.input.Anchors[0].ID}}}); err != nil {
+	if _, err := p.paragraph.MeasureIntrinsic(khipu.MeasureRequest{Atomics: []khipu.AtomicIntrinsic{{ID: p.input.Anchors[0].ID}}}); err != nil {
 		t.Fatal(err)
 	}
 }

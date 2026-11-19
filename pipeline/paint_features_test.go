@@ -43,7 +43,7 @@ func TestPaintCoalescingPreservesRelativeFeatureDomains(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		result, err := layout.Run(context.Background(), layout.Input{Text: text, Direction: bidi.LeftToRight}, layout.Params{
+		result, err := layout.Run(layout.Input{Text: text, Direction: bidi.LeftToRight}, layout.Params{
 			Constraints: layout.Constraints{Width: 100 * dimen.BP}, Breaker: breaker,
 			Assembly: layout.Options{Policy: layout.CSSLineHeight}, LineLayout: &layout.LineLayout{Default: layout.LineHeight{Kind: layout.NormalHeight}},
 		}, khipu.Config{Streaming: &khipu.StreamingConfig{NewShaper: func() (contracts.StreamingShaper, error) { return otadapter.NewStream(8) }, Resolver: r, Defaults: defaults}})

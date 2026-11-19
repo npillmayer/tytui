@@ -34,8 +34,6 @@ type options struct {
 }
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
 	registry := commando.NewCommandRegistry().SetExecutableName("tycli").SetVersion("0.1.0").SetDescription("Lay out HTML/CSS and export positioned CSS box outlines.")
 	cmd := registry.Register(nil).AddArgument("html", "Local HTML input", "")
 	for _, f := range []struct{ name, desc, value string }{
@@ -60,7 +58,7 @@ func main() {
 		value := func(k string) string { s, _ := flags[k].GetString(); return s }
 		showGlyphs, _ := flags["show-glyphs"].GetBool()
 		hideBoxes, _ := flags["hide-boxes"].GetBool()
-		err := run(ctx, options{input: args["html"].Value, css: value("css"), fonts: value("fonts"), root: value("root"), output: value("output"), width: value("width"), breaker: value("breaker"), log: value("log"), frames: value("frames"), showGlyphs: showGlyphs, hideBoxes: hideBoxes}, os.Stdout, os.Stderr)
+		err := run(options{input: args["html"].Value, css: value("css"), fonts: value("fonts"), root: value("root"), output: value("output"), width: value("width"), breaker: value("breaker"), log: value("log"), frames: value("frames"), showGlyphs: showGlyphs, hideBoxes: hideBoxes}, os.Stdout, os.Stderr)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "tycli:", err)
 			os.Exit(1)
@@ -120,7 +118,7 @@ func loadFonts(path string) (*fontselection.Request, error) {
 	return r, nil
 }
 
-func run(ctx context.Context, o options, stdout, stderr io.Writer) error {
+func run(o options, stdout, stderr io.Writer) error {
 	if o.log != "quiet" && o.log != "info" && o.log != "trace" {
 		return fmt.Errorf("invalid --log %q", o.log)
 	}
@@ -176,7 +174,7 @@ func run(ctx context.Context, o options, stdout, stderr io.Writer) error {
 	if selected < 0 {
 		return fmt.Errorf("root %q not found (default: body)", o.root)
 	}
-	doc, err := documentlayout.Build(ctx, input, selected)
+	doc, err := documentlayout.Build(input, selected)
 	if err != nil {
 		return err
 	}
@@ -185,11 +183,11 @@ func run(ctx context.Context, o options, stdout, stderr io.Writer) error {
 		return err
 	}
 	info("load fonts: " + o.fonts)
-	selection, err := fontselection.Prepare(ctx, request)
+	selection, err := loadSelectedFonts(request)
 	if err != nil {
 		return err
 	}
-	resolver, err := glyphing.NewStyleMapper(ctx, selection.Fonts, ot.Services{})
+	resolver, err := glyphing.NewStyleMapper(selection.Fonts, ot.Services{})
 	if err != nil {
 		return err
 	}
@@ -213,7 +211,7 @@ func run(ctx context.Context, o options, stdout, stderr io.Writer) error {
 		if e != nil {
 			return e
 		}
-		result, e := doc.LayoutFlow(ctx, documentlayout.FlowRequest{Layout: documentlayout.LayoutRequest{Width: float32(width), Breaker: paragraph.Breaker(o.breaker)}, Frames: frames}, config)
+		result, e := doc.LayoutFlow(documentlayout.FlowRequest{Layout: documentlayout.LayoutRequest{Width: float32(width), Breaker: paragraph.Breaker(o.breaker)}, Frames: frames}, config)
 		if e != nil {
 			return e
 		}
@@ -224,11 +222,11 @@ func run(ctx context.Context, o options, stdout, stderr io.Writer) error {
 			return fmt.Errorf("incomplete frame flow: %d lines remain; output unchanged", len(result.Remainder().Lines()))
 		}
 		drawing := renderot.New()
-		if e = documentlayout.WriteFlowSVG(ctx, &svg, result, render.Services{Backend: drawing, Identity: drawing}, documentlayout.LayoutSVGOptions{ShowGlyphs: o.showGlyphs, HideBoxes: o.hideBoxes}); e != nil {
+		if e = documentlayout.WriteFlowSVG(&svg, result, render.Services{Backend: drawing, Identity: drawing}, documentlayout.LayoutSVGOptions{ShowGlyphs: o.showGlyphs, HideBoxes: o.hideBoxes}); e != nil {
 			return e
 		}
 	} else {
-		result, err := doc.Layout(ctx, documentlayout.LayoutRequest{Width: float32(width), Breaker: paragraph.Breaker(o.breaker)}, config)
+		result, err := doc.Layout(documentlayout.LayoutRequest{Width: float32(width), Breaker: paragraph.Breaker(o.breaker)}, config)
 		if err != nil {
 			return err
 		}
@@ -248,7 +246,7 @@ func run(ctx context.Context, o options, stdout, stderr io.Writer) error {
 			}
 		}
 		renderServices := renderot.New()
-		if err := documentlayout.WriteLayoutSVG(ctx, &svg, result, render.Services{Backend: renderServices, Identity: renderServices}, documentlayout.LayoutSVGOptions{ShowGlyphs: o.showGlyphs, HideBoxes: o.hideBoxes}); err != nil {
+		if err := documentlayout.WriteLayoutSVG(&svg, result, render.Services{Backend: renderServices, Identity: renderServices}, documentlayout.LayoutSVGOptions{ShowGlyphs: o.showGlyphs, HideBoxes: o.hideBoxes}); err != nil {
 			return err
 		}
 	}
@@ -291,4 +289,11 @@ func (s *traceShaper) Shape(ctx context.Context, p contracts.ShapeParams, r cont
 	err := s.StreamingShaper.Shape(ctx, p, r, b)
 	s.log(fmt.Sprintf("shape complete: error=%v", err))
 	return err
+}
+
+// Only font loading has cooperative signal cancellation. Layout uses normal process signals.
+func loadSelectedFonts(request *fontselection.Request) (*fontselection.Selection, error) {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	return fontselection.Prepare(ctx, request)
 }

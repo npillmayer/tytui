@@ -17,9 +17,8 @@ import (
 func TestCSSAssemblyReplay(t *testing.T) {
 	for _, fonts := range []*fontselection.Request{nil, {Settings: fontselection.Settings{DefaultPath: latin, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}}} {
 		for _, b := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-
 			in := pipeline.Input{Text: "fi ab\u00adcd שָׁלוֹם", Width: 80 * dimen.BP, Breaker: b, Fonts: selectFonts(t, fonts), LineLayout: &paragraph.LineLayout{Default: paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 1.5}, Runs: []paragraph.LineHeightSpan{{Start: 1, End: 2, Height: paragraph.LineHeight{Kind: paragraph.LengthHeight, Length: 30 * dimen.BP}}}}}
-			out, err := pipeline.Run(t.Context(), in)
+			out, err := pipeline.Run(in)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -28,14 +27,14 @@ func TestCSSAssemblyReplay(t *testing.T) {
 			store := filepath.Join(dir, "fonts")
 			// Replay policy is retained independently of mutable inspection Input.
 			out.Input.LineLayout = nil
-			if err = Save(t.Context(), out, path, store, revisions()); err != nil {
+			if err = Save(out, path, store, revisions()); err != nil {
 				t.Fatal(err)
 			}
 			m := readManifest(t, path)
 			if m.Version != Version || m.Input.LineLayout == nil || m.Evidence.Layout == nil || m.Input.Assembly != paragraph.CSSLineHeight {
 				t.Fatal("wrong version/policy")
 			}
-			loaded, err := Load(t.Context(), path, store)
+			loaded, err := Load(path, store)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -43,7 +42,7 @@ func TestCSSAssemblyReplay(t *testing.T) {
 				t.Fatal("placement replay changed")
 			}
 			resave := filepath.Join(dir, "resave.json")
-			if err = Save(t.Context(), loaded, resave, store, revisions()); err != nil {
+			if err = Save(loaded, resave, store, revisions()); err != nil {
 				t.Fatal(err)
 			}
 			saved := readManifest(t, resave)
@@ -67,11 +66,10 @@ func TestCSSAssemblyReplay(t *testing.T) {
 				if e = os.WriteFile(name, data, 0600); e != nil {
 					t.Fatal(e)
 				}
-				if _, e = Load(t.Context(), name, store); e == nil {
+				if _, e = Load(name, store); e == nil {
 					t.Fatalf("accepted tampered case %d", i)
 				}
 			}
-
 		}
 	}
 }

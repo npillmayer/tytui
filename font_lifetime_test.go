@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"tytui/pipeline"
 )
 
 func TestFontPreviewDoesNotPinEditablePathForLaterRun(t *testing.T) {
@@ -22,7 +21,7 @@ func TestFontPreviewDoesNotPinEditablePathForLaterRun(t *testing.T) {
 	m, _ = updateModel(m, keyPress(tea.KeyF5))
 	m.fontEditor.path.SetValue(path)
 	m, cmd := updateModel(m, fontApplyKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.fontSettings == nil {
 		t.Fatal("preview failed", m.fontEditor.status)
 	}
@@ -30,9 +29,8 @@ func TestFontPreviewDoesNotPinEditablePathForLaterRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	m, cmd = updateModel(m, runKey())
-	msg := cmd().(layoutMsg)
-	var stage *pipeline.StageError
-	if msg.result != nil || !errors.As(msg.err, &stage) || stage.Stage != pipeline.StageFonts || !errors.Is(msg.err, os.ErrNotExist) {
+	msg := cmd().(jobFontsMsg)
+	if msg.selection != nil || !errors.Is(msg.err, os.ErrNotExist) {
 		t.Fatal("run ignored current file or lost font-stage error", msg.err)
 	}
 }

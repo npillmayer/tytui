@@ -125,7 +125,7 @@ func (geometryProofBackend) VisualOrder(g []contracts.ShapedGlyph, _ xbidi.Direc
 func geometryProof(t *testing.T, r *Result) *Proof {
 	t.Helper()
 	backend := geometryProofBackend{}
-	p, err := BuildProof(t.Context(), r, render.Services{Backend: backend, Identity: backend})
+	p, err := BuildProof(r, render.Services{Backend: backend, Identity: backend})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func TestNestedAutoGeometryOracles(t *testing.T) {
 			for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
 				for n, width := range []float32{0, 30, 66, 100} {
 					t.Run(fmt.Sprintf("%s/%s/%s/%g", m.name, input.name, breaker, width), func(t *testing.T) {
-						out, err := input.d.Layout(t.Context(), LayoutRequest{Width: width, Breaker: breaker}, htmlInput.config)
+						out, err := input.d.Layout(LayoutRequest{Width: width, Breaker: breaker}, htmlInput.config)
 						if err != nil {
 							t.Fatal(err)
 						}
@@ -258,7 +258,7 @@ func TestNestedEmptyAutoGeometry(t *testing.T) {
 	htmlInput := boundaryInvocation(t, `<div id="root" style="font-size:20px"><span style="display:inline-block;padding:2px;border-width:1px;border-style:solid"><span style="display:inline-block;padding:2px;border-width:1px;border-style:solid;margin:0 2px"></span></span></div>`)
 	for _, d := range []*Document{typedNestedGeometry(t, s, inner, ""), htmlInput.document} {
 		for _, b := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
-			out, err := d.Layout(t.Context(), LayoutRequest{Width: 0, Breaker: b}, htmlInput.config)
+			out, err := d.Layout(LayoutRequest{Width: 0, Breaker: b}, htmlInput.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -314,7 +314,7 @@ func TestNestedGeometryPrimitiveRounding(t *testing.T) {
 	}{{"typed", typedNestedGeometry(t, outerStyle, innerStyle, "")}, {"HTML", htmlInput.document}} {
 		for _, b := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
 			t.Run(input.name+"/"+string(b), func(t *testing.T) {
-				out, err := input.d.Layout(t.Context(), LayoutRequest{Width: 0, Breaker: b}, htmlInput.config)
+				out, err := input.d.Layout(LayoutRequest{Width: 0, Breaker: b}, htmlInput.config)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -399,7 +399,7 @@ func TestNestedAutoBlockAndInlineGeometry(t *testing.T) {
 	i := boundaryInvocation(t, `<div id="root" style="font-size:20px"><span style="display:inline-block;padding:2px;border-width:1px;border-style:solid">lead<div style="padding:1px;margin:2px 3px 3px 2px">a<span style="display:inline-block;width:20px;padding:1px;border-width:1px;border-style:solid;margin-left:-2px;margin-right:4px">z</span>b</div>end</span></div>`)
 	for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
 		t.Run(string(breaker), func(t *testing.T) {
-			out, err := i.document.Layout(t.Context(), LayoutRequest{Width: 100, Breaker: breaker}, i.config)
+			out, err := i.document.Layout(LayoutRequest{Width: 100, Breaker: breaker}, i.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -472,7 +472,7 @@ func TestNestedAutoBlockAndInlineGeometry(t *testing.T) {
 func TestNestedNegativeCompletedLineRemainsUnsupported(t *testing.T) {
 	i := boundaryInvocation(t, `<div id="root" style="font-size:20px"><span style="display:inline-block"><span style="display:inline-block;width:10px;margin-left:-20px"></span></span></div>`)
 	for _, b := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
-		out, err := i.document.Layout(t.Context(), LayoutRequest{Width: 100, Breaker: b}, i.config)
+		out, err := i.document.Layout(LayoutRequest{Width: 100, Breaker: b}, i.config)
 		if out != nil || !errors.Is(err, khipu.ErrUnsupportedPolicy) {
 			t.Fatal("negative completed line silently clamped", b, out, err)
 		}

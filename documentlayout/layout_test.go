@@ -1,7 +1,6 @@
 package documentlayout_test
 
 import (
-	"context"
 	"errors"
 	"math"
 	"reflect"
@@ -36,7 +35,7 @@ func layoutConfig(t *testing.T) documentlayout.Config {
 
 func runDocument(t *testing.T, d *documentlayout.Document, width float32, breaker paragraph.Breaker, cfg documentlayout.Config) *documentlayout.Result {
 	t.Helper()
-	r, err := d.Layout(t.Context(), documentlayout.LayoutRequest{Width: width, Breaker: breaker}, cfg)
+	r, err := d.Layout(documentlayout.LayoutRequest{Width: width, Breaker: breaker}, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +186,7 @@ func TestNestedAtomicSchedulingAndUnquantizedCSSDimensions(t *testing.T) {
 	}
 }
 
-func TestDocumentFailureAndCancellationAreTransactional(t *testing.T) {
+func TestDocumentFailuresAreTransactional(t *testing.T) {
 	d, input, _ := build(t, `<div id="root"><div style="color:red">first text</div><div>second text</div></div>`)
 	cfg := layoutConfig(t)
 	old := runDocument(t, d, 200, paragraph.FirstFit, cfg)
@@ -198,28 +197,19 @@ func TestDocumentFailureAndCancellationAreTransactional(t *testing.T) {
 		before = append(before, v)
 	}
 	backendErr := errors.New("late backend failure")
-	for _, cancelRun := range []bool{false, true} {
-		ctx, cancel := context.WithCancel(t.Context())
+	{
 		calls := 0
 		bad := cfg
 		bad.NewShaper = func() (contracts.StreamingShaper, error) {
 			calls++
 			// CSS completes the first block's paragraph before starting the next.
 			if calls == 2 {
-				if cancelRun {
-					cancel()
-				} else {
-					return nil, backendErr
-				}
+				return nil, backendErr
 			}
 			return helpers.NewSyntheticStreamingShaper(8)
 		}
-		out, err := d.Layout(ctx, documentlayout.LayoutRequest{Width: 100, Breaker: paragraph.FirstFit}, bad)
-		cancel()
+		out, err := d.Layout(documentlayout.LayoutRequest{Width: 100, Breaker: paragraph.FirstFit}, bad)
 		want := backendErr
-		if cancelRun {
-			want = context.Canceled
-		}
 		if calls != 2 || out != nil || !errors.Is(err, want) {
 			t.Fatalf("late failure: calls=%d, result=%v, err=%v", calls, out, err)
 		}
@@ -264,22 +254,22 @@ func TestDocumentLayoutInvalidInput(t *testing.T) {
 	d, _, _ := build(t, `<div id="root">x</div>`)
 	cfg := layoutConfig(t)
 	for _, width := range []float32{-1, float32(math.NaN()), float32(math.Inf(1)), float32(float64(dimen.Fil) / 49152)} {
-		out, err := d.Layout(t.Context(), documentlayout.LayoutRequest{Width: width, Breaker: paragraph.FirstFit}, cfg)
+		out, err := d.Layout(documentlayout.LayoutRequest{Width: width, Breaker: paragraph.FirstFit}, cfg)
 		if out != nil || !errors.Is(err, contracts.ErrIllegalArguments) {
 			t.Fatal("accepted invalid width", width, err)
 		}
 	}
 	for _, bad := range []documentlayout.Config{{}, {Resolver: cfg.Resolver}, {NewShaper: cfg.NewShaper}} {
-		out, err := d.Layout(t.Context(), documentlayout.LayoutRequest{Width: 100, Breaker: paragraph.FirstFit}, bad)
+		out, err := d.Layout(documentlayout.LayoutRequest{Width: 100, Breaker: paragraph.FirstFit}, bad)
 		if out != nil || !errors.Is(err, contracts.ErrIllegalArguments) {
 			t.Fatal("accepted missing services", err)
 		}
 	}
-	out, err := d.Layout(nil, documentlayout.LayoutRequest{}, cfg)
+	out, err := d.Layout(documentlayout.LayoutRequest{}, cfg)
 	if out != nil || !errors.Is(err, contracts.ErrIllegalArguments) {
-		t.Fatal("accepted nil context", err)
+		t.Fatal("accepted missing breaker", err)
 	}
-	out, err = d.Layout(t.Context(), documentlayout.LayoutRequest{Width: 100}, cfg)
+	out, err = d.Layout(documentlayout.LayoutRequest{Width: 100}, cfg)
 	if out != nil || !errors.Is(err, contracts.ErrIllegalArguments) {
 		t.Fatal("accepted unknown breaker", err)
 	}

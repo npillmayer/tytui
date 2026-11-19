@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"context"
 	"reflect"
 	"strings"
 	"testing"
@@ -28,7 +27,7 @@ func TestAutoDirectionThroughFreeze(t *testing.T) {
 				}
 				run := func(html string) *pipeline.Result {
 					x := styledInput(t, html)
-					r, err := pipeline.Run(context.Background(), pipeline.Input{Text: x.Text, Source: x, Width: 200 * dimen.BP, Breaker: breaker})
+					r, err := pipeline.Run(pipeline.Input{Text: x.Text, Source: x, Width: 200 * dimen.BP, Breaker: breaker})
 					if err != nil {
 						t.Fatal(err)
 					}

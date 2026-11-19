@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"context"
 	"errors"
 	"io"
 	"reflect"
@@ -19,7 +18,7 @@ func TestSyntheticParagraph(t *testing.T) {
 	// word fits in 12 pt, but two words cannot fit even with compressed glue.
 	const source = "éa bb cc"
 	input := pipeline.Input{Text: source, Width: 12 * dimen.PT}
-	result, err := pipeline.Run(context.Background(), input)
+	result, err := pipeline.Run(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +73,7 @@ func TestSyntheticParagraph(t *testing.T) {
 	if len(result.Diagnostics) != 5 || result.Diagnostics[4].Stage != pipeline.StageFreeze {
 		t.Fatalf("missing stage diagnostics: %v", result.Diagnostics)
 	}
-	wide, err := pipeline.Run(context.Background(), pipeline.Input{Text: source, Width: 100 * dimen.PT})
+	wide, err := pipeline.Run(pipeline.Input{Text: source, Width: 100 * dimen.PT})
 	if err != nil || wide.Frozen.LineCount() != 1 {
 		t.Fatalf("wide layout: result %v, error %v", wide, err)
 	}
@@ -84,7 +83,7 @@ func TestSyntheticParagraph(t *testing.T) {
 }
 
 func TestEmptyParagraph(t *testing.T) {
-	result, err := pipeline.Run(context.Background(), pipeline.Input{Width: 100 * dimen.PT})
+	result, err := pipeline.Run(pipeline.Input{Width: 100 * dimen.PT})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,22 +102,10 @@ func TestRejectedInput(t *testing.T) {
 		{Text: "\xff", Width: dimen.PT},
 		{Width: dimen.PT, Direction: bidi.Direction(99)},
 	} {
-		result, err := pipeline.Run(context.Background(), input)
+		result, err := pipeline.Run(input)
 		var stageErr *pipeline.StageError
 		if result != nil || !errors.Is(err, pipeline.ErrInvalidInput) || !errors.As(err, &stageErr) || stageErr.Stage != pipeline.StageInput {
 			t.Fatalf("input %+v: result %v, error %v", input, result, err)
 		}
-	}
-	if result, err := pipeline.Run(nil, pipeline.Input{Width: dimen.PT}); result != nil || !errors.Is(err, pipeline.ErrInvalidInput) {
-		t.Fatalf("nil context: result %v, error %v", result, err)
-	}
-}
-
-func TestCanceledParagraph(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	result, err := pipeline.Run(ctx, pipeline.Input{Text: "hello", Width: 100 * dimen.PT})
-	if result != nil || !errors.Is(err, context.Canceled) {
-		t.Fatalf("cancellation: result %v, error %v", result, err)
 	}
 }

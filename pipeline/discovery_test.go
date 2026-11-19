@@ -44,7 +44,7 @@ func TestDescriptorCoverageThroughFreezing(t *testing.T) {
 	diagnostics[0].Message = "caller mutation"
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
 		for _, width := range []dimen.DU{20 * dimen.BP, 100 * dimen.BP} {
-			r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "אב\u00adגד", Direction: bidi.RightToLeft, Width: width, Breaker: breaker, Fonts: selectFonts(t, settings)})
+			r, err := pipeline.Run(pipeline.Input{Text: "אב\u00adגד", Direction: bidi.RightToLeft, Width: width, Breaker: breaker, Fonts: selectFonts(t, settings)})
 			if err != nil {
 				t.Fatal(err)
 			}

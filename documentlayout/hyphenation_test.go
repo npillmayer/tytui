@@ -45,7 +45,7 @@ func TestDocumentManualHyphenationRejected(t *testing.T) {
 			if path == "" {
 				t.Fatal("fixture has no authored soft hyphen")
 			}
-			d, err := documentlayout.Build(t.Context(), input, root)
+			d, err := documentlayout.Build(input, root)
 			if d != nil || !errors.Is(err, khipu.ErrUnsupportedPolicy) {
 				t.Fatalf("manual soft hyphen must reject the whole document: document=%v, err=%v", d != nil, err)
 			}
@@ -82,14 +82,14 @@ func TestDocumentHyphenationPolicyAcceptedInput(t *testing.T) {
 		})
 	}
 	input, root := parse(t, `<div id="root" style="hyphens:auto">abcd</div>`)
-	if d, err := documentlayout.Build(t.Context(), input, root); d != nil || !errors.Is(err, khipu.ErrUnsupportedPolicy) {
+	if d, err := documentlayout.Build(input, root); d != nil || !errors.Is(err, khipu.ErrUnsupportedPolicy) {
 		t.Fatalf("automatic hyphenation remains unsupported: document=%v, err=%v", d != nil, err)
 	}
 }
 
 func TestDocumentHyphenationPolicyLeavesParagraphExtractionUnchanged(t *testing.T) {
 	input, root := parse(t, `<div id="root">ab&shy;cd</div>`)
-	if d, err := documentlayout.Build(t.Context(), input, root); d != nil || !errors.Is(err, khipu.ErrUnsupportedPolicy) {
+	if d, err := documentlayout.Build(input, root); d != nil || !errors.Is(err, khipu.ErrUnsupportedPolicy) {
 		t.Fatalf("document policy was not enforced: document=%v, err=%v", d != nil, err)
 	}
 	// The original paragraph path has its own discretionary policy. A rejected
@@ -146,7 +146,7 @@ func TestDocumentNoHyphenationLayout(t *testing.T) {
 						}
 					}
 					checkSource(t, d, []*documentlayout.InlineGroup{&g.Input})
-					proof, err := documentlayout.BuildProof(t.Context(), r, cells())
+					proof, err := documentlayout.BuildProof(r, cells())
 					if err != nil {
 						t.Fatal(err)
 					}

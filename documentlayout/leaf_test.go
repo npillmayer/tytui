@@ -21,7 +21,7 @@ func TestDiagnosticLeafThroughAtomicBoundary(t *testing.T) {
 				groups := extractAll(t, d)
 				checkSource(t, d, groups)
 				r := runDocument(t, d, 120, breaker, layoutConfig(t))
-				p, err := documentlayout.BuildProof(t.Context(), r, cells())
+				p, err := documentlayout.BuildProof(r, cells())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -51,7 +51,7 @@ func TestDiagnosticLeafThroughAtomicBoundary(t *testing.T) {
 					}
 				}
 				var before, after bytes.Buffer
-				if err := documentlayout.WriteSVG(t.Context(), &before, r, cells()); err != nil {
+				if err := documentlayout.WriteSVG(&before, r, cells()); err != nil {
 					t.Fatal(err)
 				}
 				if !strings.Contains(before.String(), `data-leaf="rectangle"`) || !strings.Contains(before.String(), "A &amp; B") {
@@ -59,7 +59,7 @@ func TestDiagnosticLeafThroughAtomicBoundary(t *testing.T) {
 				}
 				p.Leaves[0].Label = "changed"
 				runDocument(t, d, 65, breaker, layoutConfig(t))
-				if err := documentlayout.WriteSVG(t.Context(), &after, r, cells()); err != nil {
+				if err := documentlayout.WriteSVG(&after, r, cells()); err != nil {
 					t.Fatal(err)
 				}
 				if !bytes.Equal(before.Bytes(), after.Bytes()) {
@@ -80,7 +80,7 @@ func TestDiagnosticLeafRejectsAmbiguousInput(t *testing.T) {
 		`data-tytui-leaf="rectangle" style="display:block;width:20px;height:10px"`,
 	} {
 		input, id := parse(t, `<div id="root"><img `+attrs+`></div>`)
-		if d, err := documentlayout.Build(t.Context(), input, id); err == nil || d != nil {
+		if d, err := documentlayout.Build(input, id); err == nil || d != nil {
 			t.Fatal("accepted unsupported leaf", attrs)
 		}
 	}

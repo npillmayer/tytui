@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"context"
 	"io"
 	"reflect"
 	"testing"
@@ -17,7 +16,7 @@ func TestNewlinesAreWhitespaceBeforeShaping(t *testing.T) {
 	for _, fonts := range []*fontselection.Request{nil, {Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}} {
 		for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
 			for _, tc := range []struct{ raw, want string }{{"\r\né\t a\r\n\r\nb\u2028c\u2029 \u00a0d\n", "é a b c \u00a0d"}, {"\r\n\n \t", ""}} {
-				r, err := pipeline.Run(context.Background(), pipeline.Input{Text: tc.raw, Width: 300 * dimen.BP, Fonts: selectFonts(t, fonts), Breaker: breaker})
+				r, err := pipeline.Run(pipeline.Input{Text: tc.raw, Width: 300 * dimen.BP, Fonts: selectFonts(t, fonts), Breaker: breaker})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -55,7 +54,7 @@ func TestHTMLNewlinesRetainDOMMapping(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, fonts := range []*fontselection.Request{nil, {Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}} {
-		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Fonts: selectFonts(t, fonts), Width: 300 * dimen.BP})
+		r, err := pipeline.Run(pipeline.Input{Text: e.Text, Source: e, Fonts: selectFonts(t, fonts), Width: 300 * dimen.BP})
 		if err != nil {
 			t.Fatal(err)
 		}

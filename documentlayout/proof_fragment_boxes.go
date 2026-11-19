@@ -6,9 +6,6 @@ import (
 )
 
 func (w *fragmentProofWalker) index(n *box.LayoutNode) error {
-	if err := w.ctx.Err(); err != nil {
-		return err
-	}
 	if n == nil || w.nodes[n.BoxID] != nil {
 		return invalid("missing or cyclic retained box tree")
 	}
@@ -24,9 +21,6 @@ func (w *fragmentProofWalker) index(n *box.LayoutNode) error {
 // Walk only an included opaque subtree. Inline groups visit atomic children via
 // their precise placements, never again through the structural child list.
 func (w *fragmentProofWalker) box(n *box.LayoutNode, border *render.Point) error {
-	if err := w.ctx.Err(); err != nil {
-		return err
-	}
 	if n == nil || w.visited[n.BoxID] {
 		return invalid("missing or repeated opaque box")
 	}
@@ -43,9 +37,9 @@ func (w *fragmentProofWalker) box(n *box.LayoutNode, border *render.Point) error
 		var local *render.ParagraphProof
 		var err error
 		if w.boxesOnly {
-			local, err = retainedLineProof(w.ctx, g.Paragraph.VList.Lines())
+			local, err = retainedLineProof(g.Paragraph.VList.Lines())
 		} else {
-			local, err = render.BuildParagraphProof(w.ctx, render.ParagraphInput{Frozen: g.Paragraph.Frozen, VList: g.Paragraph.VList, Text: g.Input.Text, Paint: g.Input.Paint}, w.services)
+			local, err = render.BuildParagraphProof(render.ParagraphInput{Frozen: g.Paragraph.Frozen, VList: g.Paragraph.VList, Text: g.Input.Text, Paint: g.Input.Paint}, w.services)
 		}
 		if err != nil {
 			return err

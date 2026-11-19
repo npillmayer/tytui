@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"context"
 	"testing"
 
 	"github.com/npillmayer/cords/styled"
@@ -41,7 +40,7 @@ func TestBuiltStylesReachFrozenLayout(t *testing.T) {
 		t.Fatal(err)
 	}
 	owner := khipu.NewKhipukamayuq(syntheticConfig())
-	encoded, err := owner.EncodeParagraph(context.Background(), par)
+	encoded, err := owner.EncodeParagraph(par)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +49,7 @@ func TestBuiltStylesReachFrozenLayout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	frozen, err := owner.Freeze(context.Background(), encoded, breaks, layout)
+	frozen, err := owner.Freeze(encoded, breaks, layout)
 	if err != nil {
 		t.Fatal(err)
 	}

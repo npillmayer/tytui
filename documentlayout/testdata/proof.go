@@ -53,7 +53,7 @@ func run() error {
 			}
 		}
 	}
-	doc, err := documentlayout.Build(ctx, input, selected)
+	doc, err := documentlayout.Build(input, selected)
 	if err != nil {
 		return err
 	}
@@ -62,16 +62,16 @@ func run() error {
 	if err != nil {
 		panic(err)
 	}
-	resolver, err := glyphing.NewStyleMapper(ctx, fonts.Fonts, s)
+	resolver, err := glyphing.NewStyleMapper(fonts.Fonts, s)
 	if err != nil {
 		return err
 	}
-	result, err := doc.Layout(ctx, documentlayout.LayoutRequest{Width: float32(*width), Breaker: paragraph.Breaker(*breaker)}, documentlayout.Config{Resolver: resolver, NewShaper: func() (contracts.StreamingShaper, error) { return ot.NewStream(64) }})
+	result, err := doc.Layout(documentlayout.LayoutRequest{Width: float32(*width), Breaker: paragraph.Breaker(*breaker)}, documentlayout.Config{Resolver: resolver, NewShaper: func() (contracts.StreamingShaper, error) { return ot.NewStream(64) }})
 	if err != nil {
 		return err
 	}
 	var svg bytes.Buffer
-	if err := documentlayout.WriteSVG(ctx, &svg, result, render.Services{Backend: renderot.New(), Identity: renderot.New()}); err != nil {
+	if err := documentlayout.WriteSVG(&svg, result, render.Services{Backend: renderot.New(), Identity: renderot.New()}); err != nil {
 		return err
 	}
 	return os.WriteFile(*out, svg.Bytes(), 0644)

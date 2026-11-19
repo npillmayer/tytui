@@ -23,7 +23,7 @@ func TestUnsupportedVersionsBeforeCurrentSchemaAndResources(t *testing.T) {
 			if err := os.WriteFile(path, []byte(data), 0600); err != nil {
 				t.Fatal(err)
 			}
-			result, err := Load(t.Context(), path, "missing-store")
+			result, err := Load(path, "missing-store")
 			if result != nil || err == nil || !strings.Contains(err.Error(), fmt.Sprintf("unsupported replay version %d", v)) {
 				t.Fatalf("version did not fail first: %v", err)
 			}
@@ -42,13 +42,13 @@ func TestCurrentFormatValidation(t *testing.T) {
 			if css {
 				in.LineLayout = &paragraph.LineLayout{Default: paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 2}}
 			}
-			result, err := pipeline.Run(t.Context(), in)
+			result, err := pipeline.Run(in)
 			if err != nil {
 				t.Fatal(err)
 			}
 			dir := t.TempDir()
 			path := filepath.Join(dir, "case.json")
-			if err := Save(t.Context(), result, path, filepath.Join(dir, "store"), revisions()); err != nil {
+			if err := Save(result, path, filepath.Join(dir, "store"), revisions()); err != nil {
 				t.Fatal(err)
 			}
 			good := readManifest(t, path)
@@ -81,7 +81,7 @@ func TestCurrentFormatValidation(t *testing.T) {
 					tc.mutate(&bad)
 					badpath := filepath.Join(dir, tc.name+".json")
 					rewrite(t, badpath, bad)
-					if _, err := Load(t.Context(), badpath, "absent-store"); err == nil || !strings.Contains(err.Error(), tc.want) {
+					if _, err := Load(badpath, "absent-store"); err == nil || !strings.Contains(err.Error(), tc.want) {
 						t.Fatalf("expected %s error, got %v", tc.want, err)
 					}
 				})
@@ -100,7 +100,7 @@ func TestCurrentFormatValidation(t *testing.T) {
 			if err := os.WriteFile(badpath, extra, 0600); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := Load(t.Context(), badpath, "absent-store"); err == nil || !strings.Contains(err.Error(), "unknown field") {
+			if _, err := Load(badpath, "absent-store"); err == nil || !strings.Contains(err.Error(), "unknown field") {
 				t.Fatalf("accepted selector: %v", err)
 			}
 			delete(obj["Input"].(map[string]any), "PaintPolicy")
@@ -113,7 +113,7 @@ func TestCurrentFormatValidation(t *testing.T) {
 			if err := os.WriteFile(badpath, extra, 0600); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := Load(t.Context(), badpath, "absent-store"); err == nil || !strings.Contains(err.Error(), "unknown field") {
+			if _, err := Load(badpath, "absent-store"); err == nil || !strings.Contains(err.Error(), "unknown field") {
 				t.Fatalf("accepted removed Gap field: %v", err)
 			}
 		})

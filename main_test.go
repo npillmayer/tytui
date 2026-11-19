@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"sync"
@@ -31,7 +30,7 @@ func TestWorkbenchRunsPipeline(t *testing.T) {
 	if cmd == nil || m.activeID == 0 || m.result != nil {
 		t.Fatal("run did not schedule work")
 	}
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.result == nil || m.result.Frozen.LineCount() != 3 || m.activeID != 0 {
 		t.Fatalf("unexpected completion: %s", m.status)
 	}
@@ -51,7 +50,7 @@ func TestWorkbenchRunsPipeline(t *testing.T) {
 		t.Fatal("width edit retained old result")
 	}
 	m, cmd = updateModel(m, keyPress(tea.KeyEnter))
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.result.Frozen.LineCount() != 1 {
 		t.Fatal("wider width did not reflow paragraph")
 	}
@@ -63,7 +62,7 @@ func TestWorkbenchKeepsOriginalWhitespace(t *testing.T) {
 	m.textarea.SetValue(raw)
 	m.widthInput.SetValue("300")
 	m, cmd := updateModel(m, runKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.result == nil {
 		t.Fatal(m.status)
 	}
@@ -78,36 +77,30 @@ func TestWorkbenchKeepsOriginalWhitespace(t *testing.T) {
 	}
 }
 
-func TestEditCancelsAndRejectsStaleResult(t *testing.T) {
+func TestEditRejectsStaleResult(t *testing.T) {
 	m := initialModel()
-	started := make(chan context.Context, 1)
+	started := make(chan struct{}, 1)
 	release := make(chan struct{})
 	var once sync.Once
 	releaseRun := func() { once.Do(func() { close(release) }) }
 	defer releaseRun()
-	// Simulate a backend that finishes successfully despite cancellation.
-	m.run = func(ctx context.Context, in pipeline.Input) (*pipeline.Result, error) {
-		started <- ctx
+	// Typesetting finishes synchronously; edits only invalidate its result.
+	m.run = func(in pipeline.Input) (*pipeline.Result, error) {
+		started <- struct{}{}
 		<-release
-		return pipeline.Run(context.Background(), in)
+		return pipeline.Run(in)
 	}
 	m, cmd := updateModel(m, runKey())
 	done := make(chan tea.Msg, 1)
 	go func() { done <- cmd() }()
-	var ctx context.Context
 	select {
-	case ctx = <-started:
+	case <-started:
 	case <-time.After(5 * time.Second):
 		t.Fatal("run did not start")
 	}
 	m, _ = updateModel(m, tea.KeyPressMsg{Code: '?', Text: "?"})
 	if !strings.Contains(m.textarea.Value(), "?") {
 		t.Fatal("question mark was captured as help")
-	}
-	select {
-	case <-ctx.Done():
-	default:
-		t.Fatal("edit did not cancel active work")
 	}
 	releaseRun()
 	select {
@@ -173,7 +166,7 @@ func TestWidthValidation(t *testing.T) {
 func TestPasteAndResultScrolling(t *testing.T) {
 	m := initialModel()
 	m, cmd := updateModel(m, runKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	m.setFocus(focusResults)
 	before := m.viewport.YOffset()
 	m, _ = updateModel(m, keyPress(tea.KeyPgDown))
@@ -189,24 +182,15 @@ func TestPasteAndResultScrolling(t *testing.T) {
 
 func TestFailureAndQuit(t *testing.T) {
 	m := initialModel()
-	var active context.Context
-	m.run = func(ctx context.Context, _ pipeline.Input) (*pipeline.Result, error) {
-		active = ctx
+	m.run = func(_ pipeline.Input) (*pipeline.Result, error) {
 		return nil, &pipeline.StageError{Stage: pipeline.StageEncode, Err: errors.New("test backend error")}
 	}
 	m, cmd := updateModel(m, runKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.result != nil || !strings.Contains(m.viewport.View(), "test backend error") {
 		t.Fatal("failure not displayed")
 	}
-	if active.Err() == nil {
-		t.Fatal("command context not released")
-	}
 	m, _ = updateModel(m, runKey())
-	cancel := m.cancel
-	if cancel == nil {
-		t.Fatal("missing cancellation")
-	}
 	_, quit := updateModel(m, tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	if _, ok := quit().(tea.QuitMsg); !ok {
 		t.Fatal("quit not dispatched")
@@ -236,4 +220,11 @@ func TestViewSizesAndFocus(t *testing.T) {
 	if !strings.Contains(m.View().Content, "Resize") {
 		t.Fatal("missing small-terminal message")
 	}
+}
+
+func finishCommand(m model, cmd tea.Cmd) model {
+	for cmd != nil {
+		m, cmd = updateModel(m, cmd())
+	}
+	return m
 }

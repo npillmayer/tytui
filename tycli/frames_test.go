@@ -2,9 +2,7 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +44,7 @@ func TestCLIFrameFlowRoutesAndControls(t *testing.T) {
 			o.showGlyphs = mode == 1
 			o.hideBoxes = mode == 2
 			var out, log bytes.Buffer
-			if err := run(t.Context(), o, &out, &log); err != nil {
+			if err := run(o, &out, &log); err != nil {
 				t.Fatal(err)
 			}
 			if strings.Contains(out.String(), `data-frame=`) != (mode != 2) || strings.Contains(out.String(), `data-gid=`) != (mode != 0) {
@@ -70,28 +68,18 @@ func TestCLIFrameFailurePreservesOutput(t *testing.T) {
 	}
 	writeFrames(t, path, []documentlayout.FlowFrame{{ID: "too-short", Width: 100, Height: 0}})
 	var stdout, log bytes.Buffer
-	if err := run(t.Context(), o, &stdout, &log); err == nil || !strings.Contains(err.Error(), "incomplete frame flow") {
+	if err := run(o, &stdout, &log); err == nil || !strings.Contains(err.Error(), "incomplete frame flow") {
 		t.Fatal("incomplete flow accepted", err)
 	}
 	data, _ := os.ReadFile(destination)
 	if string(data) != "previous" || stdout.Len() != 0 {
 		t.Fatal("incomplete export replaced output")
 	}
-	writeFrames(t, path, []documentlayout.FlowFrame{{ID: "complete", Width: 100, Height: 2000}})
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-	if err := run(ctx, o, &stdout, &log); !errors.Is(err, context.Canceled) {
-		t.Fatal(err)
-	}
-	data, _ = os.ReadFile(destination)
-	if string(data) != "previous" {
-		t.Fatal("cancelled export replaced output")
-	}
 	for _, bad := range []string{`[]`, `[{"id":"A","width":100,"height":2000,"font-size":90}]`, `[{"id":"A","width":100,"height":2000,"direction":"rtl"}]`, `[] []`} {
 		if err := os.WriteFile(path, []byte(bad), 0600); err != nil {
 			t.Fatal(err)
 		}
-		if err := run(t.Context(), o, &stdout, &log); err == nil {
+		if err := run(o, &stdout, &log); err == nil {
 			t.Fatal("invalid/styled frames accepted", bad)
 		}
 		data, _ = os.ReadFile(destination)

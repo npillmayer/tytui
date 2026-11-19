@@ -54,13 +54,12 @@ func TestPublicParagraphEngineMatchesDOMWorkbench(t *testing.T) {
 	}
 	settings := fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-
 		for _, width := range []dimen.DU{20 * dimen.BP, 200 * dimen.BP} {
 			e := styledInput(t, source)
 			if e.Text != content {
 				t.Fatal("fixture content mismatch")
 			}
-			workbench, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: width, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: settings})})
+			workbench, err := pipeline.Run(pipeline.Input{Text: e.Text, Source: e, Width: width, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: settings})})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -68,7 +67,7 @@ func TestPublicParagraphEngineMatchesDOMWorkbench(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			text, bindings, err := resolver.Itemize(t.Context(), content, spans)
+			text, bindings, err := resolver.Itemize(content, spans)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -78,7 +77,7 @@ func TestPublicParagraphEngineMatchesDOMWorkbench(t *testing.T) {
 			}
 			requireTypographyOnly(t, prepared)
 			// Preparation belongs to M; P consumes these exact itemized style identities.
-			out, err := paragraph.Run(t.Context(), paragraph.Input{Text: text, Direction: bidi.RightToLeft, Markup: markup}, paragraph.Params{
+			out, err := paragraph.Run(paragraph.Input{Text: text, Direction: bidi.RightToLeft, Markup: markup}, paragraph.Params{
 				Constraints: paragraph.Constraints{Width: width}, Breaker: paragraph.Breaker(breaker), Assembly: paragraph.Options{Policy: paragraph.CSSLineHeight}, LineLayout: &paragraph.LineLayout{Default: paragraph.LineHeight{Kind: paragraph.NormalHeight}},
 			}, khipu.Config{Streaming: &khipu.StreamingConfig{NewShaper: func() (contracts.StreamingShaper, error) { return otadapter.NewStream(8) }, Resolver: resolver, Defaults: resolver.Defaults()}, Hyphenator: publicEngineHyphens{}})
 			if err != nil {
@@ -126,6 +125,5 @@ func TestPublicParagraphEngineMatchesDOMWorkbench(t *testing.T) {
 				t.Fatal("proof failure", err)
 			}
 		}
-
 	}
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"image"
 	"image/png"
@@ -34,7 +33,7 @@ func selectDocumentFixture(t *testing.T, m model) model {
 	if cmd == nil {
 		t.Fatal("HTML load was not scheduled")
 	}
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.browser.doc == nil {
 		t.Fatal(m.browser.status)
 	}
@@ -59,7 +58,7 @@ func documentFonts(t *testing.T, m model) model {
 	if cmd == nil {
 		t.Fatal("font loading was not scheduled")
 	}
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.fontEditor.open || m.fontSettings == nil {
 		t.Fatal(m.fontEditor.status)
 	}
@@ -72,7 +71,7 @@ func runWorkbenchDocument(t *testing.T, m model) model {
 	if cmd == nil {
 		t.Fatal(m.status)
 	}
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.document.result == nil || m.document.lastError != "" || m.activeID != 0 {
 		t.Fatalf("document run failed: %s %s", m.status, m.document.lastError)
 	}
@@ -82,7 +81,7 @@ func runWorkbenchDocument(t *testing.T, m model) model {
 func documentSVGBytes(t *testing.T, s *documentSnapshot) []byte {
 	t.Helper()
 	var b bytes.Buffer
-	if err := documentlayout.WriteSVG(t.Context(), &b, s.result, s.services); err != nil {
+	if err := documentlayout.WriteSVG(&b, s.result, s.services); err != nil {
 		t.Fatal(err)
 	}
 	return b.Bytes()
@@ -106,7 +105,7 @@ func TestDocumentWorkbenchNestedAutoHistoryAndExport(t *testing.T) {
 			if cmd == nil || m.activeID == 0 || m.document.result != previous {
 				t.Fatal("run should schedule work and preserve displayed result")
 			}
-			m, _ = updateModel(m, cmd())
+			m = finishCommand(m, cmd)
 			if m.document.lastError != "" {
 				t.Fatal(m.document.lastError)
 			}
@@ -206,7 +205,7 @@ func TestDocumentFailuresPreserveInspectableExportableResult(t *testing.T) {
 			m.invalidate()
 			m, cmd := updateModel(m, runKey())
 			if cmd != nil {
-				m, _ = updateModel(m, cmd())
+				m = finishCommand(m, cmd)
 			}
 			if m.document.result != retained || len(m.document.history) != 1 || !strings.Contains(m.document.lastError, tc.want) {
 				t.Fatal("failure replaced a completed result or was not diagnosed", m.document.lastError)
@@ -239,7 +238,7 @@ func TestDocumentModePreservesParagraphControlsAndResults(t *testing.T) {
 	m.browser.selected = findID(m, "first")
 	m, _ = updateModel(m, keyPress(tea.KeyEnter))
 	m, cmd := updateModel(m, runKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	paragraph, source := m.result, m.source
 	text, width, breaker := m.textarea.Value(), m.widthInput.Value(), m.breaker
 	m = selectDocumentFixture(t, m)
@@ -269,18 +268,16 @@ func TestDocumentModePreservesParagraphControlsAndResults(t *testing.T) {
 	}
 }
 
-func TestDocumentSchedulerCancellationAndCrossModeQueue(t *testing.T) {
+func TestDocumentSchedulerCompletionAndCrossModeQueue(t *testing.T) {
 	m := selectDocumentFixture(t, initialModel())
 	var captured documentJob
-	var active context.Context
-	var cancelledOnEntry error
-	m.document.run = func(ctx context.Context, in documentJob) (*documentSnapshot, error) {
-		active, captured = ctx, in
-		cancelledOnEntry = ctx.Err()
+	m.document.run = func(in documentJob) (*documentSnapshot, error) {
+		captured = in
 		return nil, errors.New("stale backend failure")
 	}
-	m.fontSettings = &fontselection.Request{Settings: fontselection.Settings{DefaultPath: uiFont, Size: 12 * dimen.BP, Fallbacks: []string{"original"}}}
+	m.fontSettings = &fontselection.Request{Settings: fontselection.Settings{DefaultPath: uiFont, Size: 12 * dimen.BP, Fallbacks: []string{uiFont}}}
 	m, first := updateModel(m, runKey())
+	m, first = updateModel(m, first()) // finish font loading, retain layout command
 	oldID := m.activeID
 	m.fontSettings.Fallbacks[0] = "changed"
 	m, _ = updateModel(m, tea.PasteMsg{Content: "0"}) // edits document width
@@ -303,7 +300,7 @@ func TestDocumentSchedulerCancellationAndCrossModeQueue(t *testing.T) {
 		t.Fatal("cross-mode request bypassed serialization")
 	}
 	m, second := updateModel(m, first())
-	if second == nil || active.Err() == nil || cancelledOnEntry == nil || captured.fonts.Fallbacks[0] != "original" || captured.width != 420 || m.activeID == oldID || len(m.document.history) != 0 {
+	if second == nil || captured.fonts.Fallbacks[0] != uiFont || captured.width != 420 || m.activeID == oldID || len(m.document.history) != 0 {
 		t.Fatal("cancellation, captured input or pending dispatch failed")
 	}
 	id := m.activeID
@@ -323,14 +320,11 @@ func TestDocumentLateSuccessAndQuit(t *testing.T) {
 	for _, change := range []string{"width", "breaker", "selection", "fonts", "mode", "quit"} {
 		t.Run(change, func(t *testing.T) {
 			m := m
-			var ctx context.Context
-			var cancelledOnEntry error
-			m.document.run = func(c context.Context, _ documentJob) (*documentSnapshot, error) {
-				ctx = c
-				cancelledOnEntry = c.Err()
+			m.document.run = func(_ documentJob) (*documentSnapshot, error) {
 				return old, nil // a backend may complete despite cancellation
 			}
 			m, cmd := updateModel(m, runKey())
+			m, cmd = updateModel(m, cmd()) // font handoff
 			switch change {
 			case "width":
 				m, _ = updateModel(m, tea.PasteMsg{Content: "0"})
@@ -352,9 +346,6 @@ func TestDocumentLateSuccessAndQuit(t *testing.T) {
 				}
 			}
 			completion := cmd()
-			if ctx.Err() == nil || cancelledOnEntry == nil {
-				t.Fatal("work not cancelled")
-			}
 			if change != "quit" {
 				m, _ = updateModel(m, completion)
 				if m.document.result != old || len(m.document.history) != 1 || m.activeID != 0 {
@@ -400,7 +391,7 @@ func TestDocumentOfflineFontRequestsAndExportErrors(t *testing.T) {
 	retained := m.document.result
 	m.document.export = func(s *documentSnapshot) (string, error) { return exportDocumentSVG(s, filepath.Join(dir, "missing")) }
 	m, cmd := updateModel(m, fontApplyKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.exporting || m.document.result != retained || !strings.Contains(m.status, "SVG export failed") {
 		t.Fatal("export failure was not reported without replacing the snapshot")
 	}
@@ -509,7 +500,7 @@ func TestDocumentWorkbenchLocalImageLifetime(t *testing.T) {
 	}
 	m, _ = updateModel(m, keyPress(tea.KeyF2))
 	m, run := updateModel(m, runKey())
-	m, _ = updateModel(m, run())
+	m = finishCommand(m, run)
 	if m.document.result != old || !strings.Contains(m.document.lastError, "image") {
 		t.Fatal("missing payload did not preserve old result", m.document.lastError)
 	}

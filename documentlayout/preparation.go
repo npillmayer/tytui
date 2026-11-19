@@ -34,9 +34,6 @@ func (i *invocation) validateGroup(group *box.LayoutNode, owner box.BoxID) error
 // A failed attempt inserts nothing and can be retried; earlier complete entries
 // survive. Final callback attempts retain their separate no-repeat contract.
 func (i *invocation) prepareGroup(group *box.LayoutNode, owner box.BoxID) (*preparedGroup, error) {
-	if err := i.ctx.Err(); err != nil {
-		return nil, err
-	}
 	if err := i.validateGroup(group, owner); err != nil {
 		return nil, err
 	}
@@ -44,12 +41,12 @@ func (i *invocation) prepareGroup(group *box.LayoutNode, owner box.BoxID) (*prep
 		return prepared, nil
 	}
 	i.trace(fmt.Sprintf("prepare group=%d owner=%d: itemize, shape and knot", group.BoxID, owner))
-	g, err := i.document.Extract(i.ctx, group.BoxID)
+	g, err := i.document.Extract(group.BoxID)
 	if err != nil {
 		return nil, err
 	}
 	r := i.config.Resolver
-	text, _, err := r.ItemizeInline(i.ctx, g.Text, g.Styles, g.Anchors)
+	text, _, err := r.ItemizeInline(g.Text, g.Styles, g.Anchors)
 	if err != nil {
 		return nil, err
 	}
@@ -64,16 +61,14 @@ func (i *invocation) prepareGroup(group *box.LayoutNode, owner box.BoxID) (*prep
 	}
 	// Build has checked authored markers against this fixed document policy.
 	// Measurement and final layout reuse this preparation and its policy.
-	p, err := paragraph.Prepare(i.ctx, paragraph.Input{Text: text, Direction: g.Paragraph.Style.Direction, Markup: markup, Atomics: g.Anchors},
+	p, err := paragraph.Prepare(paragraph.Input{Text: text, Direction: g.Paragraph.Style.Direction, Markup: markup, Atomics: g.Anchors},
 		khipu.PrepareOptions{Hyphenation: khipu.NoHyphenation}, khipu.Config{Streaming: &khipu.StreamingConfig{
 			Resolver: r, Defaults: defaults, NewShaper: i.config.NewShaper, BufferOptions: i.config.BufferOptions,
 		}})
 	if err != nil {
 		return nil, err
 	}
-	if err := i.ctx.Err(); err != nil {
-		return nil, err
-	}
+
 	prepared := &preparedGroup{input: *g, paragraph: p}
 	i.prepared[group.BoxID] = prepared
 	return prepared, nil

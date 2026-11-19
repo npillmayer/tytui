@@ -2,7 +2,6 @@ package pipeline_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"reflect"
 	"testing"
@@ -33,12 +32,12 @@ func TestOfflineResourceProof(t *testing.T) {
 	delete(fsys, "same.ttf")
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
 		input := pipeline.Input{Text: "office café", Width: 100 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})}
-		file, err := pipeline.Run(context.Background(), input)
+		file, err := pipeline.Run(input)
 		if err != nil {
 			t.Fatal(err)
 		}
 		input.Fonts = selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultResource: resource, Size: 12 * dimen.BP}})
-		resolved, err := pipeline.Run(context.Background(), input)
+		resolved, err := pipeline.Run(input)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -83,7 +82,7 @@ func TestResourceMappingAndFallback(t *testing.T) {
 	latin, hebrewResource := load(gentium), load(hebrew)
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
 		e := styledInput(t, `<p dir="rtl">אב<span style="font-weight:bold">ab</span></p>`)
-		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultResource: latin, Size: 12 * dimen.BP, FallbackResources: []*fontresource.Resource{hebrewResource}, Rules: []fontselection.Rule{{Weight: 700, Resource: latin}}}})})
+		r, err := pipeline.Run(pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultResource: latin, Size: 12 * dimen.BP, FallbackResources: []*fontresource.Resource{hebrewResource}, Rules: []fontselection.Rule{{Weight: 700, Resource: latin}}}})})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -109,7 +108,7 @@ func TestPackagedFontResource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "office", Width: 100 * dimen.BP, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultResource: resource, Size: 12 * dimen.BP}})})
+	r, err := pipeline.Run(pipeline.Input{Text: "office", Width: 100 * dimen.BP, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultResource: resource, Size: 12 * dimen.BP}})})
 	if err != nil {
 		t.Fatal(err)
 	}

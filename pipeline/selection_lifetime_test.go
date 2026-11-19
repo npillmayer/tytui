@@ -25,7 +25,7 @@ func TestLoadedSelectionSurvivesFileRemovalBeforeRun(t *testing.T) {
 	}
 	input := pipeline.Input{Text: "office", Width: 100 * dimen.BP, Fonts: selected}
 	for i := 0; i < 2; i++ {
-		r, err := pipeline.Run(t.Context(), input)
+		r, err := pipeline.Run(input)
 		if err != nil {
 			t.Fatal("Run reopened selected file", err)
 		}

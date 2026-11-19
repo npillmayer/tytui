@@ -14,16 +14,15 @@ import (
 
 func TestLineHeightPreservesShapingPaintAndFallback(t *testing.T) {
 	for _, b := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-
 		e := styledInput(t, `<p dir="rtl" style="font-size:12pt;color:navy">אב&shy;גד <span dir="ltr" lang="en" style="font-size:20pt;color:red">f<span style="color:blue">i café</span></span> שָׁלוֹם hello</p>`)
 		in := pipeline.Input{Text: e.Text, Source: e, Width: 80 * dimen.BP, Breaker: b, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}})}
-		before, err := pipeline.Run(t.Context(), in)
+		before, err := pipeline.Run(in)
 		if err != nil {
 			t.Fatal(err)
 		}
 		idx := uint64(strings.Index(e.Text, "fi"))
 		in.LineLayout = &paragraph.LineLayout{Default: paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 1.5}, Runs: []paragraph.LineHeightSpan{{Start: idx + 1, End: idx + 2, Height: paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 3}}}}
-		after, err := pipeline.Run(t.Context(), in)
+		after, err := pipeline.Run(in)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -87,15 +86,13 @@ func TestLineHeightPreservesShapingPaintAndFallback(t *testing.T) {
 		if err != nil || !reflect.DeepEqual(q, again) || after.LineLayout().Default.Factor != 1.5 {
 			t.Fatal("mutable policy altered retained proof", err)
 		}
-
 	}
 }
 
 func TestLineHeightInsideColoredLigature(t *testing.T) {
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-
 		e := styledInput(t, `<p><span style="color:red">f</span><span style="color:blue">i</span></p>`)
-		r, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}), LineLayout: &paragraph.LineLayout{Default: paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 1.5}, Runs: []paragraph.LineHeightSpan{{Start: 1, End: 2, Height: paragraph.LineHeight{Kind: paragraph.LengthHeight, Length: 60 * dimen.BP}}}}})
+		r, err := pipeline.Run(pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}), LineLayout: &paragraph.LineLayout{Default: paragraph.LineHeight{Kind: paragraph.FactorHeight, Factor: 1.5}, Runs: []paragraph.LineHeightSpan{{Start: 1, End: 2, Height: paragraph.LineHeight{Kind: paragraph.LengthHeight, Length: 60 * dimen.BP}}}}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -112,6 +109,5 @@ func TestLineHeightInsideColoredLigature(t *testing.T) {
 		if !reflect.DeepEqual(colors, want) || r.VList().Box().Extent != 60 {
 			t.Fatal("ligature paint or line-height", colors, r.VList().Box())
 		}
-
 	}
 }

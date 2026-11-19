@@ -37,7 +37,7 @@ func TestAssemblyFailureReturnsNoPartialResult(t *testing.T) {
 	// do not. Freezing succeeds before the assembler rejects accumulated height.
 	s := style.Style{EmSize: 20000 * dimen.BP, Language: "en", WhiteSpace: "normal", UnicodeBidi: "normal"}
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-		r, err := pipeline.Run(t.Context(), pipeline.Input{Text: "a a a", Width: 10000 * dimen.BP, Breaker: breaker, Styles: []style.Span{{Start: 0, End: 5, Style: s}}})
+		r, err := pipeline.Run(pipeline.Input{Text: "a a a", Width: 10000 * dimen.BP, Breaker: breaker, Styles: []style.Span{{Start: 0, End: 5, Style: s}}})
 		var stage *pipeline.StageError
 		if r != nil || !errors.As(err, &stage) || stage.Stage != pipeline.StageAssemble {
 			t.Fatalf("expected assembly failure without partial result: %v %v", r, err)
@@ -76,7 +76,7 @@ func TestIndependentRetainedLinePlacements(t *testing.T) {
 		} {
 			t.Run(string(breaker)+"/"+tc.name, func(t *testing.T) {
 				e := styledInput(t, tc.html)
-				r, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: dimen.DU(tc.width) * dimen.BP, Breaker: breaker})
+				r, err := pipeline.Run(pipeline.Input{Text: e.Text, Source: e, Width: dimen.DU(tc.width) * dimen.BP, Breaker: breaker})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -126,7 +126,6 @@ func TestIndependentRetainedLinePlacements(t *testing.T) {
 
 func TestRetainedPlacementsSurviveInputMutationAndSourceRemoval(t *testing.T) {
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-
 		for _, html := range []string{`<p style="font-size:13.3pt"><span style="color:red">f</span><span style="color:blue">i</span> אב</p>`, `<p></p>`} {
 			dir := t.TempDir()
 			path := filepath.Join(dir, "font.ttf")
@@ -139,7 +138,7 @@ func TestRetainedPlacementsSurviveInputMutationAndSourceRemoval(t *testing.T) {
 			}
 			e := styledInput(t, html)
 			fonts := &fontselection.Request{Settings: fontselection.Settings{DefaultPath: path, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}}
-			r, err := pipeline.Run(t.Context(), pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, fonts)})
+			r, err := pipeline.Run(pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, fonts)})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -183,7 +182,6 @@ func TestRetainedPlacementsSurviveInputMutationAndSourceRemoval(t *testing.T) {
 				t.Fatal("export consulted mutable input", err)
 			}
 		}
-
 	}
 	if (*pipeline.Result)(nil).VList() != nil || (&pipeline.Result{}).VList() != nil {
 		t.Fatal("absent placements")

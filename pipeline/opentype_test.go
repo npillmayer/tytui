@@ -19,7 +19,7 @@ const progress = "../../opentype/testdata/fonts/ShaperTestProgress.ttf"
 
 func TestOpenTypeFrozenReference(t *testing.T) {
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
-		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: "office", Width: 200 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})})
+		r, err := pipeline.Run(pipeline.Input{Text: "office", Width: 200 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -56,7 +56,7 @@ func TestOpenTypeStyleMappingAndSnapshot(t *testing.T) {
 	e := styledInput(t, `<p lang="en" style="font-family:serif;font-size:12pt">a <b style="font-size:24pt">aa</b> a</p>`)
 	fonts := &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 10 * dimen.BP, Rules: []fontselection.Rule{{Family: "serif", Weight: 700, Slant: "normal", Path: progress}}}}
 	input := pipeline.Input{Text: e.Text, Source: e, Width: 200 * dimen.BP, Fonts: selectFonts(t, fonts)}
-	r, err := pipeline.Run(context.Background(), input)
+	r, err := pipeline.Run(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestOpenTypeDiagnostics(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: tc.text, Width: 100 * dimen.BP, Fonts: fonts})
+		r, err := pipeline.Run(pipeline.Input{Text: tc.text, Width: 100 * dimen.BP, Fonts: fonts})
 		var se *pipeline.StageError
 		if r != nil || !errors.As(err, &se) || se.Stage != pipeline.StageFonts || !strings.Contains(err.Error(), tc.diagnostic) {
 			t.Fatalf("%+v: %v", tc, err)

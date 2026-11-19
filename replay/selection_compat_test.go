@@ -58,7 +58,7 @@ func TestSelectionResavePreservesRequestedPaths(t *testing.T) {
 	dir := t.TempDir()
 	store := filepath.Join(dir, "fonts")
 	selected := selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: latin, Size: 12 * dimen.BP, Rules: []fontselection.Rule{{Weight: 700, Path: latin}}, Fallbacks: []string{hebrew, hebrew}}})
-	result, err := pipeline.Run(t.Context(), pipeline.Input{Text: "office", Width: 100 * dimen.BP, Fonts: selected})
+	result, err := pipeline.Run(pipeline.Input{Text: "office", Width: 100 * dimen.BP, Fonts: selected})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,19 +66,19 @@ func TestSelectionResavePreservesRequestedPaths(t *testing.T) {
 	result.Input.Fonts.Provenance.RequestedPath = "mutated"
 	result.Input.Fonts.Provenance.RequestedRulePaths[0] = "mutated"
 	first := filepath.Join(dir, "first.json")
-	if err = Save(t.Context(), result, first, store, revisions()); err != nil {
+	if err = Save(result, first, store, revisions()); err != nil {
 		t.Fatal(err)
 	}
 	original := readManifest(t, first)
 	if original.Selection.RequestedPath != latin || original.Selection.Rules[0].RequestedPath != latin || !reflect.DeepEqual(original.Selection.RequestedFallbackPaths, []string{hebrew, hebrew}) {
 		t.Fatal("new save lost requested paths")
 	}
-	replayed, err := Load(t.Context(), first, store)
+	replayed, err := Load(first, store)
 	if err != nil {
 		t.Fatal(err)
 	}
 	second := filepath.Join(dir, "second.json")
-	if err = Save(t.Context(), replayed, second, store, revisions()); err != nil {
+	if err = Save(replayed, second, store, revisions()); err != nil {
 		t.Fatal(err)
 	}
 	resaved := readManifest(t, second)
@@ -94,11 +94,11 @@ func TestReplayValidatesUnreferencedFontsWithoutSelectingThem(t *testing.T) {
 	dir := t.TempDir()
 	store := filepath.Join(dir, "fonts")
 	path := filepath.Join(dir, "case.json")
-	result, err := pipeline.Run(t.Context(), pipeline.Input{Text: "office", Width: 100 * dimen.BP, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: latin, Size: 12 * dimen.BP}})})
+	result, err := pipeline.Run(pipeline.Input{Text: "office", Width: 100 * dimen.BP, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: latin, Size: 12 * dimen.BP}})})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = Save(t.Context(), result, path, store, revisions()); err != nil {
+	if err = Save(result, path, store, revisions()); err != nil {
 		t.Fatal(err)
 	}
 	m := readManifest(t, path)
@@ -121,12 +121,12 @@ func TestReplayValidatesUnreferencedFontsWithoutSelectingThem(t *testing.T) {
 		rewrite(t, p, m)
 		return p
 	}
-	got, err := Load(t.Context(), write("extra.json"), store)
+	got, err := Load(write("extra.json"), store)
 	if err != nil || len(got.FontSnapshot.Faces) != 1 {
 		t.Fatal("unreferenced font became selection", err)
 	}
 	m.Fonts[1].Info.Family = "tampered"
-	if _, err = Load(t.Context(), write("tampered.json"), store); err == nil {
+	if _, err = Load(write("tampered.json"), store); err == nil {
 		t.Fatal("unreferenced entry escaped validation")
 	}
 }

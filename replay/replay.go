@@ -91,13 +91,11 @@ func readBounded(r io.Reader) ([]byte, error) {
 // Save writes a new manifest (never overwriting one) and pins fonts in store/hash.
 // The store is local persistence; copying it for redistribution requires checking
 // font licenses. Revisions are explicitly supplied by CaptureRevisions or a caller.
-func Save(ctx context.Context, result *pipeline.Result, manifestPath, store string, revisions []Revision) error {
-	if ctx == nil || result == nil || result.Frozen == nil {
+func Save(result *pipeline.Result, manifestPath, store string, revisions []Revision) error {
+	if result == nil || result.Frozen == nil {
 		return fmt.Errorf("save requires a context and completed result")
 	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
+
 	if len(revisions) == 0 {
 		return fmt.Errorf("source revisions required; use CaptureRevisions at layout time")
 	}
@@ -130,13 +128,10 @@ func Save(ctx context.Context, result *pipeline.Result, manifestPath, store stri
 		m.Selection = sel
 		seen := map[string]bool{}
 		pin := func(r *fontresource.Resource) (string, error) {
-			if err := ctx.Err(); err != nil {
-				return "", err
-			}
 			if r == nil {
 				return "", fmt.Errorf("missing pinned resource")
 			}
-			loaded, err := (otadapter.Services{}).Load(ctx, "", r)
+			loaded, err := (otadapter.Services{}).Load(context.Background(), "", r)
 			info := loaded.Info
 			if err != nil {
 				return "", err
@@ -178,9 +173,7 @@ func Save(ctx context.Context, result *pipeline.Result, manifestPath, store stri
 			sel.Fallbacks = append(sel.Fallbacks, id)
 		}
 	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
+
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return err
@@ -237,13 +230,7 @@ func readFile(path string) ([]byte, error) {
 // Load checks schema, references, sizes and hashes before invoking the normal
 // pipeline. It never resolves descriptors, opens original paths, or fetches fonts.
 // Changes in layout behavior are reported rather than silently accepted.
-func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, error) {
-	if ctx == nil {
-		return nil, fmt.Errorf("nil context")
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
+func Load(manifestPath, store string) (*pipeline.Result, error) {
 	data, err := readFile(manifestPath)
 	if err != nil {
 		return nil, err
@@ -289,9 +276,6 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 	input := m.Input.native()
 	resources := map[string]glyphing.FaceEntry{}
 	for _, entry := range m.Fonts {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
 		if !validHash(entry.Info.SHA256) || entry.Bytes < 0 || entry.Bytes > maxBytes {
 			return nil, fmt.Errorf("invalid font hash or size")
 		}
@@ -309,7 +293,7 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 		if err != nil {
 			return nil, err
 		}
-		loaded, err := (otadapter.Services{}).Load(ctx, "", resource)
+		loaded, err := (otadapter.Services{}).Load(context.Background(), "", resource)
 		info := loaded.Info
 		if err != nil {
 			return nil, err
@@ -354,7 +338,7 @@ func Load(ctx context.Context, manifestPath, store string) (*pipeline.Result, er
 	} else if len(m.Fonts) > 0 || len(m.Bindings) > 0 {
 		return nil, fmt.Errorf("fonts without selection")
 	}
-	result, err := pipeline.Run(ctx, input)
+	result, err := pipeline.Run(input)
 	if err != nil {
 		return nil, err
 	}

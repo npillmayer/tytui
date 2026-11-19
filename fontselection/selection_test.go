@@ -184,3 +184,21 @@ func prepareSynthetic(ctx context.Context, req *Request, load loadEntry) (*Selec
 		Lookup: func(contracts.FontFace, rune) (uint32, error) { return 1, nil },
 	})
 }
+
+// Mapper construction is context-free; the loading operation still checks
+// cancellation before publishing a completed selection.
+func TestPrepareCancellationBeforePublication(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	loader := func(_ context.Context, path string, resource *fontresource.Resource) (glyphing.FaceEntry, error) {
+		return fakeEntry(t, path, resource), nil
+	}
+	coverage := glyphing.CoverageFuncs{
+		Check:  func(contracts.FontFace) error { cancel(); return nil },
+		Lookup: func(contracts.FontFace, rune) (uint32, error) { t.Fatal("construction queried glyphs"); return 0, nil },
+	}
+	got, err := prepare(ctx, &Request{Settings: Settings{DefaultPath: "default", Size: 12 * dimen.BP}}, loader, coverage)
+	if got != nil || !errors.Is(err, context.Canceled) {
+		t.Fatal("cancelled font selection published", got, err)
+	}
+}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -22,7 +21,7 @@ func exportDocumentSVG(result *documentSnapshot, directory string) (string, erro
 		if result == nil {
 			return fmt.Errorf("no retained document")
 		}
-		return documentlayout.WriteSVG(context.Background(), w, result.result, result.services)
+		return documentlayout.WriteSVG(w, result.result, result.services)
 	})
 }
 

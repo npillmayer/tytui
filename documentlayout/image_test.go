@@ -2,7 +2,6 @@ package documentlayout_test
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
@@ -70,7 +69,7 @@ func TestLocalImageRetentionAndGeometry(t *testing.T) {
 						t.Fatal(err)
 					}
 					input, id := imageDocument(t, filepath.Join(directory, "source.html"), `<div id="root" dir="`+dir+`" style="font-size:20px">é <span style="display:inline-block"><img data-tytui-leaf="image" src="local%20image.bin" alt="A &amp; B" style="width:30px;height:12px;padding:2px;border-width:1px;border-style:solid;margin:3px"></span> אב<img data-tytui-leaf="image" src="local%20image.bin" style="width:0;height:0"></div>`)
-					d, err := documentlayout.Build(t.Context(), input, id)
+					d, err := documentlayout.Build(input, id)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -82,7 +81,7 @@ func TestLocalImageRetentionAndGeometry(t *testing.T) {
 						t.Fatal(err)
 					} // layout itself must use retained bytes
 					r := runDocument(t, d, 120, breaker, layoutConfig(t))
-					p, err := documentlayout.BuildProof(t.Context(), r, cells())
+					p, err := documentlayout.BuildProof(r, cells())
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -121,7 +120,7 @@ func TestLocalImageRetentionAndGeometry(t *testing.T) {
 						}
 					}
 					var before, after bytes.Buffer
-					if err := documentlayout.WriteSVG(t.Context(), &before, r, cells()); err != nil {
+					if err := documentlayout.WriteSVG(&before, r, cells()); err != nil {
 						t.Fatal(err)
 					}
 					if !strings.Contains(before.String(), "data:image/"+format+";base64,"+base64.StdEncoding.EncodeToString(data)) || !strings.Contains(before.String(), `preserveAspectRatio="none"`) {
@@ -140,10 +139,10 @@ func TestLocalImageRetentionAndGeometry(t *testing.T) {
 					p.Leaves[0].Image = nil
 					p.Leaves[0].Label = "changed"
 					runDocument(t, d, 65, breaker, layoutConfig(t))
-					if next, err := documentlayout.Build(t.Context(), input, id); err == nil || next != nil {
+					if next, err := documentlayout.Build(input, id); err == nil || next != nil {
 						t.Fatal("missing image did not fail new build")
 					}
-					if err := documentlayout.WriteSVG(t.Context(), &after, r, cells()); err != nil || !bytes.Equal(before.Bytes(), after.Bytes()) {
+					if err := documentlayout.WriteSVG(&after, r, cells()); err != nil || !bytes.Equal(before.Bytes(), after.Bytes()) {
 						t.Fatal("retained proof changed", err)
 					}
 				})
@@ -170,18 +169,13 @@ func TestLocalImageFailures(t *testing.T) {
 	f.Close()
 	for _, src := range []string{"", "https://example.org/image.png", "//example.org/image.png", "data:image/png;base64,abc", "file:///tmp/image.png", "bad.png", "truncated.png", "large.png", "missing.png", ".", "bad.png?query", "bad.png#fragment"} {
 		input, id := imageDocument(t, filepath.Join(directory, "source.html"), `<div id="root"><img data-tytui-leaf="image" src="`+src+`" style="width:20px;height:10px"></div>`)
-		if d, err := documentlayout.Build(t.Context(), input, id); err == nil || d != nil {
+		if d, err := documentlayout.Build(input, id); err == nil || d != nil {
 			t.Fatal("accepted image", src)
 		} else if !strings.Contains(err.Error(), "img") {
 			t.Fatal("failure lacks source locator", err)
 		}
 	}
 	input, id := imageDocument(t, filepath.Join(directory, "source.html"), `<div id="root"><img data-tytui-leaf="image" src="missing.png" style="width:20px;height:10px"></div>`)
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-	if d, err := documentlayout.Build(ctx, input, id); err != context.Canceled || d != nil {
-		t.Fatal("cancellation lost", err)
-	}
 	if _, err := input.Extract(id); err == nil {
 		t.Fatal("paragraph mode accepted image")
 	}
@@ -207,7 +201,7 @@ func TestLocalImagePixelLimitAndUnsupportedCodec(t *testing.T) {
 			t.Fatal(err)
 		}
 		input, id := imageDocument(t, filepath.Join(directory, "source.html"), `<div id="root"><img data-tytui-leaf="image" src="`+tc.name+`" style="width:0;height:0"></div>`)
-		if d, err := documentlayout.Build(t.Context(), input, id); d != nil || err == nil || !strings.Contains(err.Error(), tc.want) {
+		if d, err := documentlayout.Build(input, id); d != nil || err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Fatal("invalid payload admitted", tc.name, err)
 		}
 	}

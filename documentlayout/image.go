@@ -2,7 +2,6 @@ package documentlayout
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"fmt"
 	"image"
@@ -55,21 +54,7 @@ func localImagePath(documentName, src string) (string, error) {
 	return filepath.Abs(path)
 }
 
-type imageReader struct {
-	ctx context.Context
-	io.Reader
-}
-
-func (r imageReader) Read(b []byte) (int, error) {
-	if err := r.ctx.Err(); err != nil {
-		return 0, err
-	}
-	return r.Reader.Read(b)
-}
-func readImage(ctx context.Context, path string) (*ImageResource, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
+func readImage(path string) (*ImageResource, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -82,7 +67,7 @@ func readImage(ctx context.Context, path string) (*ImageResource, error) {
 	if !stat.Mode().IsRegular() || stat.Size() > maxImageBytes {
 		return nil, fmt.Errorf("image must be a regular file of at most %d bytes", maxImageBytes)
 	}
-	data, err := io.ReadAll(io.LimitReader(imageReader{ctx, f}, maxImageBytes+1))
+	data, err := io.ReadAll(io.LimitReader(f, maxImageBytes+1))
 	if err != nil {
 		return nil, err
 	}
@@ -101,11 +86,9 @@ func readImage(ctx context.Context, path string) (*ImageResource, error) {
 	}
 	// Decode the complete payload now, so damaged files cannot become successful
 	// layouts whose proofs fail later. The pixel buffer is not retained.
-	if _, _, err = image.Decode(imageReader{ctx, bytes.NewReader(data)}); err != nil {
+	if _, _, err = image.Decode(bytes.NewReader(data)); err != nil {
 		return nil, fmt.Errorf("image decode: %w", err)
 	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
+
 	return &ImageResource{data: data, info: ImageInfo{Path: path, MIME: "image/" + format, SHA256: fmt.Sprintf("%x", sha256.Sum256(data)), Width: config.Width, Height: config.Height}}, nil
 }

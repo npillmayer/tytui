@@ -1,7 +1,6 @@
 package documentlayout
 
 import (
-	"context"
 	"fmt"
 
 	box "github.com/npillmayer/css-box-layout/layout"
@@ -39,16 +38,9 @@ type Config struct {
 //
 // Only successful whole-document completion publishes a Result. Errors return
 // nil and leave all previous snapshots intact. There is no mutable current result
-// on Document: the caller replaces its displayed snapshot after success. Context
-// is checked at callback/publication boundaries; synchronous CSS and paragraph
-// collaborators retain their cancellation limits. Root must remain read-only.
-func (d *Document) Layout(ctx context.Context, request LayoutRequest, config Config) (*Result, error) {
-	if ctx == nil {
-		return nil, invalid("nil context")
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
+// on Document: the caller replaces its displayed snapshot after success.
+// Execution is synchronous. Root must remain read-only.
+func (d *Document) Layout(request LayoutRequest, config Config) (*Result, error) {
 	if d == nil || d.root == nil || config.Resolver == nil || config.NewShaper == nil {
 		return nil, invalid("document, resolver and shaper factory are required")
 	}
@@ -58,15 +50,15 @@ func (d *Document) Layout(ctx context.Context, request LayoutRequest, config Con
 	if request.Breaker != paragraph.FirstFit && request.Breaker != paragraph.KnuthPlass {
 		return nil, invalid("unknown line breaker")
 	}
-	i := &invocation{ctx: ctx, document: d, request: request, config: config,
+	i := &invocation{document: d, request: request, config: config,
 		prepared: make(map[box.BoxID]*preparedGroup),
 		started:  make(map[box.BoxID]bool), groups: make(map[box.BoxID]GroupResult)}
 	return i.run()
 }
 
 type invocation struct {
-	flow     *flowInvocation // optional bounded frame flow; never published
-	ctx      context.Context
+	flow *flowInvocation // optional bounded frame flow; never published
+
 	document *Document
 	request  LayoutRequest
 	config   Config
@@ -85,17 +77,13 @@ func (i *invocation) run() (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := i.ctx.Err(); err != nil {
-		return nil, err
-	}
+
 	i.trace("CSS: flow layout and recursive atomic sizing")
 	flow, err := box.FlowLayout(i.document.root, used, i, i, box.LayoutContext{ContainingBlock: containing}, box.LayoutOptions{})
 	if err != nil {
 		return nil, err
 	}
-	if err := i.ctx.Err(); err != nil {
-		return nil, err
-	}
+
 	if len(i.groups) != len(i.document.groups) {
 		return nil, invalid("CSS flow did not complete every inline group")
 	}
@@ -106,9 +94,7 @@ func (i *invocation) run() (*Result, error) {
 
 func (i *invocation) LayoutInline(request box.InlineRequest) (box.InlineResult, error) {
 	fail := func(err error) (box.InlineResult, error) { return box.InlineResult{}, err }
-	if err := i.ctx.Err(); err != nil {
-		return fail(err)
-	}
+
 	if request.Group == nil || request.Used == nil || request.Atomics == nil {
 		return fail(invalid("incomplete inline request"))
 	}
@@ -149,7 +135,7 @@ func (i *invocation) LayoutInline(request box.InlineRequest) (box.InlineResult, 
 		}
 		result, err = i.startFlow(prepared, layoutRequest)
 	} else {
-		result, err = prepared.paragraph.Layout(i.ctx, layoutRequest)
+		result, err = prepared.paragraph.Layout(layoutRequest)
 	}
 
 	if err != nil {
@@ -159,9 +145,7 @@ func (i *invocation) LayoutInline(request box.InlineRequest) (box.InlineResult, 
 	if err != nil {
 		return fail(err)
 	}
-	if err := i.ctx.Err(); err != nil {
-		return fail(err)
-	}
+
 	i.groups[id] = GroupResult{Input: *g, Paragraph: *result, margins: margins, hasMargins: true}
 	if i.flow != nil && id != i.flow.group {
 		delete(i.prepared, id)

@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"context"
 	"io"
 	"reflect"
 	"testing"
@@ -21,12 +20,12 @@ func TestFallbackPreservesSoftHyphenBreaks(t *testing.T) {
 			t.Run(string(breaker)+"/"+width.String(), func(t *testing.T) {
 				source := "אב\u00adגד"
 				input := pipeline.Input{Text: source, Direction: bidi.RightToLeft, Width: width, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: hebrew, Size: 12 * dimen.BP}})}
-				direct, err := pipeline.Run(context.Background(), input)
+				direct, err := pipeline.Run(input)
 				if err != nil {
 					t.Fatal(err)
 				}
 				input.Fonts = selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}}})
-				fallback, err := pipeline.Run(context.Background(), input)
+				fallback, err := pipeline.Run(input)
 				if err != nil {
 					t.Fatal(err)
 				}

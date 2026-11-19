@@ -240,7 +240,7 @@ func TestAutoAtomicShrinkToFitAndPreparationReuse(t *testing.T) {
 				t.Fatal("first-fit wrapping differs from the hand-calculated fixture")
 			}
 			// Exercise public publication separately with the same constraints.
-			out, err := i.document.Layout(t.Context(), i.request, i.config)
+			out, err := i.document.Layout(i.request, i.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -273,9 +273,9 @@ func TestFixedFlowNeedsNoIntrinsicCallbacks(t *testing.T) {
 }
 
 func TestAutoMeasurementFailureIsTransactional(t *testing.T) {
-	for _, cancelRun := range []bool{false, true} {
+	{
 		i := boundaryInvocation(t, `<div id="root" style="font-size:20px"><span style="display:inline-block">first text</span><span style="display:inline-block;width:auto">second text</span></div>`)
-		old, err := i.document.Layout(t.Context(), i.request, i.config)
+		old, err := i.document.Layout(i.request, i.config)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -285,8 +285,6 @@ func TestAutoMeasurementFailureIsTransactional(t *testing.T) {
 			g, _ := old.Group(entry.GroupID)
 			retained = append(retained, g)
 		}
-		ctx, cancel := context.WithCancel(t.Context())
-		i.ctx = ctx
 		calls := 0
 		sentinel := errors.New("late measurement backend failure")
 		i.config.NewShaper = func() (contracts.StreamingShaper, error) {
@@ -295,26 +293,18 @@ func TestAutoMeasurementFailureIsTransactional(t *testing.T) {
 				t.Error("final layout began before measurement completed")
 			}
 			if calls == 2 {
-				if cancelRun {
-					cancel()
-				} else {
-					return nil, sentinel
-				}
+				return nil, sentinel
 			}
 			return helpers.NewSyntheticStreamingShaper(8)
 		}
 		out, err := i.run()
-		cancel()
 		want := sentinel
-		if cancelRun {
-			want = context.Canceled
-		}
 		if out != nil || !errors.Is(err, want) || calls != 2 || len(i.prepared) != 1 || len(i.groups) != 0 || len(i.started) != 0 {
 			t.Fatal("failed measurement published output or lost earlier preparation", out, err, calls)
 		}
 		// Retry in a new invocation with stable working services.
 		i.config.NewShaper = func() (contracts.StreamingShaper, error) { return helpers.NewSyntheticStreamingShaper(8) }
-		if _, err := i.document.Layout(t.Context(), i.request, i.config); err != nil {
+		if _, err := i.document.Layout(i.request, i.config); err != nil {
 			t.Fatal(err)
 		}
 		if !reflect.DeepEqual(geometry, old.Geometry()) {

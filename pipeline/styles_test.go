@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"context"
 	"github.com/npillmayer/khipu/dimen"
 	"github.com/npillmayer/uax/bidi"
 	"strings"
@@ -31,7 +30,7 @@ func styledInput(t *testing.T, source string) *htmlinput.Extraction {
 func TestStyledFrozenParagraph(t *testing.T) {
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
 		e := styledInput(t, `<p dir="rtl" lang="he" style="font-size:12pt">אב <span dir="ltr" lang="en" style="font-size:24pt;color:red">abc</span> גד</p>`)
-		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Width: 200 * dimen.BP, Breaker: breaker})
+		r, err := pipeline.Run(pipeline.Input{Text: e.Text, Source: e, Width: 200 * dimen.BP, Breaker: breaker})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -71,7 +70,7 @@ func TestStyledFrozenParagraph(t *testing.T) {
 func TestWhitespaceThroughFreeze(t *testing.T) {
 	for _, source := range []string{`<p> a  <b>b</b> c </p>`, "<p>a  b\nc</p>", "<p>a&#13; b\n\n c</p>", `<p>   </p>`} {
 		e := styledInput(t, source)
-		r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Width: 200 * dimen.BP})
+		r, err := pipeline.Run(pipeline.Input{Text: e.Text, Source: e, Width: 200 * dimen.BP})
 		if err != nil {
 			t.Fatalf("%s: %v", source, err)
 		}

@@ -187,8 +187,11 @@ func prepare(ctx context.Context, request *Request, loadEntry loadEntry, coverag
 		}
 		fonts.Fallbacks = append(fonts.Fallbacks, id)
 	}
-	r, err := glyphing.NewStyleMapper(ctx, fonts, coverage)
+	r, err := glyphing.NewStyleMapper(fonts, coverage)
 	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	return &Selection{Fonts: *r.Snapshot(), Provenance: provenance.Clone()}, nil

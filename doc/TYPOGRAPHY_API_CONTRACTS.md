@@ -1,5 +1,14 @@
 # Typography extraction: proposed API contracts
 
+Context policy (2026-11-19): typesetting, geometry, retained proofs, replay,
+and document execution are synchronous and have no context argument. Contexts
+are confined to streaming coordination and font discovery/loading. Streaming
+callers create a local background context; consumer failure still cancels and
+joins the producer before cleanup. Errors publish no partial result and preserve
+previous immutable output. TUI layout jobs finish serially; stale results are
+discarded, while font work remains cancellable. This supersedes earlier
+cancellation requirements for typesetting in this document.
+
 > Current contract update (2026-11-17): paragraph assembly is CSSLineHeight only;
 > ProofCompatibility, DefaultEmSize and frozen-only Assemble are removed.
 > Tycli/documentlayout geometry is unchanged. Replay supports version 5 only;
@@ -604,7 +613,7 @@ replay fixtures were not modified.
 ## Current selected-font API
 
 Typography accepts a closed set of preloaded faces.
-`glyphing.NewStyleMapper(ctx, SelectedFonts, Coverage)` constructs a
+`glyphing.NewStyleMapper(SelectedFonts, Coverage)` constructs a
 `*glyphing.StyleMapper`, replacing the former LoadSettings and root loading-service
 bundle. Itemization returns `glyphing.FontTextRun` records; the field names
 `Itemization.Bindings` and `pipeline.Result.FontBindings` remain unchanged.

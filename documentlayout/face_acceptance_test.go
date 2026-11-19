@@ -18,7 +18,7 @@ func TestDocumentRejectsIncompatibleShaperBeforePublishing(t *testing.T) {
 		stream, err = ot.NewStream(8)
 		return stream, err
 	}
-	result, err := i.document.Layout(t.Context(), i.request, cfg)
+	result, err := i.document.Layout(i.request, cfg)
 	var stage *paragraph.Error
 	if result != nil || !errors.Is(err, contracts.ErrUnsupportedFontFace) || !errors.As(err, &stage) || stage.Stage != paragraph.StagePrepare {
 		t.Fatal(result, err)
@@ -35,7 +35,7 @@ func TestDocumentRejectsIncompatibleShaperBeforePublishing(t *testing.T) {
 		t.Fatal("rejected stream left open")
 	}
 	// A separate invocation remains usable with the original compatible services.
-	if result, err = i.document.Layout(t.Context(), i.request, i.config); err != nil || result == nil {
+	if result, err = i.document.Layout(i.request, i.config); err != nil || result == nil {
 		t.Fatal(result, err)
 	}
 }

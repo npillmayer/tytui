@@ -1,7 +1,6 @@
 package documentlayout
 
 import (
-	"context"
 	"fmt"
 	"io"
 
@@ -32,16 +31,16 @@ type PositionedFragment struct {
 // Fixed opaque interiors retain their original dimensions and layout. Ordinary
 // ancestor boxes outside those interiors are not repeated across frames.
 // All input is borrowed for this call; the detached proof retains no preparation,
-// continuation or result handle. Errors/cancellation publish no partial proof.
-func BuildFragmentProof(ctx context.Context, result *Result, placements []PositionedFragment, services render.Services) (*Proof, error) {
-	return buildFragmentProof(ctx, result, placements, services, false)
+// continuation or result handle. Errors publish no partial proof.
+func BuildFragmentProof(result *Result, placements []PositionedFragment, services render.Services) (*Proof, error) {
+	return buildFragmentProof(result, placements, services, false)
 }
 
-func buildFragmentProof(ctx context.Context, result *Result, placements []PositionedFragment, services render.Services, boxesOnly bool) (*Proof, error) {
-	if ctx == nil || result == nil || result.document == nil || (!boxesOnly && (services.Backend == nil || services.Identity == nil)) {
+func buildFragmentProof(result *Result, placements []PositionedFragment, services render.Services, boxesOnly bool) (*Proof, error) {
+	if result == nil || result.document == nil || (!boxesOnly && (services.Backend == nil || services.Identity == nil)) {
 		return nil, invalid("fragment proof requires a completed result and rendering services")
 	}
-	w := fragmentProofWalker{ctx: ctx, result: result, services: services, boxesOnly: boxesOnly, proof: &Proof{}, nodes: map[box.BoxID]*box.LayoutNode{}}
+	w := fragmentProofWalker{result: result, services: services, boxesOnly: boxesOnly, proof: &Proof{}, nodes: map[box.BoxID]*box.LayoutNode{}}
 	if err := w.index(result.document.root); err != nil {
 		return nil, err
 	}
@@ -50,9 +49,7 @@ func buildFragmentProof(ctx context.Context, result *Result, placements []Positi
 			return nil, err
 		}
 	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
+
 	p := w.proof
 	if !finiteProof(p.MinX, p.MinY, p.MaxX, p.MaxY) {
 		return nil, invalid("non-finite fragment proof bounds")
@@ -61,34 +58,31 @@ func buildFragmentProof(ctx context.Context, result *Result, placements []Positi
 }
 
 // WriteFragmentSVG exports a complete retained fragment proof using the ordinary
-// diagnostic SVG format. Nothing is written on proof failure/cancellation;
+// diagnostic SVG format. Nothing is written on proof failure;
 // destination writer errors may leave partial bytes. This is not replay.
-func WriteFragmentSVG(ctx context.Context, out io.Writer, result *Result, placements []PositionedFragment, services render.Services) error {
+func WriteFragmentSVG(out io.Writer, result *Result, placements []PositionedFragment, services render.Services) error {
 	if out == nil {
 		return invalid("fragment proof requires a writer")
 	}
-	p, err := BuildFragmentProof(ctx, result, placements, services)
+	p, err := BuildFragmentProof(result, placements, services)
 	if err != nil {
 		return err
 	}
-	return writeProofSVG(ctx, out, p)
+	return writeProofSVG(out, p)
 }
 
 type fragmentProofWalker struct {
 	boxesOnly bool
-	ctx       context.Context
-	result    *Result
-	services  render.Services
-	proof     *Proof
-	nodes     map[box.BoxID]*box.LayoutNode
-	origins   map[box.BoxID]render.Point
-	visited   map[box.BoxID]bool
+
+	result   *Result
+	services render.Services
+	proof    *Proof
+	nodes    map[box.BoxID]*box.LayoutNode
+	origins  map[box.BoxID]render.Point
+	visited  map[box.BoxID]bool
 }
 
 func (w *fragmentProofWalker) fragment(p PositionedFragment) error {
-	if err := w.ctx.Err(); err != nil {
-		return err
-	}
 	g, ok := w.result.groups[p.GroupID]
 	if !ok || p.Fragment == nil || p.Fragment.Frozen() == nil {
 		return invalid("fragment proof has no matching group or frozen content")
@@ -119,9 +113,9 @@ func (w *fragmentProofWalker) fragment(p PositionedFragment) error {
 		for j, line := range p.Fragment.Lines() {
 			lines[j] = line.Line
 		}
-		local, err = retainedLineProof(w.ctx, lines)
+		local, err = retainedLineProof(lines)
 	} else {
-		local, err = render.BuildFragmentProof(w.ctx, render.FragmentInput{Fragment: p.Fragment, Text: g.Input.Text, Paint: g.Input.Paint}, w.services)
+		local, err = render.BuildFragmentProof(render.FragmentInput{Fragment: p.Fragment, Text: g.Input.Text, Paint: g.Input.Paint}, w.services)
 	}
 	if err != nil {
 		return fmt.Errorf("fragment proof group %d: %w", p.GroupID, err)
@@ -143,9 +137,6 @@ func (w *fragmentProofWalker) paragraph(g GroupResult, origin render.Point, loca
 		byID[source.ID] = source
 	}
 	for _, a := range atomics {
-		if err := w.ctx.Err(); err != nil {
-			return err
-		}
 		source, ok := byID[a.ID]
 		if !ok {
 			return invalid("atomic fragment proof has no source")

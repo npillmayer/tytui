@@ -44,7 +44,7 @@ type layoutMsg struct {
 	documentRun  bool
 	err          error
 }
-type pipelineRunner func(context.Context, pipeline.Input) (*pipeline.Result, error)
+type pipelineRunner func(pipeline.Input) (*pipeline.Result, error)
 
 type model struct {
 	documentMode               bool
@@ -67,7 +67,7 @@ type model struct {
 	exporting                  bool
 	export                     func(*pipeline.Result) (string, error)
 	revision, nextID, activeID uint64
-	cancel                     context.CancelFunc
+	cancelFonts                context.CancelFunc
 	pending                    *job
 	run                        pipelineRunner
 }
@@ -110,7 +110,7 @@ func parseWidth(value string) (dimen.DU, error) {
 }
 
 func (m *model) invalidate() {
-	m.cancelLayout()
+	m.invalidateLayout()
 	if m.documentMode {
 		m.document.lastError = ""
 		m.status = "Document input changed · ctrl+r to run · previous result retained"
@@ -123,30 +123,49 @@ func (m *model) invalidate() {
 	m.viewport.GotoTop()
 }
 
+// Font completion returns to Update before any typesetting starts. This keeps
+// cancellation confined to loading and rejects stale jobs at the phase boundary.
+type jobFontsMsg struct {
+	id        uint64
+	job       job
+	selection *fontselection.Selection
+	err       error
+}
+
 func (m *model) launch(j job) tea.Cmd {
 	m.nextID++
 	m.activeID = m.nextID
+	request := j.fonts
+	if j.document != nil {
+		request = j.document.fonts
+	}
+	if request == nil {
+		return m.launchLayout(j)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
-	m.cancel = cancel
+	m.cancelFonts = cancel
+	id := m.activeID
+	m.status = "Loading fonts…"
+	return func() tea.Msg {
+		defer cancel()
+		selected, err := fontselection.Prepare(ctx, request)
+		return jobFontsMsg{id: id, job: j, selection: selected, err: err}
+	}
+}
+
+func (m *model) launchLayout(j job) tea.Cmd {
 	id, run := m.activeID, m.run
 	m.status = "Running layout…"
 	if j.document != nil {
 		documentRun := m.document.run
 		m.status = "Running document layout · previous result retained…"
 		return func() tea.Msg {
-			defer cancel()
-			result, err := documentRun(ctx, *j.document)
+			result, err := documentRun(*j.document)
 			return layoutMsg{id: id, revision: j.revision, document: result, documentRun: true, err: err}
 		}
 	}
 	return func() tea.Msg {
-		defer cancel()
-		fonts, err := fontselection.Prepare(ctx, j.fonts)
-		if err != nil {
-			return layoutMsg{id: id, revision: j.revision, err: &pipeline.StageError{Stage: pipeline.StageFonts, Err: err}}
-		}
-		j.input.Fonts = fonts
-		result, err := run(ctx, j.input)
+		result, err := run(j.input)
 		return layoutMsg{id: id, revision: j.revision, result: result, err: err}
 	}
 }
@@ -165,9 +184,11 @@ func (m *model) requestRun() tea.Cmd {
 	m.viewport.SetContent("Waiting for layout…")
 	m.viewport.GotoTop()
 	if m.activeID != 0 {
-		m.cancel()
+		if m.cancelFonts != nil {
+			m.cancelFonts()
+		}
 		m.pending = &j
-		m.status = "Waiting for previous run to stop…"
+		m.status = "Waiting for previous run to finish…"
 		return nil
 	}
 	return m.launch(j)
@@ -276,11 +297,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.resize(msg.Width, msg.Height)
 		return m, nil
+	case jobFontsMsg:
+		if msg.id != m.activeID || m.cancelFonts == nil {
+			return m, nil
+		}
+		m.cancelFonts = nil
+		if msg.err != nil || msg.job.revision != m.revision || m.pending != nil {
+			err := msg.err
+			if err != nil && msg.job.document != nil {
+				err = fmt.Errorf("document fonts: %w", err)
+			} else if err != nil {
+				err = &pipeline.StageError{Stage: pipeline.StageFonts, Err: err}
+			}
+			return m.Update(layoutMsg{id: msg.id, revision: msg.job.revision, documentRun: msg.job.document != nil, err: err})
+		}
+		j := msg.job
+		j.input.Fonts = msg.selection
+		if j.document != nil {
+			copy := *j.document
+			copy.selection = msg.selection
+			j.document = &copy
+		}
+		return m, m.launchLayout(j)
 	case layoutMsg:
 		if msg.id != m.activeID {
 			return m, nil
 		}
-		m.activeID, m.cancel = 0, nil
+		m.activeID, m.cancelFonts = 0, nil
 		if m.pending != nil {
 			j := *m.pending
 			m.pending = nil
@@ -405,8 +448,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, func() tea.Msg { path, err := export(result); return exportMsg{path, err} }
 		case key.Matches(msg, keys.Quit):
 			m.fontEditor.clearPending()
-			if m.cancel != nil {
-				m.cancel()
+			if m.cancelFonts != nil {
+				m.cancelFonts()
 			}
 			return m, tea.Quit
 		case key.Matches(msg, keys.Run):
@@ -583,8 +626,8 @@ func (m model) View() tea.View {
 
 func main() {
 	final, err := tea.NewProgram(initialModel()).Run()
-	if m, ok := final.(model); ok && m.cancel != nil {
-		m.cancel()
+	if m, ok := final.(model); ok && m.cancelFonts != nil {
+		m.cancelFonts()
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error running TUI:", err)

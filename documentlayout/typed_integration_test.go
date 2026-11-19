@@ -66,7 +66,7 @@ func TestTypedNestedFixedSizeIntegration(t *testing.T) {
 	}
 	cfg := Config{Resolver: r, NewShaper: func() (contracts.StreamingShaper, error) { return helpers.NewSyntheticStreamingShaper(8) }}
 	for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
-		out, err := d.Layout(t.Context(), LayoutRequest{Width: 100, Breaker: breaker}, cfg)
+		out, err := d.Layout(LayoutRequest{Width: 100, Breaker: breaker}, cfg)
 		if err != nil {
 			t.Fatal(err)
 		}

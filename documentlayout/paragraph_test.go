@@ -47,7 +47,7 @@ func TestExtractedGroupsFeedPreparedParagraphs(t *testing.T) {
 	}
 	groups := extractAll(t, d)
 	for groupIndex, g := range groups {
-		text, bindings, err := r.ItemizeInline(t.Context(), g.Text, g.Styles, g.Anchors)
+		text, bindings, err := r.ItemizeInline(g.Text, g.Styles, g.Anchors)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -64,7 +64,7 @@ func TestExtractedGroupsFeedPreparedParagraphs(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		p, err := paragraph.Prepare(t.Context(), paragraph.Input{Text: text, Direction: g.Paragraph.Style.Direction, Markup: markup, Atomics: g.Anchors}, khipu.PrepareOptions{Hyphenation: khipu.NoHyphenation}, khipu.Config{Streaming: &khipu.StreamingConfig{Resolver: r, Defaults: defaults, NewShaper: func() (contracts.StreamingShaper, error) { return helpers.NewSyntheticStreamingShaper(8) }}})
+		p, err := paragraph.Prepare(paragraph.Input{Text: text, Direction: g.Paragraph.Style.Direction, Markup: markup, Atomics: g.Anchors}, khipu.PrepareOptions{Hyphenation: khipu.NoHyphenation}, khipu.Config{Streaming: &khipu.StreamingConfig{Resolver: r, Defaults: defaults, NewShaper: func() (contracts.StreamingShaper, error) { return helpers.NewSyntheticStreamingShaper(8) }}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -73,7 +73,7 @@ func TestExtractedGroupsFeedPreparedParagraphs(t *testing.T) {
 			atoms = append(atoms, paragraph.AtomicBox{ID: anchor.ID, BorderWidth: 20 * dimen.BP, Alignment: paragraph.AlignBottomMarginEdge})
 		}
 		for _, breaker := range []paragraph.Breaker{paragraph.FirstFit, paragraph.KnuthPlass} {
-			out, err := p.Layout(t.Context(), paragraph.LayoutRequest{Params: paragraph.Params{Constraints: paragraph.Constraints{Width: 100 * dimen.BP}, Breaker: breaker, Assembly: paragraph.Options{Policy: paragraph.CSSLineHeight}, LineLayout: &g.LineLayout}, Horizontal: &paragraph.HorizontalLayout{}, Atomics: atoms})
+			out, err := p.Layout(paragraph.LayoutRequest{Params: paragraph.Params{Constraints: paragraph.Constraints{Width: 100 * dimen.BP}, Breaker: breaker, Assembly: paragraph.Options{Policy: paragraph.CSSLineHeight}, LineLayout: &g.LineLayout}, Horizontal: &paragraph.HorizontalLayout{}, Atomics: atoms})
 			if err != nil {
 				t.Fatal(err)
 			}

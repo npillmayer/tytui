@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/npillmayer/khipu/dimen"
@@ -26,7 +25,7 @@ func TestCSSPriorityThroughFrozenProof(t *testing.T) {
 					t.Fatalf("style %d = %+v, want %s at 18pt", i, s, want)
 				}
 			}
-			r, err := pipeline.Run(context.Background(), pipeline.Input{
+			r, err := pipeline.Run(pipeline.Input{
 				Text: e.Text, Source: e, Width: 200 * dimen.BP, Breaker: breaker,
 				Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}}),
 			})

@@ -21,7 +21,7 @@ func TestSoftHyphenFaceContext(t *testing.T) {
 	}
 	for _, source := range []string{"אב\u00adגד", "\u00adאב", "אב\u00ad", "אב\u00ad\u00adגד"} {
 		t.Run(source, func(t *testing.T) {
-			text, bindings, err := resolver.Itemize(context.Background(), source, nil)
+			text, bindings, err := resolver.Itemize(source, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -30,11 +30,11 @@ func TestSoftHyphenFaceContext(t *testing.T) {
 			}
 		})
 	}
-	_, bindings, err := resolver.Itemize(context.Background(), "\u00ad\u00ad", nil)
+	_, bindings, err := resolver.Itemize("\u00ad\u00ad", nil)
 	if err != nil || len(bindings) != 1 || bindings[0].Path != latin {
 		t.Fatalf("marker-only default: %+v %v", bindings, err)
 	}
-	_, bindings, err = resolver.Itemize(context.Background(), "אב\u00ada", nil)
+	_, bindings, err = resolver.Itemize("אב\u00ada", nil)
 	if err != nil || len(bindings) != 2 || bindings[0].End != 6 || bindings[0].Path != hebrew || bindings[1].Path != latin {
 		t.Fatalf("real font/script boundary lost: %+v %v", bindings, err)
 	}
@@ -52,7 +52,7 @@ func TestSoftHyphenFaceContext(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, bindings, err = resolver.Itemize(context.Background(), e.Text, e.Styles)
+		_, bindings, err = resolver.Itemize(e.Text, e.Styles)
 		if err != nil {
 			t.Fatal(err)
 		}

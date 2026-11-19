@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"context"
 	"reflect"
 	"testing"
 
@@ -17,7 +16,7 @@ func TestCSSUnitsThroughFrozenProof(t *testing.T) {
 			var reference *pipeline.GlyphProof
 			for _, size := range []string{"96px", "72pt", "1in", "25.4mm", "2.54cm"} {
 				e := styledInput(t, `<p style="font-size:`+size+`"><em style="font-size:50%;display:unset">é</em></p>`)
-				r, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Source: e, Width: 200 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})})
+				r, err := pipeline.Run(pipeline.Input{Text: e.Text, Source: e, Width: 200 * dimen.BP, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})})
 				if err != nil {
 					t.Fatal(err)
 				}

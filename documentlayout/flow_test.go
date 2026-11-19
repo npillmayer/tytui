@@ -38,7 +38,7 @@ func TestFlowInvocationDispatchAndRelease(t *testing.T) {
 	for _, widths := range [][]float64{{100, 100}, {100, 60}, {100, 150}, {100, 60, 100}} {
 		original, calls := flowFixture(t, `<div id="root" style="font-size:20px;color:red;margin:3px 0">aa bb cc dd ee ff gg hh ii jj kk ll mm nn oo pp</div>`)
 		frames := flowFrames(widths...)
-		i, owned, err := original.document.flowInvocation(t.Context(), FlowRequest{Layout: original.request, Frames: frames}, original.config)
+		i, owned, err := original.document.flowInvocation(FlowRequest{Layout: original.request, Frames: frames}, original.config)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -94,12 +94,12 @@ func TestFlowInvocationDispatchAndRelease(t *testing.T) {
 		if out.Group().Paint[0].Paint.Color != "red" {
 			t.Fatal("paint alias")
 		}
-		proof, err := BuildFlowProof(t.Context(), out, flowDrawing())
+		proof, err := BuildFlowProof(out, flowDrawing())
 		if err != nil || len(proof.Glyphs) != 32 {
 			t.Fatal("retained rendering", err)
 		}
 		var svg bytes.Buffer
-		if err := WriteFlowSVG(t.Context(), &svg, out, render.Services{}, LayoutSVGOptions{}); err != nil || !strings.Contains(svg.String(), `data-frame="A"`) || strings.Contains(svg.String(), `data-gid=`) {
+		if err := WriteFlowSVG(&svg, out, render.Services{}, LayoutSVGOptions{}); err != nil || !strings.Contains(svg.String(), `data-frame="A"`) || strings.Contains(svg.String(), `data-gid=`) {
 			t.Fatal("boxes export", err)
 		}
 		if *calls != before {
@@ -111,14 +111,14 @@ func TestFlowInvocationDispatchAndRelease(t *testing.T) {
 func TestFlowEdgesAtomicsNoProgressAndExhaustion(t *testing.T) {
 	original, calls := flowFixture(t, `<div id="root" style="font-size:20px;padding:7px;border-width:3px;border-style:solid;margin-top:4px">aa bb cc dd ee ff <span style="display:inline-block;width:30px;padding:2px">x</span> gg hh ii jj</div>`)
 	req := FlowRequest{Layout: original.request, Frames: []FlowFrame{{ID: "empty", Width: 80, Height: 0}, {ID: "A", Width: 80, Height: 20}, {ID: "B", X: 100, Width: 60, Height: 1000}, {ID: "unused", Width: 60, Height: 10}}}
-	out, err := original.document.LayoutFlow(t.Context(), req, original.config)
+	out, err := original.document.LayoutFlow(req, original.config)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !out.Complete() || out.frames[0].Status != paragraph.FitNoProgress || out.frames[3].Attempted || calls.shape != 2 {
 		t.Fatal("progress/preparation", out.frames, calls)
 	}
-	p, err := BuildFlowProof(t.Context(), out, flowDrawing())
+	p, err := BuildFlowProof(out, flowDrawing())
 	if err != nil || len(p.Atomics) != 1 {
 		t.Fatal("atomic duplicated/lost", err)
 	}
@@ -128,56 +128,46 @@ func TestFlowEdgesAtomicsNoProgressAndExhaustion(t *testing.T) {
 	}
 	before := out.Frames()
 	req.Frames = req.Frames[:1]
-	incomplete, err := original.document.LayoutFlow(t.Context(), req, original.config)
+	incomplete, err := original.document.LayoutFlow(req, original.config)
 	if err != nil || incomplete.Complete() || len(incomplete.Remainder().Lines()) == 0 {
 		t.Fatal("missing remainder", err)
 	}
 	var buf bytes.Buffer
-	if err := WriteFlowSVG(t.Context(), &buf, incomplete, flowDrawing(), LayoutSVGOptions{ShowGlyphs: true}); !errors.Is(err, khipu.ErrUnsupportedPolicy) || buf.Len() != 0 {
+	if err := WriteFlowSVG(&buf, incomplete, flowDrawing(), LayoutSVGOptions{ShowGlyphs: true}); !errors.Is(err, khipu.ErrUnsupportedPolicy) || buf.Len() != 0 {
 		t.Fatal("incomplete export", err)
 	}
 	if !reflect.DeepEqual(before, out.Frames()) {
 		t.Fatal("later invocation mutated earlier output")
 	}
 	req.Frames[0].Width = 100
-	if bad, err := original.document.LayoutFlow(t.Context(), req, original.config); bad != nil || !errors.Is(err, khipu.ErrUnsupportedPolicy) {
+	if bad, err := original.document.LayoutFlow(req, original.config); bad != nil || !errors.Is(err, khipu.ErrUnsupportedPolicy) {
 		t.Fatal("ignored CSS edges", err)
 	}
 }
 
-func TestFlowAdmissionCancellationAndOverflow(t *testing.T) {
+func TestFlowAdmissionAndOverflow(t *testing.T) {
 	for _, source := range []string{`<div id="root"><p>a</p><p>b</p></div>`, `<div id="root">a<span style="display:inline-block">b</span></div>`} {
 		i, _ := flowFixture(t, source)
-		if out, err := i.document.LayoutFlow(t.Context(), FlowRequest{Layout: i.request, Frames: flowFrames(100, 100)}, i.config); out != nil || !errors.Is(err, khipu.ErrUnsupportedPolicy) {
+		if out, err := i.document.LayoutFlow(FlowRequest{Layout: i.request, Frames: flowFrames(100, 100)}, i.config); out != nil || !errors.Is(err, khipu.ErrUnsupportedPolicy) {
 			t.Fatal("unsupported flow accepted", err)
 		}
 	}
 	i, _ := flowFixture(t, `<div id="root" style="font-size:20px">abcdefghijklmno</div>`)
 	req := FlowRequest{Layout: i.request, Frames: flowFrames(100)}
-	out, err := i.document.LayoutFlow(t.Context(), req, i.config)
+	out, err := i.document.LayoutFlow(req, i.config)
 	if err != nil || !out.Complete() || len(out.Frames()[0].Overfull) == 0 {
 		t.Fatal("horizontal overflow hidden", err)
 	}
 	for _, mutate := range []func(*FlowRequest){func(r *FlowRequest) { r.Frames = nil }, func(r *FlowRequest) { r.Frames[0].Width = math.NaN() }, func(r *FlowRequest) { r.Frames[0].X = math.MaxFloat64 }, func(r *FlowRequest) { r.Frames[0].Height = -1 }, func(r *FlowRequest) { r.Frames[0].ID = "" }, func(r *FlowRequest) { r.Frames = append(r.Frames, r.Frames[0]) }} {
 		bad := FlowRequest{Layout: i.request, Frames: flowFrames(100)}
 		mutate(&bad)
-		if out, err := i.document.LayoutFlow(t.Context(), bad, i.config); out != nil || !errors.Is(err, contracts.ErrIllegalArguments) {
+		if out, err := i.document.LayoutFlow(bad, i.config); out != nil || !errors.Is(err, contracts.ErrIllegalArguments) {
 			t.Fatal("invalid frame admitted", err)
 		}
 	}
-	ctx, cancel := context.WithCancel(t.Context())
-	cfg := i.config
-	cfg.Trace = func(s string) {
-		if strings.Contains(s, "flow frame=") {
-			cancel()
-		}
-	}
-	if out, err := i.document.LayoutFlow(ctx, req, cfg); out != nil || !errors.Is(err, context.Canceled) {
-		t.Fatal("late cancellation published", err)
-	}
 	for _, source := range []string{`<div id="root"></div>`, `<div id="root"><span style="display:inline-block;width:0px"></span></div>`} {
 		i, _ := flowFixture(t, source)
-		r, err := i.document.LayoutFlow(t.Context(), FlowRequest{Layout: i.request, Frames: flowFrames(100, 100)}, i.config)
+		r, err := i.document.LayoutFlow(FlowRequest{Layout: i.request, Frames: flowFrames(100, 100)}, i.config)
 		if err != nil || !r.Complete() {
 			t.Fatal("empty/zero content stalled", err)
 		}
@@ -217,7 +207,7 @@ func TestFlowServiceBoundaryAndFailureCleanup(t *testing.T) {
 		s, e := factory()
 		return flowServiceCounter{s, &checks, &shapes}, e
 	}
-	i, frames, err := original.document.flowInvocation(t.Context(), FlowRequest{Layout: original.request, Frames: flowFrames(100, 60, 100)}, original.config)
+	i, frames, err := original.document.flowInvocation(FlowRequest{Layout: original.request, Frames: flowFrames(100, 60, 100)}, original.config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,33 +226,19 @@ func TestFlowServiceBoundaryAndFailureCleanup(t *testing.T) {
 	sentinel := errors.New("outline unavailable")
 	b := flowOutlineFailure{err: sentinel}
 	var buf bytes.Buffer
-	if err := WriteFlowSVG(t.Context(), &buf, out, render.Services{Backend: b, Identity: b}, LayoutSVGOptions{ShowGlyphs: true}); !errors.Is(err, sentinel) || buf.Len() != 0 {
+	if err := WriteFlowSVG(&buf, out, render.Services{Backend: b, Identity: b}, LayoutSVGOptions{ShowGlyphs: true}); !errors.Is(err, sentinel) || buf.Len() != 0 {
 		t.Fatal("failed export wrote", err)
-	}
-	// A cancelled continuation clears both owning locations deterministically.
-	ctx, cancel := context.WithCancel(t.Context())
-	i, frames, err = original.document.flowInvocation(ctx, FlowRequest{Layout: original.request, Frames: flowFrames(100, 60)}, original.config)
-	if err != nil {
-		t.Fatal(err)
-	}
-	source, err = i.run()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cancel()
-	if out, err := i.finishFlow(source, frames); out != nil || !errors.Is(err, context.Canceled) || len(i.prepared) != 0 || i.flow.token != nil {
-		t.Fatal("failed flow retained working handles", err)
 	}
 }
 
 func TestFlowFrameRoundingAndInheritedStyles(t *testing.T) {
 	i, _ := flowFixture(t, `<div id="root" style="font-size:20px;color:red">aa bb cc dd ee ff gg hh</div>`)
 	fs := flowFrames(100+.25/duPerCSSPixel, 60)
-	out, err := i.document.LayoutFlow(t.Context(), FlowRequest{Layout: i.request, Frames: fs}, i.config)
+	out, err := i.document.LayoutFlow(FlowRequest{Layout: i.request, Frames: fs}, i.config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	proof, err := BuildFlowProof(t.Context(), out, flowDrawing())
+	proof, err := BuildFlowProof(out, flowDrawing())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -272,7 +248,7 @@ func TestFlowFrameRoundingAndInheritedStyles(t *testing.T) {
 		}
 	}
 	fs[0].Width = 100 + 1/duPerCSSPixel
-	if out, err := i.document.LayoutFlow(t.Context(), FlowRequest{Layout: i.request, Frames: fs}, i.config); out != nil || !errors.Is(err, khipu.ErrUnsupportedPolicy) {
+	if out, err := i.document.LayoutFlow(FlowRequest{Layout: i.request, Frames: fs}, i.config); out != nil || !errors.Is(err, khipu.ErrUnsupportedPolicy) {
 		t.Fatal("rounded callback mismatch accepted", err)
 	}
 }

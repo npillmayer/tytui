@@ -30,11 +30,12 @@ import (
 // Document work shares the paragraph scheduler, but keeps its controls/history
 // separate. Published DOMs are read-only; selecting/reloading replaces a pointer.
 type documentJob struct {
-	source   *htmlinput.Document
-	selected int
-	width    float32
-	breaker  pipeline.Breaker
-	fonts    *fontselection.Request
+	selection *fontselection.Selection
+	source    *htmlinput.Document
+	selected  int
+	width     float32
+	breaker   pipeline.Breaker
+	fonts     *fontselection.Request
 }
 
 // Only complete results escape the command. Rendering retains the services and
@@ -62,7 +63,7 @@ type documentWorkbench struct {
 	history      []*documentSnapshot
 	historyIndex int
 	lastError    string
-	run          func(context.Context, documentJob) (*documentSnapshot, error)
+	run          func(documentJob) (*documentSnapshot, error)
 	export       func(*documentSnapshot) (string, error)
 }
 
@@ -84,8 +85,8 @@ func parseDocumentWidth(value string) (float32, error) {
 	return float32(n), nil
 }
 
-func runDocumentExperiment(ctx context.Context, input documentJob) (*documentSnapshot, error) {
-	doc, err := documentlayout.Build(ctx, input.source, input.selected)
+func runDocumentExperiment(input documentJob) (*documentSnapshot, error) {
+	doc, err := documentlayout.Build(input.source, input.selected)
 	if err != nil {
 		return nil, fmt.Errorf("document input: %w", err)
 	}
@@ -93,22 +94,22 @@ func runDocumentExperiment(ctx context.Context, input documentJob) (*documentSna
 		return nil, fmt.Errorf("document proofs require OpenType fonts: use F5 to select a default face and any needed fallbacks; F6 synthetic remains available in paragraph mode")
 	}
 	services := ot.Services{}
-	selection, err := fontselection.Prepare(ctx, input.fonts)
+	selection := input.selection
+	if selection == nil {
+		selection, err = fontselection.Prepare(context.Background(), input.fonts)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("document fonts: %w", err)
 	}
-	resolver, err := glyphing.NewStyleMapper(ctx, selection.Fonts, services)
+	resolver, err := glyphing.NewStyleMapper(selection.Fonts, services)
 	if err != nil {
 		return nil, fmt.Errorf("document fonts: %w", err)
 	}
-	result, err := doc.Layout(ctx, documentlayout.LayoutRequest{Width: input.width, Breaker: paragraph.Breaker(input.breaker)}, documentlayout.Config{
+	result, err := doc.Layout(documentlayout.LayoutRequest{Width: input.width, Breaker: paragraph.Breaker(input.breaker)}, documentlayout.Config{
 		Resolver: resolver, NewShaper: func() (contracts.StreamingShaper, error) { return ot.NewStream(64) },
 	})
 	if err != nil {
 		return nil, fmt.Errorf("document layout: %w", err)
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
 	}
 	renderServices := renderot.New()
 	return &documentSnapshot{result: result, services: render.Services{Backend: renderServices, Identity: renderServices},
@@ -117,16 +118,16 @@ func runDocumentExperiment(ctx context.Context, input documentJob) (*documentSna
 		diagnostics: slices.Clone(input.fonts.ResolutionDiagnostics), warnings: slices.Clone(input.source.Warnings)}, nil
 }
 
-func (m *model) cancelLayout() {
+func (m *model) invalidateLayout() {
 	m.revision++
-	if m.cancel != nil {
-		m.cancel()
+	if m.cancelFonts != nil {
+		m.cancelFonts()
 	}
 	m.pending = nil
 }
 
 func (m *model) toggleDocumentMode() tea.Cmd {
-	m.cancelLayout()
+	m.invalidateLayout()
 	m.documentMode = !m.documentMode
 	m.browser.documentMode = m.documentMode
 	if m.documentMode {
@@ -185,9 +186,11 @@ func (m *model) requestDocumentRun() tea.Cmd {
 	m.document.lastError = ""
 	m.refreshDocumentResult()
 	if m.activeID != 0 {
-		m.cancel()
+		if m.cancelFonts != nil {
+			m.cancelFonts()
+		}
 		m.pending = &j
-		m.status = "Waiting for previous run to stop · displayed document retained"
+		m.status = "Waiting for previous run to finish · displayed document retained"
 		return nil
 	}
 	return m.launch(j)

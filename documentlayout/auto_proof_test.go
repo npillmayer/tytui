@@ -161,12 +161,12 @@ func retainedAutoProof(t *testing.T, r *documentlayout.Result, guard *proofServi
 	guard.proofOnly.Store(true)
 	defer guard.proofOnly.Store(false)
 	services := render.Services{Backend: guard, Identity: guard}
-	p, err := documentlayout.BuildProof(t.Context(), r, services)
+	p, err := documentlayout.BuildProof(r, services)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var svg bytes.Buffer
-	if err := documentlayout.WriteSVG(t.Context(), &svg, r, services); err != nil {
+	if err := documentlayout.WriteSVG(&svg, r, services); err != nil {
 		t.Fatal(err)
 	}
 	if guard.preparationCalls() != before {
@@ -396,28 +396,19 @@ func TestRetainedNestedAutoRealProof(t *testing.T) {
 			if !changed {
 				t.Fatal("nested auto fixture did not resize")
 			}
-			for _, cancellation := range []bool{false, true} {
-				ctx, cancel := context.WithCancel(t.Context())
+			{
 				bad := cfg
 				calls := 0
 				sentinel := errors.New("later real-font preparation failed")
 				bad.NewShaper = func() (contracts.StreamingShaper, error) {
 					calls++
 					if calls == 2 {
-						if cancellation {
-							cancel()
-						} else {
-							return nil, sentinel
-						}
+						return nil, sentinel
 					}
 					return cfg.NewShaper()
 				}
-				out, err := d.Layout(ctx, documentlayout.LayoutRequest{Width: 100, Breaker: breaker}, bad)
-				cancel()
+				out, err := d.Layout(documentlayout.LayoutRequest{Width: 100, Breaker: breaker}, bad)
 				want := error(sentinel)
-				if cancellation {
-					want = context.Canceled
-				}
 				if calls != 2 || out != nil || !errors.Is(err, want) {
 					t.Fatal("failed layout published output/lost cause", out, err)
 				}

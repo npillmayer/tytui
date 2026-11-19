@@ -53,7 +53,7 @@ func TestDocumentMarginCollapseThroughEmptyParagraphs(t *testing.T) {
 			if !reflect.DeepEqual(g, replay.Geometry()) || !reflect.DeepEqual(g, r.Geometry()) {
 				t.Fatal("replay changed retained geometry")
 			}
-			proof, err := documentlayout.BuildProof(t.Context(), r, cells())
+			proof, err := documentlayout.BuildProof(r, cells())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -107,14 +107,14 @@ func TestRealDocumentCollapsedProofReplay(t *testing.T) {
 				t.Fatal("real-font empty block created line height")
 			}
 			var before bytes.Buffer
-			if err := documentlayout.WriteSVG(t.Context(), &before, first, services); err != nil {
+			if err := documentlayout.WriteSVG(&before, first, services); err != nil {
 				t.Fatal(err)
 			}
 			for _, width := range []float32{100, 200} {
 				runDocument(t, d, width, breaker, cfg)
 			}
 			var after bytes.Buffer
-			if err := documentlayout.WriteSVG(t.Context(), &after, first, services); err != nil {
+			if err := documentlayout.WriteSVG(&after, first, services); err != nil {
 				t.Fatal(err)
 			}
 			if !bytes.Equal(before.Bytes(), after.Bytes()) || !reflect.DeepEqual(g, first.Geometry()) {

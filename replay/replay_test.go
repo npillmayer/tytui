@@ -63,7 +63,7 @@ func TestOfflineRoundTrip(t *testing.T) {
 					t.Fatal(e)
 				}
 				input := pipeline.Input{Text: "אב\u00adגד", Direction: bidi.RightToLeft, Width: width, Breaker: breaker, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: path, Size: 12 * dimen.BP, Fallbacks: []string{hebrew}, Rules: []fontselection.Rule{{Weight: 700, Path: path}}}})}
-				original, e := pipeline.Run(context.Background(), input)
+				original, e := pipeline.Run(input)
 				if e != nil {
 					t.Fatal(e)
 				}
@@ -71,13 +71,13 @@ func TestOfflineRoundTrip(t *testing.T) {
 				if e = os.WriteFile(path, []byte("replaced font"), 0600); e != nil {
 					t.Fatal(e)
 				}
-				if e = Save(context.Background(), original, manifest, store, revisions()); e != nil {
+				if e = Save(original, manifest, store, revisions()); e != nil {
 					t.Fatal(e)
 				}
 				if e = os.Remove(path); e != nil {
 					t.Fatal(e)
 				}
-				got, e := Load(context.Background(), manifest, store)
+				got, e := Load(manifest, store)
 				if e != nil {
 					t.Fatal(e)
 				}
@@ -105,7 +105,7 @@ func TestOfflineRoundTrip(t *testing.T) {
 				if replacement != (width == 20*dimen.BP) {
 					t.Fatal("wrong discretionary evidence")
 				}
-				if e = Save(context.Background(), original, manifest, store, revisions()); e == nil {
+				if e = Save(original, manifest, store, revisions()); e == nil {
 					t.Fatal("overwrote case")
 				}
 			})
@@ -128,16 +128,16 @@ func TestHTMLAndSyntheticReplay(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	result, e := pipeline.Run(context.Background(), pipeline.Input{Text: extraction.Text, Source: extraction, Width: 100 * dimen.BP})
+	result, e := pipeline.Run(pipeline.Input{Text: extraction.Text, Source: extraction, Width: 100 * dimen.BP})
 	if e != nil {
 		t.Fatal(e)
 	}
 	dir := t.TempDir()
 	path := filepath.Join(dir, "case.json")
-	if e = Save(context.Background(), result, path, filepath.Join(dir, "fonts"), revisions()); e != nil {
+	if e = Save(result, path, filepath.Join(dir, "fonts"), revisions()); e != nil {
 		t.Fatal(e)
 	}
-	got, e := Load(context.Background(), path, filepath.Join(dir, "missing-store"))
+	got, e := Load(path, filepath.Join(dir, "missing-store"))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -146,7 +146,7 @@ func TestHTMLAndSyntheticReplay(t *testing.T) {
 	}
 }
 func TestReplayRejectsMissingAndTamperedResources(t *testing.T) {
-	result, e := pipeline.Run(context.Background(), pipeline.Input{Text: "abc", Width: 100 * dimen.BP, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: latin, Size: 12 * dimen.BP}})})
+	result, e := pipeline.Run(pipeline.Input{Text: "abc", Width: 100 * dimen.BP, Fonts: selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: latin, Size: 12 * dimen.BP}})})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -155,7 +155,7 @@ func TestReplayRejectsMissingAndTamperedResources(t *testing.T) {
 			dir := t.TempDir()
 			path := filepath.Join(dir, "case.json")
 			store := filepath.Join(dir, "fonts")
-			if e = Save(context.Background(), result, path, store, revisions()); e != nil {
+			if e = Save(result, path, store, revisions()); e != nil {
 				t.Fatal(e)
 			}
 			m := readManifest(t, path)
@@ -176,17 +176,10 @@ func TestReplayRejectsMissingAndTamperedResources(t *testing.T) {
 				m.Input.Source = &htmlinput.Extraction{OriginalHTML: "tampered", DocumentID: "wrong"}
 			}
 			rewrite(t, path, m)
-			if _, err := Load(context.Background(), path, store); err == nil {
+			if _, err := Load(path, store); err == nil {
 				t.Fatal("accepted invalid replay")
 			}
 		})
-	}
-}
-func TestReplayCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	if _, err := Load(ctx, "missing", "missing"); err != context.Canceled {
-		t.Fatal(err)
 	}
 }
 
@@ -210,31 +203,30 @@ func TestDescriptorReplayBypassesDiscovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := pipeline.Run(context.Background(), pipeline.Input{Text: "office", Width: 100 * dimen.BP, Fonts: selectFonts(t, settings)})
+	result, err := pipeline.Run(pipeline.Input{Text: "office", Width: 100 * dimen.BP, Fonts: selectFonts(t, settings)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
 	path := filepath.Join(dir, "case.json")
 	store := filepath.Join(dir, "fonts")
-	if err = Save(context.Background(), result, path, store, revisions()); err != nil {
+	if err = Save(result, path, store, revisions()); err != nil {
 		t.Fatal(err)
 	}
 	delete(fsys, "font.ttf")
 	settings.DiscoveryPolicy.Providers[0] = "changed"
 	settings.DescriptorInput.Default.Families[0] = "changed"
-	got, err := Load(context.Background(), path, store)
+	got, err := Load(path, store)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if calls != 1 || got.Input.Fonts.Provenance.DiscoveryPolicy.Providers[0] != "offline" || got.Input.Fonts.Provenance.DescriptorInput.Default.Families[0] != "serif" || !reflect.DeepEqual(got.FontDiagnostics, result.FontDiagnostics) {
 		t.Fatal("replay resolved again or lost policy/diagnostics")
 	}
-	if err = Save(context.Background(), got, filepath.Join(dir, "resaved.json"), store, revisions()); err != nil {
+	if err = Save(got, filepath.Join(dir, "resaved.json"), store, revisions()); err != nil {
 		t.Fatal(err)
 	}
 	if calls != 1 {
 		t.Fatal("resave invoked discovery")
 	}
-
 }

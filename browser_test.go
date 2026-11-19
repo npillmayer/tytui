@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -21,7 +20,7 @@ func loadedWorkbench(t *testing.T) model {
 	if cmd == nil || m.browser.activeID == 0 {
 		t.Fatal("load not scheduled")
 	}
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.browser.doc == nil {
 		t.Fatalf("load failed: %s", m.browser.status)
 	}
@@ -49,7 +48,7 @@ func TestDOMSelectionToFrozenResult(t *testing.T) {
 		t.Fatalf("selection: %q %s", m.textarea.Value(), m.browser.status)
 	}
 	m, cmd := updateModel(m, runKey())
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.result == nil || m.result.Input.Source == nil {
 		t.Fatalf("source map not retained: %s", m.status)
 	}
@@ -120,14 +119,14 @@ func TestHTMLLoadFailureAndStaleCompletion(t *testing.T) {
 	m.browser.setFocus(pathFocus)
 	m.browser.path.SetValue("testdata/html/missing.html")
 	m, cmd := updateModel(m, keyPress(tea.KeyEnter))
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.browser.doc != original || !strings.Contains(m.browser.status, "Load failed") {
 		t.Fatal("failure replaced working DOM")
 	}
 	m.browser.path.SetValue("testdata/html/paragraphs.html")
 	m, cmd = updateModel(m, keyPress(tea.KeyEnter))
 	m, _ = updateModel(m, tea.KeyPressMsg{Code: 'x', Text: "x"})
-	m, _ = updateModel(m, cmd())
+	m = finishCommand(m, cmd)
 	if m.browser.activeID != 0 || m.browser.doc != original || !strings.Contains(m.browser.status, "Filename changed") {
 		t.Fatal("stale load accepted")
 	}
@@ -169,7 +168,7 @@ func TestSourceMapValidationAndOwnership(t *testing.T) {
 		t.Fatal(err)
 	}
 	width, _ := parseWidth("100")
-	result, err := pipeline.Run(context.Background(), pipeline.Input{Text: e.Text, Width: width, Source: e})
+	result, err := pipeline.Run(pipeline.Input{Text: e.Text, Width: width, Source: e})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +176,7 @@ func TestSourceMapValidationAndOwnership(t *testing.T) {
 	if result.Input.Source.Spans[0].NodePath == "modified" {
 		t.Fatal("source map aliases input")
 	}
-	if _, err := pipeline.Run(context.Background(), pipeline.Input{Text: "other", Width: width, Source: e}); err == nil {
+	if _, err := pipeline.Run(pipeline.Input{Text: "other", Width: width, Source: e}); err == nil {
 		t.Fatal("mismatched provenance accepted")
 	}
 }

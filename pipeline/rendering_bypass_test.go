@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"context"
 	"reflect"
 	"testing"
 
@@ -36,7 +35,6 @@ func TestRenderingBypassSeparatesPaintFromTypesetterAndInput(t *testing.T) {
 	for _, breaker := range []pipeline.Breaker{pipeline.FirstFit, pipeline.KnuthPlass} {
 		for _, backend := range []string{"synthetic", "OpenType"} {
 			for _, source := range []string{"DOM", "shared"} {
-
 				t.Run(string(breaker)+"/"+backend+"/"+source+"/"+"glyph-boundary", func(t *testing.T) {
 					e := styledInput(t, "<p>\n<span style=\"color:red\">f</span><span style=\"color:blue\">i</span>\n</p>")
 					in := pipeline.Input{Text: e.Text, Source: e, Width: 100 * dimen.BP, Breaker: breaker}
@@ -46,7 +44,7 @@ func TestRenderingBypassSeparatesPaintFromTypesetterAndInput(t *testing.T) {
 					if backend == "OpenType" {
 						in.Fonts = selectFonts(t, &fontselection.Request{Settings: fontselection.Settings{DefaultPath: gentium, Size: 12 * dimen.BP}})
 					}
-					r, err := pipeline.Run(context.Background(), in)
+					r, err := pipeline.Run(in)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -104,7 +102,6 @@ func TestRenderingBypassSeparatesPaintFromTypesetterAndInput(t *testing.T) {
 						}
 					}
 				})
-
 			}
 		}
 	}

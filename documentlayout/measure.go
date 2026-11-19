@@ -1,7 +1,6 @@
 package documentlayout
 
 import (
-	"context"
 	"fmt"
 
 	box "github.com/npillmayer/css-box-layout/layout"
@@ -14,9 +13,6 @@ import (
 // measures just the requested group; it neither accepts final output nor marks
 // a final callback attempt. Only completed horizontal preparation is cached.
 func (i *invocation) MeasureInline(request box.InlineMeasureRequest) (box.IntrinsicWidths, error) {
-	if err := i.ctx.Err(); err != nil {
-		return box.IntrinsicWidths{}, err
-	}
 	if request.Group == nil || request.Edges == nil || request.Atomics == nil {
 		return box.IntrinsicWidths{}, invalid("incomplete inline measurement request")
 	}
@@ -24,11 +20,11 @@ func (i *invocation) MeasureInline(request box.InlineMeasureRequest) (box.Intrin
 	if err != nil {
 		return box.IntrinsicWidths{}, err
 	}
-	atoms, err := atomicIntrinsics(i.ctx, &p.input, request)
+	atoms, err := atomicIntrinsics(&p.input, request)
 	if err != nil {
 		return box.IntrinsicWidths{}, err
 	}
-	widths, err := p.paragraph.MeasureIntrinsic(i.ctx, khipu.MeasureRequest{Atomics: atoms})
+	widths, err := p.paragraph.MeasureIntrinsic(khipu.MeasureRequest{Atomics: atoms})
 	if err != nil {
 		return box.IntrinsicWidths{}, err
 	}
@@ -36,18 +32,13 @@ func (i *invocation) MeasureInline(request box.InlineMeasureRequest) (box.Intrin
 	if err != nil {
 		return box.IntrinsicWidths{}, err
 	}
-	if err := i.ctx.Err(); err != nil {
-		return box.IntrinsicWidths{}, err
-	}
+
 	return summary, nil
 }
 
-func atomicIntrinsics(ctx context.Context, g *InlineGroup, request box.InlineMeasureRequest) ([]khipu.AtomicIntrinsic, error) {
+func atomicIntrinsics(g *InlineGroup, request box.InlineMeasureRequest) ([]khipu.AtomicIntrinsic, error) {
 	atoms := make([]khipu.AtomicIntrinsic, 0, len(g.AtomicSources))
 	for _, source := range g.AtomicSources {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
 		atom, ok := request.Atomics.Lookup(source.BoxID)
 		if !ok || atom.BoxID != source.BoxID {
 			return nil, invalid("missing or mismatched intrinsic atomic box")

@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/npillmayer/khipu/dimen"
@@ -9,7 +8,7 @@ import (
 )
 
 func ExampleRun() {
-	result, err := pipeline.Run(context.Background(), pipeline.Input{
+	result, err := pipeline.Run(pipeline.Input{
 		Text: "éa bb cc", Width: 12 * dimen.PT,
 	})
 	if err != nil {

@@ -35,11 +35,11 @@ func TestFragmentSVGViewportOverflowWritesNothing(t *testing.T) {
 				{GroupID: g.Input.GroupID, Fragment: f, FrameOrigin: render.Point{X: tc.x, Y: tc.y}},
 			}
 			// The retained proof is valid: only the derived viewport span overflows.
-			if _, err := documentlayout.BuildFragmentProof(t.Context(), r, placements, cells()); err != nil {
+			if _, err := documentlayout.BuildFragmentProof(r, placements, cells()); err != nil {
 				t.Fatal(err)
 			}
 			var out bytes.Buffer
-			err := documentlayout.WriteFragmentSVG(t.Context(), &out, r, placements, cells())
+			err := documentlayout.WriteFragmentSVG(&out, r, placements, cells())
 			if tc.overflow {
 				if !errors.Is(err, contracts.ErrIllegalArguments) || out.Len() != 0 {
 					t.Fatalf("overflow: error=%v, wrote %d bytes", err, out.Len())

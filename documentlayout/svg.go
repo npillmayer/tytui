@@ -2,7 +2,6 @@ package documentlayout
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"encoding/xml"
 	"fmt"
@@ -16,22 +15,22 @@ import (
 // Local images embed retained validated bytes as data URIs, without source I/O.
 // Proof construction completes before writing anything; writer failures can still
 // leave partial bytes at the destination. This is not a document replay format.
-func WriteSVG(ctx context.Context, w io.Writer, result *Result, services render.Services) error {
+func WriteSVG(w io.Writer, result *Result, services render.Services) error {
 	if w == nil {
 		return invalid("document proof requires a writer")
 	}
-	p, err := BuildProof(ctx, result, services)
+	p, err := BuildProof(result, services)
 	if err != nil {
 		return err
 	}
-	return writeProofSVG(ctx, w, p)
+	return writeProofSVG(w, p)
 }
 
-func writeProofSVG(ctx context.Context, w io.Writer, p *Proof) error {
-	return writeDecoratedProofSVG(ctx, w, p, "")
+func writeProofSVG(w io.Writer, p *Proof) error {
+	return writeDecoratedProofSVG(w, p, "")
 }
 
-func writeDecoratedProofSVG(ctx context.Context, w io.Writer, p *Proof, decoration string) error {
+func writeDecoratedProofSVG(w io.Writer, p *Proof, decoration string) error {
 	// Finite bounds can still overflow when their span is computed. Validate
 	// the completed padded viewport before serializing or writing any bytes;
 	// preserve the existing operation order and never clamp retained geometry.
@@ -74,9 +73,7 @@ func writeDecoratedProofSVG(ctx context.Context, w io.Writer, p *Proof, decorati
 		b.WriteString(`</g>`)
 	}
 	b.WriteString(`</svg>`)
-	if err := ctx.Err(); err != nil {
-		return err
-	}
+
 	n, err := w.Write(b.Bytes())
 	if err == nil && n != b.Len() {
 		return io.ErrShortWrite

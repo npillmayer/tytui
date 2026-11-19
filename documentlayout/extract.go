@@ -1,7 +1,6 @@
 package documentlayout
 
 import (
-	"context"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -81,13 +80,7 @@ type inlineRange struct {
 // it emits one U+FFFC and skips the entire subtree; nested groups are independent
 // entries in Document.Groups. Atomic IDs are assigned in emitted occurrence order
 // and scoped to this group, independently of BoxID or dimension-table ordering.
-func (d *Document) Extract(ctx context.Context, id box.BoxID) (*InlineGroup, error) {
-	if ctx == nil {
-		return nil, invalid("nil context")
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
+func (d *Document) Extract(id box.BoxID) (*InlineGroup, error) {
 	if d == nil {
 		return nil, invalid("nil document")
 	}
@@ -101,9 +94,6 @@ func (d *Document) Extract(ctx context.Context, id box.BoxID) (*InlineGroup, err
 	var ranges []inlineRange
 	var walk func(*box.LayoutNode) error
 	walk = func(n *box.LayoutNode) error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
 		if n == nil {
 			return invalid("nil normalized node")
 		}
@@ -160,9 +150,6 @@ func (d *Document) Extract(ctx context.Context, id box.BoxID) (*InlineGroup, err
 	}
 	pi := 0
 	for _, tr := range transforms {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
 		for pi < len(pieces) && pieces[pi].end <= tr.SourceStart {
 			pi++
 		}
@@ -191,9 +178,6 @@ func (d *Document) Extract(ctx context.Context, id box.BoxID) (*InlineGroup, err
 		}
 	}
 	for _, r := range ranges {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
 		start, end, found := projectRange(transforms, r.start, r.end)
 		if !found {
 			continue
@@ -212,9 +196,7 @@ func (d *Document) Extract(ctx context.Context, id box.BoxID) (*InlineGroup, err
 	if err := typestyle.ValidateSpans(g.Text, g.Styles); err != nil {
 		return nil, err
 	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
+
 	return g, nil
 }
 

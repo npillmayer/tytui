@@ -16,7 +16,7 @@ func TestGraphemeFallbackPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, bindings, err := r.Itemize(context.Background(), "a\u0301a", nil)
+	_, bindings, err := r.Itemize("a\u0301a", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -24,17 +24,17 @@ func TestGraphemeFallbackPolicy(t *testing.T) {
 		t.Fatalf("grapheme split or wrong priority %+v", bindings)
 	}
 	settings.Fallbacks[0] = "missing.ttf"
-	if _, _, err = r.Itemize(context.Background(), "a\u0301a", nil); err != nil {
+	if _, _, err = r.Itemize("a\u0301a", nil); err != nil {
 		t.Fatal("resolver aliases settings", err)
 	}
 	strict, err := loadResolver(context.Background(), fontselection.Settings{DefaultPath: "../../opentype/testdata/fonts/ShaperTestProgress.ttf", Size: 12 * dimen.BP}, testServices{Loader: otadapter.Services{}, Coverage: otadapter.Services{}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err = strict.Itemize(context.Background(), "a\u0301", nil); err == nil {
+	if _, _, err = strict.Itemize("a\u0301", nil); err == nil {
 		t.Fatal("implicit fallback")
 	}
-	if _, _, err = r.Itemize(context.Background(), "العربية", nil); err == nil {
+	if _, _, err = r.Itemize("العربية", nil); err == nil {
 		t.Fatal("unsupported script silently shaped")
 	}
 }

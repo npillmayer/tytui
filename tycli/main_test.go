@@ -33,7 +33,7 @@ func TestPipeline(t *testing.T) {
 		for _, level := range []string{"quiet", "info", "trace"} {
 			t.Run(breaker+"/"+level, func(t *testing.T) {
 				var out, log bytes.Buffer
-				err := run(t.Context(), options{input: html, css: css, fonts: mapping, root: "root", output: "-", width: "200", breaker: breaker, log: level}, &out, &log)
+				err := run(options{input: html, css: css, fonts: mapping, root: "root", output: "-", width: "200", breaker: breaker, log: level}, &out, &log)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -67,7 +67,7 @@ func TestFlowRootPipeline(t *testing.T) {
 				t.Fatal(err)
 			}
 			var out, log bytes.Buffer
-			if err := run(t.Context(), options{input: input, css: css, root: "root", fonts: "examples/fonts.yaml", output: "-", width: "200", breaker: breaker, log: "quiet"}, &out, &log); err != nil {
+			if err := run(options{input: input, css: css, root: "root", fonts: "examples/fonts.yaml", output: "-", width: "200", breaker: breaker, log: "quiet"}, &out, &log); err != nil {
 				t.Fatalf("%s/%s: %v", breaker, display, err)
 			}
 			if canonical == nil {
@@ -133,7 +133,7 @@ func TestFailurePreservesOutput(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "out.svg")
 	os.WriteFile(path, []byte("previous"), 0600)
 	for _, width := range []string{"NaN", "Inf", "-1", "bogus"} {
-		err := run(t.Context(), options{width: width, output: path, log: "quiet", breaker: "firstfit"}, &bytes.Buffer{}, &bytes.Buffer{})
+		err := run(options{width: width, output: path, log: "quiet", breaker: "firstfit"}, &bytes.Buffer{}, &bytes.Buffer{})
 		if err == nil {
 			t.Fatalf("accepted width %s", width)
 		}
@@ -178,7 +178,7 @@ func TestStylesFixtureParagraphsWithoutCSSOverride(t *testing.T) {
 	for _, root := range []string{"bidi", "verse"} {
 		for _, breaker := range []string{"firstfit", "knuth-plass"} {
 			var out, log bytes.Buffer
-			err := run(t.Context(), options{input: "../testdata/html/styles.html", root: root, fonts: "examples/fonts.yaml", output: "-", width: "420", breaker: breaker, log: "quiet"}, &out, &log)
+			err := run(options{input: "../testdata/html/styles.html", root: root, fonts: "examples/fonts.yaml", output: "-", width: "420", breaker: breaker, log: "quiet"}, &out, &log)
 			if err != nil {
 				t.Fatalf("root=%s breaker=%s: %v", root, breaker, err)
 			}
