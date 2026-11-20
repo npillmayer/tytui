@@ -128,7 +128,10 @@ accepted line counts, suffix breaker and overflow. Equal widths reuse geometry;
 different widths continue with first-fit. Export never reflows content.
 
 The invocation releases all working preparation/checkpoints when complete or
-abandoned; only frozen output survives. Ordinary output without `--frames` is
+abandoned; only frozen output survives. Typography retains immutable Khipu material
+and independent Tikray decisions internally; CLI inputs and flags are unchanged.
+See the [PR 3 migration baseline](../../typography/doc/REFLOW_PR3.md).
+Ordinary output without `--frames` is
 unchanged. P6 validates this opt-in profile; see the
 [production cost report](../../typography/doc/FLOW_COSTS.md). Flow replay,
 multi-paragraph scheduling and generalized pagination remain deferred.

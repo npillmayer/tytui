@@ -40,16 +40,23 @@ func TestBuiltStylesReachFrozenLayout(t *testing.T) {
 		t.Fatal(err)
 	}
 	owner := khipu.NewKhipukamayuq(syntheticConfig())
-	encoded, err := owner.EncodeParagraph(par)
+	material, discovery, err := owner.EncodeParagraph(par)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound, err := khipu.BindParagraph(material, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	layout := firstfit.DefaultLayout(linebreak.RectangularParShape(200 * dimen.BP))
-	breaks, err := firstfit.BreakParagraph(encoded, layout, nil)
+	plan, err := firstfit.BreakParagraph(khipu.BreakRequest{
+		Binding: bound, Discovery: discovery,
+		Geometry: khipu.GeometryRequest{Shape: layout.LineShape, LeftSkip: layout.LeftSkip, RightSkip: layout.RightSkip},
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	frozen, err := owner.Freeze(encoded, breaks, layout)
+	frozen, err := khipu.Freeze(plan)
 	if err != nil {
 		t.Fatal(err)
 	}

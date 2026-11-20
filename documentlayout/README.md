@@ -77,8 +77,31 @@ envelopes, source/paint/layout slices and paragraph diagnostics are copied by
 accessors. No preparation handle or partial invocation table escapes. Each call
 constructs fresh working state; a failed resize cannot modify an older snapshot.
 Keep the tree and font/scale services stable, and serialize layouts sharing a
-resolver. Context is checked at callback entry/completion and document publication;
-synchronous CSS flow, bidi and breaking retain their cancellation limits.
+resolver. Typesetting and CSS flow are synchronous and context-free; contexts
+remain confined to font loading and internal streaming coordination.
+
+## Reusable paragraph material and frame flow
+
+Typography's `Prepared` now privately retains immutable SoA `khipu.Khipu` material
+and matching `Discovery`. Measurements and layouts share complete discovered
+replacement batches. Each layout binds copied atomic advances and selects an
+independent immutable `Tikray`; freezing uses that trial's captured geometry.
+Applications continue to call `Prepare`, `Prepared.MeasureIntrinsic`,
+`Prepared.Layout`, `Prepared.StartFlow` and `Continuation.Fit`, without handling
+these private engine objects or exposing a public speculative-trial API.
+
+Keep preparation invocation-local and serialize calls sharing a mapper/services.
+Final child callbacks release their preparation. Frame flow retains root
+preparation and continuation only until completion, frame exhaustion or failure;
+results retain frozen fragments, source/paint and surrounding margins, never
+working handles. Equal widths reuse geometry without additional services or
+breaking. Different widths lock the accepted prefix and search only the suffix,
+then fully freeze/assemble with original paragraph styles and bidi context.
+
+[The PR 3 migration record](../../typography/doc/REFLOW_PR3.md) records the complete
+cross-module validation baseline. Replay remains version 5 and does not serialize
+Khipus, Tikrays or checkpoints. General registers, page trials and concurrent
+execution remain deferred.
 
 ## Call flow: CSS initiates paragraph layout
 

@@ -15,6 +15,13 @@ cancellation requirements for typesetting in this document.
 > versions 1–4 are historical rejection cases. See [offline replay](OFFLINE_REPLAY.md).
 > Older milestone descriptions below do not restore compatibility behavior.
 
+> Reflow update (2026-11-20): PRs 1–3 are integrated. Typography privately uses
+> immutable Khipu/Discovery, atomic bindings and independent Tikrays behind its
+> existing paragraph API. Frame continuations preserve captured prefix geometry;
+> compatible equal-width fitting remains geometry-only. Completed results retain
+> no working handles. See [the validation baseline](../../typography/doc/REFLOW_PR3.md).
+> The broader public trial API and page-layout work remain deferred.
+
 > Package update: this document includes historical API locations.
 > See [current ownership](TYPOGRAPHY_PACKAGES.md) for the glyphing/render split.
 > Old root, paragraph and combined-adapter APIs have been removed.
